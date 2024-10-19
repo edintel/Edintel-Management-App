@@ -1,0 +1,9 @@
+.dashboard {
+    position: relative;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .dashboard h2 {
+    margin-bottom: 20px;
+  }
