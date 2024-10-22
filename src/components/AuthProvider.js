@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "../config/AuthConfig";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (accounts.length > 0) {
       setUser(accounts[0]);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } else {
       setUser(null);
     }
@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     instance.logoutPopup().then(() => {
-      navigate('/login');
+      navigate("/login");
     });
   };
 
