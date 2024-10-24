@@ -1,0 +1,189 @@
+/* src/components/Expenses/ExpenseDetail.css */
+.expense-detail-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.expense-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.expense-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.expense-info-card {
+  grid-column: 1 / -1;
+}
+
+.expense-main-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.expense-main-info h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #424242;
+}
+
+.expense-amount {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #1a73e8;
+}
+
+.expense-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-size: 0.875rem;
+  color: #757575;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: #424242;
+}
+
+.expense-image-card {
+  grid-column: 1;
+}
+
+.invoice-preview {
+    aspect-ratio: 4/3;
+    overflow: hidden;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .invoice-preview img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+  
+  .approval-status-card {
+    grid-column: 2;
+  }
+  
+  .approval-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .timeline-item {
+    display: flex;
+    gap: 1rem;
+    padding-left: 1rem;
+  }
+  
+  .timeline-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #f5f5f5;
+    flex-shrink: 0;
+  }
+  
+  .timeline-item.approved .timeline-icon {
+    background-color: #e8f5e9;
+    color: #388e3c;
+  }
+  
+  .timeline-item.pending .timeline-icon {
+    background-color: #fff3e0;
+    color: #f57c00;
+  }
+  
+  .timeline-item.upcoming .timeline-icon {
+    background-color: #f5f5f5;
+    color: #757575;
+  }
+  
+  .timeline-content {
+    flex: 1;
+  }
+  
+  .timeline-content h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #424242;
+  }
+  
+  .timeline-date {
+    margin: 0.25rem 0;
+    font-size: 0.875rem;
+    color: #757575;
+  }
+  
+  .timeline-comments {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: #616161;
+    padding: 0.5rem;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+  }
+  
+  .expense-not-found {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #757575;
+  }
+  
+  .expense-not-found svg {
+    margin-bottom: 1rem;
+  }
+  
+  .expense-not-found h2 {
+    margin: 0 0 1.5rem 0;
+    color: #424242;
+  }
+  
+  @media (max-width: 768px) {
+    .expense-detail-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .expense-image-card,
+    .approval-status-card {
+      grid-column: 1;
+    }
+  
+    .expense-main-info {
+      flex-direction: column;
+      gap: 1rem;
+    }
+  
+    .expense-detail-header button {
+      width: auto;
+    }
+  }
