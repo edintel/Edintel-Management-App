@@ -1,20 +1,38 @@
-// src/components/Expenses/ExpenseDetail.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../contexts/AppContext';
 import Layout from '../layout/Layout';
 import Card from '../common/Card';
 import Button from '../common/Button';
-import { ArrowLeft, Edit, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit, Clock, CheckCircle, AlertTriangle, Image, Loader, StickyNote, XCircle } from 'lucide-react';
 import './ExpenseDetail.css';
 import ExpenseImage from '../common/ExpenseImage';
 
 const ExpenseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { expenseReports } = useAppContext();
+  const { expenseReports, loading: reportsLoading } = useAppContext();
+  const [expense, setExpense] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const expense = expenseReports.find(exp => exp.id === id);
+  useEffect(() => {
+    if (!reportsLoading && expenseReports.length > 0) {
+      const foundExpense = expenseReports.find(exp => exp.id === id);
+      setExpense(foundExpense);
+      setLoading(false);
+    }
+  }, [id, expenseReports, reportsLoading]);
+
+  if (loading || reportsLoading) {
+    return (
+      <Layout>
+        <div className="expense-loading">
+          <Loader size={48} className="animate-spin" />
+          <p>Cargando detalles del gasto...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!expense) {
     return (
@@ -38,22 +56,28 @@ const ExpenseDetail = () => {
     {
       title: 'Revisión de Asistente',
       approved: expense.aprobacionAsistente,
-      date: '15/10/2024',
-      comments: 'Todo en orden'
     },
     {
       title: 'Aprobación de Jefatura',
       approved: expense.aprobacionJefatura,
-      date: '16/10/2024',
-      comments: 'Aprobado'
     },
     {
       title: 'Aprobación de Contabilidad',
       approved: expense.aprobacionContabilidad,
-      date: null,
-      comments: null
     }
   ];
+
+  const getStatusClass = (status) => {
+    if (status === true) return 'approved';
+    if (status === false) return 'rejected';
+    return 'upcoming';
+  };
+
+  const getStatusIcon = (status) => {
+    if (status === true) return <CheckCircle size={24} />;
+    if (status === false) return <XCircle size={24} />;
+    return <Clock size={24} />;
+  };
 
   return (
     <Layout>
@@ -118,17 +142,23 @@ const ExpenseDetail = () => {
           </Card>
 
           <Card
-          title="Comprobante"
-          className="expense-image-card"
-        >
-          <div className="invoice-preview">
-            <ExpenseImage 
-              itemId={expense.id}
-              fileName={expense.comprobante}
-              className="expense-detail-image"
-            />
-          </div>
-        </Card>
+            title="Comprobante"
+            className="expense-image-card"
+          >
+            <div className="invoice-preview">
+              {expense.comprobante ? (
+                <ExpenseImage 
+                  itemId={expense.comprobante}
+                  className="expense-detail-image"
+                />
+              ) : (
+                <div className="no-image-placeholder">
+                  <Image size={48} />
+                  <p>No hay comprobante adjunto</p>
+                </div>
+              )}
+            </div>
+          </Card>
 
           <Card
             title="Estado de Aprobación"
@@ -138,31 +168,26 @@ const ExpenseDetail = () => {
               {approvalStatus.map((status, index) => (
                 <div
                   key={index}
-                  className={`timeline-item ${status.approved ? 'approved' :
-                      status.date ? 'pending' : 'upcoming'
-                    }`}
+                  className={`timeline-item ${getStatusClass(status.approved)}`}
                 >
                   <div className="timeline-icon">
-                    {status.approved ? (
-                      <CheckCircle size={24} />
-                    ) : status.date ? (
-                      <Clock size={24} />
-                    ) : (
-                      <Clock size={24} />
-                    )}
+                    {getStatusIcon(status.approved)}
                   </div>
                   <div className="timeline-content">
                     <h3>{status.title}</h3>
-                    {status.date && (
-                      <p className="timeline-date">{status.date}</p>
-                    )}
-                    {status.comments && (
-                      <p className="timeline-comments">{status.comments}</p>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
+            {expense.notasRevision && (
+              <div className="revision-notes">
+                <div className="notes-header">
+                  <StickyNote size={20} />
+                  <h3>Notas de revisión</h3>
+                </div>
+                <p>{expense.notasRevision}</p>
+              </div>
+            )}
           </Card>
         </div>
       </div>

@@ -9,6 +9,8 @@ class GraphService {
     this.tenantName = sharePointConfig.tenantName;
     this.siteName = sharePointConfig.siteName;
     this.lists = sharePointConfig.lists;
+    this.siteId = sharePointConfig.siteId;
+    this.driveId = sharePointConfig.driveId;
   }
 
   async initializeGraphClient() {
@@ -31,15 +33,17 @@ class GraphService {
     }
   }
 
-  async getImageUrl(itemId, fileName) {
-    if (!fileName || !itemId) return null;
-    
-    await this.initializeGraphClient();
+  async getImageContent(itemId) {
+    if (!itemId) {
+      throw new Error('Item ID is required');
+    }
     
     try {
-      const fileNameEncoded = encodeURIComponent(fileName);
+      await this.initializeGraphClient();
 
-      const attachmentUrl = `https://${this.tenantName}.sharepoint.com/sites/${this.siteName}/_api/v2.1/sites('${this.siteId}')/lists('${this.listId}')/items('${itemId}')/attachments('${fileNameEncoded}')/content`;
+      const response = await this.client
+        .api(`/sites/${this.siteId}/drives/${this.driveId}/items/${itemId}`)
+        .get();
 
       const accounts = this.msalInstance.getAllAccounts();
       if (accounts.length === 0) {
@@ -52,16 +56,16 @@ class GraphService {
       });
 
       return {
-        url: attachmentUrl,
+        url: response['@microsoft.graph.downloadUrl'] || response,
         token: tokenResponse.accessToken
       };
     } catch (error) {
-      console.error('Error fetching image URL:', error);
       throw error;
     }
   }
 
   async getSiteId() {
+    await this.initializeGraphClient();
     const siteResponse = await this.client
       .api(`/sites/${this.tenantName}.sharepoint.com:/sites/${this.siteName}`)
       .get();
@@ -76,26 +80,6 @@ class GraphService {
       .get();
     
     return response.value[0].id;
-  }
-
-  parseImageFileName(comprobanteField) {
-    if (!comprobanteField) return null;
-    
-    try {
-      if (typeof comprobanteField === 'string') {
-        try {
-          const parsed = JSON.parse(comprobanteField);
-          return parsed.fileName || null;
-        } catch {
-          return comprobanteField;
-        }
-      } else if (comprobanteField.fileName) {
-        return comprobanteField.fileName;
-      }
-      return null;
-    } catch {
-      return null;
-    }
   }
 
   async getListItems(listName) {
@@ -117,27 +101,29 @@ class GraphService {
       periodo: item.fields.Periodo,
     }));
   }
-  
 
   async getExpenseReports() {
     const items = await this.getListItems("expenseReports");
     return items.map((item) => ({
       id: item.id,
       rubro: item.fields.Rubro,
-      comprobante: this.parseImageFileName(item.fields.Comprobante_x002f_Factura),
-      comprobanteRaw: item.fields.Comprobante_x002f_Factura,
+      comprobante: item.fields.Comprobante || null,
       fecha: item.fields.Fecha,
       monto: parseFloat(item.fields.Monto) || 0,
       st: item.fields.ST,
-      periodoId: item.fields.PeriodoID,
+      periodoId: item.fields.PeriodoIDLookupId,
       fondosPropios: Boolean(item.fields.Fondospropios),
       motivo: item.fields.Title,
-      notasRevision: item.fields.Notasrevisi_x00f3_n,
+      notasRevision: item.fields.Notasrevision,
       bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
       aprobacionAsistente: Boolean(item.fields.Aprobaci_x00f3_n_x0020_Departame),
       aprobacionJefatura: Boolean(item.fields.Aprobaci_x00f3_n_x0020_Jefatura),
       aprobacionContabilidad: Boolean(item.fields.Aprobaci_x00f3_n_x0020_Contabili),
-      createdBy: item.fields.Author?.Email || '',
+      createdBy: {
+        name: item.createdBy.user.displayName || '',
+        email: item.createdBy.user.email || '',
+        id: item.createdBy.user.id || '',
+      },
     }));
   }
 
@@ -180,7 +166,6 @@ class GraphService {
     }));
   }
 
-
   mapPeriodReports(periods, reports) {
     return periods.map(period => ({
       ...period,
@@ -206,7 +191,7 @@ class GraphService {
       const userReports = {};
       periodReports.forEach(report => {
         if (!userReports[report.createdBy]) {
-          const userRole = roles.find(role => role.empleado?.email === report.createdBy);
+          const userRole = roles.find(role => role.empleado?.email === report.createdBy.email);
           userReports[report.createdBy] = {
             user: userRole?.empleado || { email: report.createdBy },
             reports: []

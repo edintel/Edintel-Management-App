@@ -1,4 +1,3 @@
-// src/components/Dashboard/Dashboard.js
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../contexts/AppContext';
@@ -34,23 +33,51 @@ const Dashboard = () => {
       key: 'status', 
       header: 'Estado',
       render: (_, row) => {
-        let status = 'Pendiente';
-        let statusClass = 'pending';
+        if (row.aprobacionAsistente === false) {
+          return (
+            <span className="status-badge status-rejected">
+              No aprobada
+            </span>
+          );
+        }
+        if (row.aprobacionJefatura === false) {
+          return (
+            <span className="status-badge status-rejected">
+              No aprobada
+            </span>
+          );
+        }
+        if (row.aprobacionContabilidad === false) {
+          return (
+            <span className="status-badge status-rejected">
+              No aprobada
+            </span>
+          );
+        }
         
         if (row.aprobacionContabilidad) {
-          status = 'Aprobado';
-          statusClass = 'approved';
+          return (
+            <span className="status-badge status-approved">
+              Aprobado
+            </span>
+          );
         } else if (row.aprobacionJefatura) {
-          status = 'En Contabilidad';
-          statusClass = 'in-progress';
+          return (
+            <span className="status-badge status-in-progress">
+              En Contabilidad
+            </span>
+          );
         } else if (row.aprobacionAsistente) {
-          status = 'En Jefatura';
-          statusClass = 'in-progress';
+          return (
+            <span className="status-badge status-in-progress">
+              En Jefatura
+            </span>
+          );
         }
         
         return (
-          <span className={`status-badge status-${statusClass}`}>
-            {status}
+          <span className="status-badge status-pending">
+            Pendiente
           </span>
         );
       }

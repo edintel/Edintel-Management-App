@@ -15,6 +15,7 @@ const ExpenseEdit = () => {
     const { expenseReports } = useAppContext();
     const [formData, setFormData] = useState(null);
     const [preview, setPreview] = useState(null);
+    const [isNewFile, setIsNewFile] = useState(false);
 
     const rubroOptions = [
         'Almuerzo',
@@ -53,6 +54,7 @@ const ExpenseEdit = () => {
 
         if (expense.comprobante) {
             setPreview(expense.comprobante);
+            setIsNewFile(false);
         }
     }, [id, expenseReports, navigate]);
 
@@ -69,7 +71,10 @@ const ExpenseEdit = () => {
         if (file) {
             setFormData(prev => ({ ...prev, comprobante: file }));
             const reader = new FileReader();
-            reader.onloadend = () => setPreview(reader.result);
+            reader.onloadend = () => {
+                setPreview(reader.result);
+                setIsNewFile(true);
+            };
             reader.readAsDataURL(file);
         }
     };
@@ -181,30 +186,21 @@ const ExpenseEdit = () => {
                             <div className="file-upload-area">
                                 {preview ? (
                                     <div className="file-preview">
-                                        <img src={preview} alt="Preview" />
+                                        {isNewFile ? (
+                                            <img src={preview} alt="Preview" className="preview-image" />
+                                        ) : (
+                                            <ExpenseImage
+                                                itemId={preview}
+                                                className="expense-edit-image"
+                                            />
+                                        )}
                                         <button
                                             type="button"
                                             className="remove-file"
                                             onClick={() => {
                                                 setFormData(prev => ({ ...prev, comprobante: null }));
                                                 setPreview(null);
-                                            }}
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    </div>
-                                ) : formData.comprobante ? (
-                                    <div className="file-preview">
-                                        <ExpenseImage
-                                            itemId={id}
-                                            fileInfo={formData.comprobante}
-                                            className="expense-edit-image"
-                                        />
-                                        <button
-                                            type="button"
-                                            className="remove-file"
-                                            onClick={() => {
-                                                setFormData(prev => ({ ...prev, comprobante: null }));
+                                                setIsNewFile(false);
                                             }}
                                         >
                                             <X size={16} />

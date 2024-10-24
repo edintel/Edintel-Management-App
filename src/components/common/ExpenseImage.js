@@ -1,23 +1,25 @@
-// src/components/common/ExpenseImage.js
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../contexts/AppContext';
-import { Image } from 'lucide-react';
+import { AlertCircle, ZoomIn } from 'lucide-react';
+import ImageModal from './ImageModal';
 import './ExpenseImage.css';
 
-const ExpenseImage = ({ itemId, fileName, className = '' }) => {
+const ExpenseImage = ({ itemId, className = '' }) => {
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { graphService } = useAppContext();
 
   useEffect(() => {
     let mounted = true;
     let abortController = new AbortController();
-    
+    let objectUrl = null;
+
     const loadImage = async () => {
-      if (!fileName || !itemId) {
+      if (!itemId) {
         setLoading(false);
-        setError('No image available');
+        setError('No se encontró la imagen');
         return;
       }
 
@@ -28,9 +30,8 @@ const ExpenseImage = ({ itemId, fileName, className = '' }) => {
       try {
         setLoading(true);
         setError(null);
-        
-        const { url, token } = await graphService.getImageUrl(itemId, fileName);
-        
+
+        const { url, token } = await graphService.getImageContent(itemId);
         const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -39,11 +40,11 @@ const ExpenseImage = ({ itemId, fileName, className = '' }) => {
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error('Error al cargar la imagen');
         }
 
         const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
+        objectUrl = URL.createObjectURL(blob);
         
         if (mounted) {
           setImageUrl(objectUrl);
@@ -51,8 +52,7 @@ const ExpenseImage = ({ itemId, fileName, className = '' }) => {
         }
       } catch (err) {
         if (mounted && !abortController.signal.aborted) {
-          console.error('Error loading image:', err);
-          setError('Error loading image. Please try again later.');
+          setError('Error al cargar la imagen. Por favor, intente nuevamente.');
         }
       } finally {
         if (mounted) {
@@ -66,16 +66,16 @@ const ExpenseImage = ({ itemId, fileName, className = '' }) => {
     return () => {
       mounted = false;
       abortController.abort();
-      if (imageUrl) {
-        URL.revokeObjectURL(imageUrl);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [itemId, fileName, graphService]);
+  }, [itemId, graphService]);
 
   if (loading) {
     return (
-      <div className={`expense-image-loading ${className}`}>
-        <div className="loading-spinner"></div>
+      <div className={`expense-image-loading ${className}`} role="status">
+        <div className="loading-spinner" aria-hidden="true"></div>
         <p>Cargando imagen...</p>
       </div>
     );
@@ -83,25 +83,42 @@ const ExpenseImage = ({ itemId, fileName, className = '' }) => {
 
   if (error || !imageUrl) {
     return (
-      <div className={`expense-image-error ${className}`}>
-        <Image size={48} />
+      <div className={`expense-image-error ${className}`} role="alert">
+        <AlertCircle size={48} />
         <p>{error || 'Imagen no disponible'}</p>
       </div>
     );
   }
 
   return (
-    <div className={`expense-image-container ${className}`}>
-      <img 
-        src={imageUrl} 
-        alt="Comprobante de gasto" 
-        className="expense-image"
-        onError={() => {
-          setError('Error al cargar la imagen');
-          setImageUrl(null);
-        }}
-      />
-    </div>
+    <>
+      <div className={`expense-image-container ${className}`}>
+        <img
+          src={imageUrl}
+          alt="Comprobante de gasto"
+          className="expense-image"
+          onClick={() => setIsModalOpen(true)}
+          onError={() => {
+            setError('Error al mostrar la imagen');
+            setImageUrl(null);
+          }}
+        />
+        <button 
+          className="zoom-indicator"
+          onClick={() => setIsModalOpen(true)}
+          aria-label="Ampliar imagen"
+        >
+          <ZoomIn size={20} />
+        </button>
+      </div>
+      {isModalOpen && (
+        <ImageModal
+          imageUrl={imageUrl}
+          alt="Comprobante de gasto"
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
+    </>
   );
 };
 

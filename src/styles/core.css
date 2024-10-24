@@ -1,0 +1,211 @@
+/* Core styles for the application */
+
+/* Reset and base styles */
+:root {
+    /* Colors */
+    --color-primary: #00008B;
+    --color-primary-light: #0000CD;
+    --color-primary-dark: #00006B;
+    --color-secondary: #f50057;
+    --color-secondary-light: #ff4081;
+    --color-secondary-dark: #c51162;
+  
+    /* Grays */
+    --color-gray-50: #fafafa;
+    --color-gray-100: #f5f5f5;
+    --color-gray-200: #eeeeee;
+    --color-gray-300: #e0e0e0;
+    --color-gray-400: #bdbdbd;
+    --color-gray-500: #9e9e9e;
+    --color-gray-600: #757575;
+    --color-gray-700: #616161;
+    --color-gray-800: #424242;
+    --color-gray-900: #212121;
+  
+    /* Status colors */
+    --color-success: #4caf50;
+    --color-success-light: #81c784;
+    --color-success-dark: #388e3c;
+    
+    --color-error: #f44336;
+    --color-error-light: #e57373;
+    --color-error-dark: #d32f2f;
+    
+    --color-warning: #ff9800;
+    --color-warning-light: #ffb74d;
+    --color-warning-dark: #f57c00;
+    
+    --color-info: #2196f3;
+    --color-info-light: #64b5f6;
+    --color-info-dark: #1976d2;
+  
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+  
+    /* Typography */
+    --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+  
+    /* Border radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-full: 9999px;
+  
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.15), 0 3px 6px rgba(0, 0, 0, 0.10);
+    --shadow-xl: 0 15px 25px rgba(0, 0, 0, 0.15), 0 5px 10px rgba(0, 0, 0, 0.05);
+  
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Base styles */
+  body {
+    margin: 0;
+    font-family: var(--font-family-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--color-gray-900);
+    line-height: 1.5;
+  }
+  
+  /* Common components */
+  .card {
+    background-color: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    border: none;
+  }
+  
+  .button-primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+  
+  .button-primary:hover {
+    background-color: var(--color-primary-dark);
+  }
+  
+  .button-secondary {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+  
+  .button-outline {
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    background: transparent;
+  }
+  
+  .input {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    transition: border-color var(--transition-fast);
+  }
+  
+  .input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+  
+  /* Status indicators */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+  }
+  
+  .badge-success {
+    background-color: var(--color-success-light);
+    color: var(--color-success-dark);
+  }
+  
+  .badge-error {
+    background-color: var(--color-error-light);
+    color: var(--color-error-dark);
+  }
+  
+  .badge-warning {
+    background-color: var(--color-warning-light);
+    color: var(--color-warning-dark);
+  }
+  
+  .badge-info {
+    background-color: var(--color-info-light);
+    color: var(--color-info-dark);
+  }
+  
+  /* Layout utilities */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+  }
+  
+  .flex {
+    display: flex;
+  }
+  
+  .flex-col {
+    flex-direction: column;
+  }
+  
+  .items-center {
+    align-items: center;
+  }
+  
+  .justify-between {
+    justify-content: space-between;
+  }
+  
+  .gap-sm {
+    gap: var(--spacing-sm);
+  }
+  
+  .gap-md {
+    gap: var(--spacing-md);
+  }
+  
+  /* Responsive utilities */
+  @media (max-width: 768px) {
+    .container {
+      padding: 0 var(--spacing-sm);
+    }
+    
+    .hide-mobile {
+      display: none;
+    }
+  }

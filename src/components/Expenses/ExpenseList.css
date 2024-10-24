@@ -66,28 +66,34 @@
   }
   
   .status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-  
-  .status-pending {
-    background-color: #fff3e0;
-    color: #f57c00;
-  }
-  
-  .status-approved {
-    background-color: #e8f5e9;
-    color: #388e3c;
-  }
-  
-  .status-in-progress {
-    background-color: #e3f2fd;
-    color: #1976d2;
-  }
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-pending {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.status-approved {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+.status-in-progress {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-rejected {
+  background-color: #ffebee;
+  color: #d32f2f;
+  font-weight: 600;
+}
   
   .empty-state {
     text-align: center;
