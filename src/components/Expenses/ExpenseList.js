@@ -6,7 +6,6 @@ import Card from '../common/Card';
 import Table from '../common/Table';
 import Button from '../common/Button';
 import { Plus, Search, Filter, FileText } from 'lucide-react';
-import './ExpenseList.css';
 
 const ExpenseList = () => {
   const navigate = useNavigate();
@@ -15,10 +14,14 @@ const ExpenseList = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const columns = [
-    { 
-      key: 'fecha', 
+    {
+      key: 'fecha',
       header: 'Fecha',
-      render: (value) => new Date(value).toLocaleDateString()
+      render: (value) => value.toLocaleDateString('es-CR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      })
     },
     { key: 'rubro', header: 'Rubro' },
     { 
@@ -31,53 +34,39 @@ const ExpenseList = () => {
     },
     { key: 'st', header: 'ST' },
     { 
-      key: 'aprobacionStatus', 
+      key: 'status', 
       header: 'Estado',
       render: (_, row) => {
-        if (row.aprobacionAsistente === false) {
+        if (row.aprobacionAsistente === "No aprobada") {
           return (
-            <span className="status-badge status-rejected">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
               No aprobada
             </span>
           );
         }
-        if (row.aprobacionJefatura === false) {
+        if (row.aprobacionContabilidad === "Aprobada") {
           return (
-            <span className="status-badge status-rejected">
-              No aprobada
-            </span>
-          );
-        }
-        if (row.aprobacionContabilidad === false) {
-          return (
-            <span className="status-badge status-rejected">
-              No aprobada
-            </span>
-          );
-        }
-        
-        if (row.aprobacionContabilidad) {
-          return (
-            <span className="status-badge status-approved">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
               Aprobado
             </span>
           );
-        } else if (row.aprobacionJefatura) {
+        }
+        if (row.aprobacionJefatura === "Aprobada") {
           return (
-            <span className="status-badge status-in-progress">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
               En Contabilidad
             </span>
           );
-        } else if (row.aprobacionAsistente) {
+        }
+        if (row.aprobacionAsistente === "Aprobada") {
           return (
-            <span className="status-badge status-in-progress">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
               En Jefatura
             </span>
           );
         }
-        
         return (
-          <span className="status-badge status-pending">
+          <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
             Pendiente
           </span>
         );
@@ -86,29 +75,25 @@ const ExpenseList = () => {
   ];
 
   const filteredExpenses = expenseReports
-    .filter(expense => {
-      if (selectedPeriod && expense.periodoId !== selectedPeriod) return false;
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        return (
-          expense.rubro.toLowerCase().includes(search) ||
-          expense.st.toLowerCase().includes(search)
-        );
-      }
-      return true;
-    });
-
-  const handleRowClick = (expense) => {
-    navigate(`/expenses/${expense.id}`);
-  };
+  .filter(expense => {
+    if (selectedPeriod && expense.periodoId !== selectedPeriod) return false;
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      return (
+        expense.rubro.toLowerCase().includes(search) ||
+        expense.st.toLowerCase().includes(search)
+      );
+    }
+    return true;
+  });
 
   return (
     <Layout>
-      <div className="expense-list-container">
-        <div className="expense-list-header">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
-            <h1>Gastos</h1>
-            <p className="expense-count">
+            <h1 className="text-2xl font-bold text-gray-900">Gastos</h1>
+            <p className="text-sm text-gray-500 mt-1">
               {filteredExpenses.length} gastos encontrados
             </p>
           </div>
@@ -121,23 +106,25 @@ const ExpenseList = () => {
           </Button>
         </div>
 
-        <Card className="filters-card">
-          <div className="filters">
-            <div className="search-box">
-              <Search size={16} />
+        <Card className="mb-6">
+          <div className="flex flex-col md:flex-row gap-4 p-4">
+            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
+              <Search size={16} className="text-gray-400 mr-2" />
               <input
                 type="text"
                 placeholder="Buscar por rubro o ST..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-transparent border-none focus:outline-none text-sm"
               />
             </div>
 
-            <div className="period-filter">
-              <Filter size={16} />
+            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
+              <Filter size={16} className="text-gray-400 mr-2" />
               <select
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="w-full bg-transparent border-none focus:outline-none text-sm"
               >
                 <option value="">Todos los periodos</option>
                 {periods.map(period => (
@@ -155,12 +142,16 @@ const ExpenseList = () => {
             columns={columns}
             data={filteredExpenses}
             isLoading={loading}
-            onRowClick={handleRowClick}
+            onRowClick={(expense) => navigate(`/expenses/${expense.id}`)}
             emptyMessage={
-              <div className="empty-state">
-                <FileText size={48} />
-                <h3>No se encontraron gastos</h3>
-                <p>Intenta ajustar los filtros o crea un nuevo gasto</p>
+              <div className="flex flex-col items-center justify-center py-12">
+                <FileText size={48} className="text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                  No se encontraron gastos
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Intenta ajustar los filtros o crea un nuevo gasto
+                </p>
               </div>
             }
           />

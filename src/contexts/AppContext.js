@@ -82,6 +82,7 @@ export function AppProvider({ children }) {
     graphService,
     periods,
     expenseReports,
+    setExpenseReports,
     departments,
     roles,
     loading,

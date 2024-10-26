@@ -1,6 +1,5 @@
-// src/components/common/Card.js
 import React from 'react';
-import './Card.css';
+import { cn } from '../../utils/cn';
 
 const Card = ({ 
   children, 
@@ -11,23 +10,37 @@ const Card = ({
   ...props 
 }) => {
   return (
-    <div className={`card ${className}`} {...props}>
+    <div 
+      className={cn(
+        "rounded-lg border bg-card text-card-foreground shadow-sm",
+        className
+      )} 
+      {...props}
+    >
       {(title || subtitle || action) && (
-        <div className="card-header">
-          <div className="card-header-text">
-            {title && <h2 className="card-title">{title}</h2>}
-            {subtitle && <p className="card-subtitle">{subtitle}</p>}
-          </div>
-          {action && (
-            <div className="card-action">
-              {action}
+        <div className="flex flex-col space-y-1.5 p-6 border-b">
+          <div className="flex items-center justify-between">
+            <div>
+              {title && (
+                <h3 className="font-semibold leading-none tracking-tight">
+                  {title}
+                </h3>
+              )}
+              {subtitle && (
+                <p className="text-sm text-muted-foreground">
+                  {subtitle}
+                </p>
+              )}
             </div>
-          )}
+            {action && (
+              <div className="flex-shrink-0">
+                {action}
+              </div>
+            )}
+          </div>
         </div>
       )}
-      <div className="card-content">
-        {children}
-      </div>
+      <div className="p-6">{children}</div>
     </div>
   );
 };

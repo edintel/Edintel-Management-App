@@ -1,5 +1,4 @@
-@import './styles/core.css';
-@import './styles/components.css';
+@import './styles/global.css';
 
 body {
   margin: 0;

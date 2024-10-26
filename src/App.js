@@ -13,6 +13,7 @@ import ExpenseDetail from './components/Expenses/ExpenseDetail';
 import ExpenseEdit from './components/Expenses/ExpenseEdit';
 import ApprovalList from './components/Approvals/ApprovalList';
 import Profile from './components/Profile/Profile';
+import StyleGuide from './components/StyleGuide/StyleGuide';
 import './App.css';
 
 const msalInstance = new PublicClientApplication(msalConfig);
@@ -39,6 +40,7 @@ function AppRoutes() {
           <Route path="/approvals" element={<ApprovalList />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/styleguide" element={<StyleGuide />} />
         </Routes>
       </AuthProvider>
     </AppProvider>

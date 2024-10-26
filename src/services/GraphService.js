@@ -96,8 +96,8 @@ class GraphService {
     const items = await this.getListItems("periods");
     return items.map((item) => ({
       id: item.id,
-      inicio: item.fields.Inicio,
-      fin: item.fields.Fin,
+      inicio: new Date(item.fields.Inicio),
+      fin: new Date(item.fields.Fin),
       periodo: item.fields.Periodo,
     }));
   }
@@ -108,7 +108,7 @@ class GraphService {
       id: item.id,
       rubro: item.fields.Rubro,
       comprobante: item.fields.Comprobante || null,
-      fecha: item.fields.Fecha,
+      fecha: new Date(item.fields.Fecha),
       monto: parseFloat(item.fields.Monto) || 0,
       st: item.fields.ST,
       periodoId: item.fields.PeriodoIDLookupId,
@@ -116,9 +116,9 @@ class GraphService {
       motivo: item.fields.Title,
       notasRevision: item.fields.Notasrevision,
       bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
-      aprobacionAsistente: Boolean(item.fields.Aprobaci_x00f3_n_x0020_Departame),
-      aprobacionJefatura: Boolean(item.fields.Aprobaci_x00f3_n_x0020_Jefatura),
-      aprobacionContabilidad: Boolean(item.fields.Aprobaci_x00f3_n_x0020_Contabili),
+      aprobacionAsistente: item.fields.Aprobaci_x00f3_n_x0020_Departame || "Pendiente",
+      aprobacionJefatura: item.fields.Aprobaci_x00f3_n_x0020_Jefatura || "Pendiente",
+      aprobacionContabilidad: item.fields.Aprobaci_x00f3_n_x0020_Contabili || "Pendiente",
       createdBy: {
         name: item.createdBy.user.displayName || '',
         email: item.createdBy.user.email || '',
@@ -164,6 +164,176 @@ class GraphService {
         ? parseInt(item.fields["DepartamentoID_x003a__x0020_DepaLookupId"], 10) 
         : null
     }));
+  }
+
+  async createFolder(folderPath) {
+    await this.initializeGraphClient();
+    
+    const pathSegments = folderPath.split('/').filter(Boolean);
+    let currentPath = '';
+    
+    for (const segment of pathSegments) {
+      const encodedSegment = encodeURIComponent(segment);
+      currentPath += `/${encodedSegment}`;
+      try {
+        await this.client
+          .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${currentPath}`)
+          .get();
+      } catch (error) {
+        if (error.statusCode === 404) {
+          await this.client
+            .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${currentPath}`)
+            .header('Content-Type', 'application/json')
+            .put({
+              name: segment,
+              folder: {},
+              "@microsoft.graph.conflictBehavior": "rename"
+            });
+        } else {
+          throw error;
+        }
+      }
+    }
+  }
+
+  async uploadFile(file, folderPath) {
+    await this.initializeGraphClient();
+
+    await this.createFolder(folderPath);
+
+    const fileExtension = file.name.split('.').pop();
+    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    const filePath = `${folderPath}/${uniqueFileName}`;
+
+    if (file.size <= 4 * 1024 * 1024) {
+      const response = await this.client
+        .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${filePath}:/content`)
+        .put(file);
+      return response.id;
+    }
+
+    const uploadSession = await this.client
+      .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${filePath}:/createUploadSession`)
+      .post({
+        item: {
+          "@microsoft.graph.conflictBehavior": "rename",
+        },
+      });
+
+    const maxSliceSize = 320 * 1024;
+    const fileSize = file.size;
+    const uploadUrl = uploadSession.uploadUrl;
+
+    let start = 0;
+    while (start < fileSize) {
+      const end = Math.min(start + maxSliceSize, fileSize);
+      const slice = file.slice(start, end);
+      const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Length': `${end - start}`,
+          'Content-Range': `bytes ${start}-${end - 1}/${fileSize}`,
+        },
+        body: slice,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (result.id) {
+        return result.id;
+      }
+      
+      start = end;
+    }
+
+    throw new Error('Upload failed to complete');
+  }
+
+  async createExpenseReport(expenseData, imageFile = null) {
+    await this.initializeGraphClient();
+
+    let comprobanteId = null;
+    if (imageFile) {
+
+      const accounts = this.msalInstance.getAllAccounts();
+      const userDisplayName = accounts[0]?.name || 'Unknown';
+
+      const folderPath = `/Comprobantes/${userDisplayName}`;
+      comprobanteId = await this.uploadFile(imageFile, folderPath);
+    }
+
+    const fields = {
+      Title: expenseData.motivo,
+      Rubro: expenseData.rubro,
+      Monto: expenseData.monto,
+      Fecha: expenseData.fecha,
+      ST: expenseData.st,
+      Fondospropios: expenseData.fondosPropios,
+      Comprobante: comprobanteId,
+      PeriodoIDLookupId: expenseData.periodoId,
+    };
+
+
+    const response = await this.client
+      .api(`/sites/${this.siteId}/lists/${this.lists.expenseReports}/items`)
+      .header('Prefer', 'HonorNonIndexedQueriesWarningMayFailRandomly')
+      .post({
+        fields: fields
+      });
+
+    return response;
+  }
+
+  async updateExpenseReport(id, expenseData, newImageFile = null) {
+    await this.initializeGraphClient();
+
+    let comprobanteId = expenseData.comprobante;
+
+    if (newImageFile) {
+      const accounts = this.msalInstance.getAllAccounts();
+      const userDisplayName = accounts[0]?.name || 'Unknown';
+      const folderPath = `/Comprobantes/${userDisplayName}`;
+      comprobanteId = await this.uploadFile(newImageFile, folderPath);
+    }
+
+    const fields = {
+      Title: expenseData.motivo,
+      Rubro: expenseData.rubro,
+      Monto: expenseData.monto.toString(),
+      Fecha: expenseData.fecha,
+      ST: expenseData.st,
+      Fondospropios: expenseData.fondosPropios,
+    };
+
+    if (comprobanteId) {
+      fields.Comprobante = comprobanteId;
+    }
+
+    try {
+      const response = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.lists.expenseReports}/items/${id}`)
+        .header('Prefer', 'HonorNonIndexedQueriesWarningMayFailRandomly')
+        .patch({
+          fields: fields
+        });
+
+      return {
+        ...response,
+        fields: {
+          ...response.fields,
+          // Ensure we keep the file ID if we didn't upload a new one
+          Comprobante: comprobanteId || response.fields.Comprobante
+        }
+      };
+    } catch (error) {
+      console.error('Error updating expense report:', error);
+      throw new Error(
+        error.message || 'Error al actualizar el gasto en SharePoint'
+      );
+    }
   }
 
   mapPeriodReports(periods, reports) {

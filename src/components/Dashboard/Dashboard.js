@@ -1,82 +1,73 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/components/Dashboard/Dashboard.js
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../contexts/AppContext';
 import Layout from '../layout/Layout';
 import Card from '../common/Card';
 import Table from '../common/Table';
 import Button from '../common/Button';
-import { Plus, FileText, Check, AlertTriangle } from 'lucide-react';
-import './Dashboard.css';
+import { Plus, FileText, Check, AlertTriangle, X } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { periods, expenseReports, loading, error } = useAppContext();
 
-  const currentPeriod = periods[0] || {};
+  const currentPeriod = periods[periods.length-1] || {};
 
   const expenseColumns = [
-    { 
-      key: 'fecha', 
+    {
+      key: 'fecha',
       header: 'Fecha',
-      render: (value) => new Date(value).toLocaleDateString()
-    },
-    { key: 'rubro', header: 'Rubro' },
-    { 
-      key: 'monto', 
-      header: 'Monto',
-      render: (value) => value.toLocaleString('es-CR', { 
-        style: 'currency', 
-        currency: 'CRC' 
+      render: (value) => value.toLocaleDateString('es-CR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
       })
     },
-    { 
-      key: 'status', 
+    { key: 'rubro', header: 'Rubro' },
+    {
+      key: 'monto',
+      header: 'Monto',
+      render: (value) => value.toLocaleString('es-CR', {
+        style: 'currency',
+        currency: 'CRC'
+      })
+    },
+    { key: 'st', header: 'ST' },
+    {
+      key: 'status',
       header: 'Estado',
       render: (_, row) => {
-        if (row.aprobacionAsistente === false) {
+        if (row.aprobacionAsistente === "No aprobada") {
           return (
-            <span className="status-badge status-rejected">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
               No aprobada
             </span>
           );
         }
-        if (row.aprobacionJefatura === false) {
+        if (row.aprobacionContabilidad === "Aprobada") {
           return (
-            <span className="status-badge status-rejected">
-              No aprobada
-            </span>
-          );
-        }
-        if (row.aprobacionContabilidad === false) {
-          return (
-            <span className="status-badge status-rejected">
-              No aprobada
-            </span>
-          );
-        }
-        
-        if (row.aprobacionContabilidad) {
-          return (
-            <span className="status-badge status-approved">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
               Aprobado
             </span>
           );
-        } else if (row.aprobacionJefatura) {
+        }
+        if (row.aprobacionJefatura === "Aprobada") {
           return (
-            <span className="status-badge status-in-progress">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
               En Contabilidad
             </span>
           );
-        } else if (row.aprobacionAsistente) {
+        }
+        if (row.aprobacionAsistente === "Aprobada") {
           return (
-            <span className="status-badge status-in-progress">
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
               En Jefatura
             </span>
           );
         }
-        
         return (
-          <span className="status-badge status-pending">
+          <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
             Pendiente
           </span>
         );
@@ -89,26 +80,47 @@ const Dashboard = () => {
       title: 'Total Gastos',
       value: expenseReports.reduce((sum, report) => sum + parseFloat(report.monto), 0)
         .toLocaleString('es-CR', { style: 'currency', currency: 'CRC' }),
-      icon: <FileText size={24} />
+      icon: <FileText className="text-primary" size={24} />
     },
     {
       title: 'Pendientes',
-      value: expenseReports.filter(report => !report.aprobacionAsistente).length,
-      icon: <AlertTriangle size={24} />
+      value: expenseReports.filter(report => report.aprobacionAsistente === "Pendiente").length,
+      icon: <AlertTriangle className="text-warning" size={24} />
     },
     {
       title: 'Aprobados',
-      value: expenseReports.filter(report => report.aprobacionContabilidad).length,
-      icon: <Check size={24} />
+      value: expenseReports.filter(report => report.aprobacionContabilidad === "Aprobada").length,
+      icon: <Check className="text-success" size={24} />
+    },
+    {
+      title: 'No Aprobados',
+      value: expenseReports.filter(report => report.aprobacionAsistente === "No aprobada").length,
+      icon: <X className="text-error" size={24} />
     }
   ];
+
+  const handleExpenseClick = (expense) => {
+    navigate(`/expenses/${expense.id}`, {
+      state: { from: location } // Store dashboard as the return location
+    });
+  };
+
+  const handleViewAllExpenses = () => {
+    navigate('/expenses');
+  };
+
+  const handleNewExpense = () => {
+    navigate('/expenses/new', {
+      state: { from: location } // Store dashboard as the return location for new expense
+    });
+  };
 
   if (error) {
     return (
       <Layout>
-        <div className="error-message">
-          <AlertTriangle size={48} />
-          <h2>Error al cargar los datos</h2>
+        <div className="flex flex-col items-center justify-center p-8 text-error">
+          <AlertTriangle size={48} className="mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Error al cargar los datos</h2>
           <p>{error}</p>
         </div>
       </Layout>
@@ -117,54 +129,68 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="dashboard-container">
-        <div className="dashboard-header">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h1>Dashboard</h1>
-            <p className="current-period">
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-sm text-gray-500 mt-1">
               Periodo actual: {currentPeriod.periodo || 'Cargando...'}
             </p>
           </div>
-          <Button 
+          <Button
             variant="primary"
             startIcon={<Plus size={16} />}
-            onClick={() => navigate('/expenses/new')}
+            onClick={handleNewExpense}
           >
             Nuevo Gasto
           </Button>
         </div>
 
-        <div className="stats-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
-            <Card key={index} className="stat-card">
-              <div className="stat-content">
-                <div className="stat-icon">{stat.icon}</div>
-                <div className="stat-info">
-                  <h3>{stat.title}</h3>
-                  <p>{stat.value}</p>
+            <Card key={index} className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gray-100 rounded-lg">
+                  {stat.icon}
+                </div>
+                <div>
+                  <h3 className="text-sm text-gray-600">{stat.title}</h3>
+                  <p className="text-xl font-semibold mt-1">{stat.value}</p>
                 </div>
               </div>
             </Card>
           ))}
         </div>
 
-        <Card 
-          title="Gastos Recientes" 
+        <Card
+          title="Gastos Recientes"
           subtitle="Últimos gastos registrados en el periodo actual"
           action={
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="small"
-              onClick={() => navigate('/expenses')}
+              onClick={handleViewAllExpenses}
             >
               Ver todos
             </Button>
           }
         >
-          <Table 
+          <Table
             columns={expenseColumns}
             data={expenseReports.slice(0, 5)}
             isLoading={loading}
+            onRowClick={handleExpenseClick}
+            emptyMessage={
+              <div className="flex flex-col items-center justify-center py-12">
+                <FileText size={48} className="text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                  No se encontraron gastos
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Intenta ajustar los filtros o crea un nuevo gasto
+                </p>
+              </div>
+            }
           />
         </Card>
       </div>

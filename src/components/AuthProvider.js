@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "../config/AuthConfig";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
   const location = useLocation();
   const appContext = useAppContext();
 
-  const getUserDepartmentInfo = (email) => {
+  const getUserDepartmentInfo = useCallback((email) => {
     if (!appContext?.roles || !appContext?.departments) return null;
     
     // Find the user's role
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
       departamento: department.departamento,
       tipo: roleType
     };
-  };
+  }, [appContext?.roles, appContext?.departments]);
 
   useEffect(() => {
     if (accounts.length > 0 && appContext?.roles && appContext?.departments) {
@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
         role: departmentInfo?.tipo || 'No asignado'
       }));
     }
-  }, [accounts, appContext?.roles, appContext?.departments]);
+  }, [accounts, appContext?.roles, appContext?.departments, getUserDepartmentInfo]);
 
   const login = async () => {
     try {
@@ -83,6 +83,7 @@ export function AuthProvider({ children }) {
   };
 
   const value = {
+    getUserDepartmentInfo,
     user,
     login,
     logout,
