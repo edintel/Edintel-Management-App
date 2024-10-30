@@ -319,8 +319,6 @@ class GraphService {
       comprobanteId = await this.uploadFile(imageFile, folderPath);
     }
 
-    console.log("ID: ", comprobanteId);
-
     const fields = {
       Title: expenseData.motivo,
       Rubro: expenseData.rubro,
