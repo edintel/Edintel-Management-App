@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useAppContext } from '../../contexts/AppContext';
-import Layout from '../layout/Layout';
-import Card from '../common/Card';
-import Button from '../common/Button';
-import ExpenseImage from '../common/ExpenseImage';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useAppContext } from "../../contexts/AppContext";
+import { useAuth } from "../AuthProvider";
+import Layout from "../layout/Layout";
+import Card from "../common/Card";
+import Button from "../common/Button";
+import ExpenseImage from "../common/ExpenseImage";
+import ConfirmationDialog from "../common/ConfirmationDialog";
 import {
   ArrowLeft,
   Edit,
@@ -17,21 +19,32 @@ import {
   XCircle,
   Check,
   X,
-} from 'lucide-react';
+} from "lucide-react";
 
 const ExpenseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { expenseReports, loading: reportsLoading } = useAppContext();
+  const {
+    expenseReports,
+    loading: reportsLoading,
+    setExpenseReports,
+    graphService,
+  } = useAppContext();
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const returnPath = location.state?.from?.pathname || '/expenses';
-  const isFromApprovals = returnPath.includes('/approvals');
+  const returnPath = location.state?.from?.pathname || "/expenses";
+  const { user } = useAuth();
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    type: "approve",
+    title: "",
+    message: "",
+  });
 
   useEffect(() => {
     if (!reportsLoading && expenseReports.length > 0) {
-      const foundExpense = expenseReports.find(exp => exp.id === id);
+      const foundExpense = expenseReports.find((exp) => exp.id === id);
       setExpense(foundExpense);
       setLoading(false);
     }
@@ -43,7 +56,7 @@ const ExpenseDetail = () => {
 
   const handleEdit = () => {
     navigate(`/expenses/${id}/edit`, {
-      state: { from: location.state?.from }
+      state: { from: location.state?.from },
     });
   };
 
@@ -67,7 +80,7 @@ const ExpenseDetail = () => {
           <Button
             variant="outline"
             startIcon={<ArrowLeft size={16} />}
-            onClick={() => navigate('/expenses')}
+            onClick={() => navigate("/expenses")}
           >
             Volver a la lista
           </Button>
@@ -78,23 +91,23 @@ const ExpenseDetail = () => {
 
   const approvalStatus = [
     {
-      title: 'Revisión de Asistente',
+      title: "Revisión de Asistente",
       approved: expense.aprobacionAsistente,
     },
     {
-      title: 'Aprobación de Jefatura',
+      title: "Aprobación de Jefatura",
       approved: expense.aprobacionJefatura,
     },
     {
-      title: 'Aprobación de Contabilidad',
+      title: "Aprobación de Contabilidad",
       approved: expense.aprobacionContabilidad,
-    }
+    },
   ];
 
   const getStatusClass = (status) => {
-    if (status === "Aprobada") return 'text-success bg-success/10';
-    if (status === "No aprobada") return 'text-error bg-error/10';
-    return 'text-gray-400 bg-gray-100';
+    if (status === "Aprobada") return "text-success bg-success/10";
+    if (status === "No aprobada") return "text-error bg-error/10";
+    return "text-gray-400 bg-gray-100";
   };
 
   const getStatusIcon = (status) => {
@@ -103,14 +116,77 @@ const ExpenseDetail = () => {
     return <Clock size={24} />;
   };
 
+  const getApprovalType = () => {
+    const userDept = user?.department?.toLowerCase() || "";
+    if (userDept.includes("contabilidad")) return "accounting";
+    return user?.role === "Jefe" ? "boss" : "assistant";
+  };
+
   const handleApprove = async () => {
-    // Implementation will be added later
-    console.log('Aprobar:', id);
+    setConfirmDialog({
+      isOpen: true,
+      type: "approve",
+      title: "¿Confirmar aprobación?",
+      message: "¿Está seguro que desea aprobar este gasto?",
+    });
   };
 
   const handleReject = async () => {
-    // Implementation will be added later
-    console.log('Rechazar:', id);
+    setConfirmDialog({
+      isOpen: true,
+      type: "reject",
+      title: "¿Confirmar rechazo?",
+      message:
+        "¿Está seguro que desea rechazar este gasto? Debe proporcionar una nota de revisión.",
+    });
+  };
+
+  const handleConfirmAction = async (notes = "") => {
+    try {
+      const type = getApprovalType();
+      const status =
+        confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
+
+      await graphService.updateApprovalStatus(id, status, type, notes);
+
+      setExpense((prev) => ({
+        ...prev,
+        bloqueoEdicion: true,
+        notasRevision: notes,
+        aprobacionAsistente:
+          type === "assistant" ? status : prev.aprobacionAsistente,
+        aprobacionJefatura: type === "boss" ? status : prev.aprobacionJefatura,
+        aprobacionContabilidad:
+          type === "accounting" ? status : prev.aprobacionContabilidad,
+      }));
+
+      setExpenseReports((prevReports) =>
+        prevReports.map((report) =>
+          report.id === id
+            ? {
+                ...report,
+                bloqueoEdicion: true,
+                notasRevision: notes,
+                aprobacionAsistente:
+                  type === "assistant" ? status : report.aprobacionAsistente,
+                aprobacionJefatura:
+                  type === "boss" ? status : report.aprobacionJefatura,
+                aprobacionContabilidad:
+                  type === "accounting"
+                    ? status
+                    : report.aprobacionContabilidad,
+              }
+            : report
+        )
+      );
+    } catch (error) {
+      console.error("Error updating approval status:", error);
+    }
+  };
+
+  const canApprove = () => {
+    if (!user || !expense) return false;
+    return graphService.canApprove(expense, user.role);
   };
 
   return (
@@ -141,9 +217,9 @@ const ExpenseDetail = () => {
               <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-semibold">{expense.rubro}</h2>
                 <div className="text-2xl font-semibold text-primary">
-                  {expense.monto.toLocaleString('es-CR', {
-                    style: 'currency',
-                    currency: 'CRC'
+                  {expense.monto.toLocaleString("es-CR", {
+                    style: "currency",
+                    currency: "CRC",
                   })}
                 </div>
               </div>
@@ -152,10 +228,10 @@ const ExpenseDetail = () => {
                 <div>
                   <span className="text-sm text-gray-500">Fecha</span>
                   <p className="text-gray-900 mt-1">
-                    {expense.fecha.toLocaleDateString('es-CR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
+                    {expense.fecha.toLocaleDateString("es-CR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
                     })}
                   </p>
                 </div>
@@ -166,14 +242,14 @@ const ExpenseDetail = () => {
                 <div>
                   <span className="text-sm text-gray-500">Fondos Propios</span>
                   <p className="text-gray-900 mt-1">
-                    {expense.fondosPropios ? 'Sí' : 'No'}
+                    {expense.fondosPropios ? "Sí" : "No"}
                   </p>
                 </div>
                 {expense.fondosPropios && (
                   <div>
                     <span className="text-sm text-gray-500">Motivo</span>
                     <p className="text-gray-900 mt-1">
-                      {expense.motivo || 'No especificado'}
+                      {expense.motivo || "No especificado"}
                     </p>
                   </div>
                 )}
@@ -197,16 +273,18 @@ const ExpenseDetail = () => {
 
           <Card className="lg:col-span-3">
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-6">Estado de Aprobación</h3>
+              <h3 className="text-lg font-semibold mb-6">
+                Estado de Aprobación
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {approvalStatus.map((status, index) => (
                   <div
                     key={index}
-                    className={`flex items-center p-4 rounded-lg ${getStatusClass(status.approved)}`}
+                    className={`flex items-center p-4 rounded-lg ${getStatusClass(
+                      status.approved
+                    )}`}
                   >
-                    <div className="mr-4">
-                      {getStatusIcon(status.approved)}
-                    </div>
+                    <div className="mr-4">{getStatusIcon(status.approved)}</div>
                     <span className="font-medium">{status.title}</span>
                   </div>
                 ))}
@@ -224,7 +302,7 @@ const ExpenseDetail = () => {
                 </div>
               )}
             </div>
-            {isFromApprovals && expense.aprobacionAsistente === "Pendiente" && (
+            {canApprove() && (
               <div className="mt-6 flex justify-end gap-4">
                 <Button
                   variant="outline"
@@ -244,6 +322,16 @@ const ExpenseDetail = () => {
                 </Button>
               </div>
             )}
+            <ConfirmationDialog
+              isOpen={confirmDialog.isOpen}
+              onClose={() =>
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+              }
+              onConfirm={handleConfirmAction}
+              type={confirmDialog.type}
+              title={confirmDialog.title}
+              message={confirmDialog.message}
+            />
           </Card>
         </div>
       </div>

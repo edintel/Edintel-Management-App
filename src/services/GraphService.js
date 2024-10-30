@@ -1,6 +1,7 @@
 import { Client } from "@microsoft/microsoft-graph-client";
 import { loginRequest } from "../config/AuthConfig";
 import { sharePointConfig } from "../config/SharePointConfig";
+import { findOrCreatePeriodForDate } from "../utils/periodUtils";
 
 class GraphService {
   constructor(msalInstance) {
@@ -35,9 +36,9 @@ class GraphService {
 
   async getImageContent(itemId) {
     if (!itemId) {
-      throw new Error('Item ID is required');
+      throw new Error("Item ID is required");
     }
-    
+
     try {
       await this.initializeGraphClient();
 
@@ -56,8 +57,8 @@ class GraphService {
       });
 
       return {
-        url: response['@microsoft.graph.downloadUrl'] || response,
-        token: tokenResponse.accessToken
+        url: response["@microsoft.graph.downloadUrl"] || response,
+        token: tokenResponse.accessToken,
       };
     } catch (error) {
       throw error;
@@ -78,7 +79,7 @@ class GraphService {
       .api(`/sites/${siteId}/lists`)
       .filter(`name eq '${listName}'`)
       .get();
-    
+
     return response.value[0].id;
   }
 
@@ -116,13 +117,14 @@ class GraphService {
       motivo: item.fields.Title,
       notasRevision: item.fields.Notasrevision,
       bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
-      aprobacionAsistente: item.fields.Aprobaci_x00f3_n_x0020_Departame || "Pendiente",
-      aprobacionJefatura: item.fields.Aprobaci_x00f3_n_x0020_Jefatura || "Pendiente",
-      aprobacionContabilidad: item.fields.Aprobaci_x00f3_n_x0020_Contabili || "Pendiente",
+      aprobacionAsistente: item.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
+      aprobacionJefatura: item.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
+      aprobacionContabilidad:
+        item.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
       createdBy: {
-        name: item.createdBy.user.displayName || '',
-        email: item.createdBy.user.email || '',
-        id: item.createdBy.user.id || '',
+        name: item.createdBy.user.displayName || "",
+        email: item.createdBy.user.email || "",
+        id: item.createdBy.user.id || "",
       },
     }));
   }
@@ -132,18 +134,18 @@ class GraphService {
     return items.map((item) => ({
       id: item.id,
       departamento: item.fields.Departamento,
-      asistentes: Array.isArray(item.fields.Asistentes) 
-        ? item.fields.Asistentes.map(asistente => ({
+      asistentes: Array.isArray(item.fields.Asistentes)
+        ? item.fields.Asistentes.map((asistente) => ({
             email: asistente.Email,
             displayName: asistente.LookupValue,
-            id: asistente.LookupId
+            id: asistente.LookupId,
           }))
         : [],
-      jefes: Array.isArray(item.fields.Jefes) 
-        ? item.fields.Jefes.map(jefe => ({
+      jefes: Array.isArray(item.fields.Jefes)
+        ? item.fields.Jefes.map((jefe) => ({
             email: jefe.Email,
             displayName: jefe.LookupValue,
-            id: jefe.LookupId
+            id: jefe.LookupId,
           }))
         : [],
     }));
@@ -153,41 +155,46 @@ class GraphService {
     const items = await this.getListItems("roles");
     return items.map((item) => ({
       id: item.id,
-      empleado: Array.isArray(item.fields.Empleado) && item.fields.Empleado.length > 0
-        ? {
-            email: item.fields.Empleado[0].Email,
-            displayName: item.fields.Empleado[0].LookupValue,
-            id: item.fields.Empleado[0].LookupId
-          }
+      empleado:
+        Array.isArray(item.fields.Empleado) && item.fields.Empleado.length > 0
+          ? {
+              email: item.fields.Empleado[0].Email,
+              displayName: item.fields.Empleado[0].LookupValue,
+              id: item.fields.Empleado[0].LookupId,
+            }
+          : null,
+      departamentoId: item.fields["DepartamentoID_x003a__x0020_DepaLookupId"]
+        ? parseInt(item.fields["DepartamentoID_x003a__x0020_DepaLookupId"], 10)
         : null,
-      departamentoId: item.fields["DepartamentoID_x003a__x0020_DepaLookupId"] 
-        ? parseInt(item.fields["DepartamentoID_x003a__x0020_DepaLookupId"], 10) 
-        : null
     }));
   }
 
   async createFolder(folderPath) {
     await this.initializeGraphClient();
-    
-    const pathSegments = folderPath.split('/').filter(Boolean);
-    let currentPath = '';
-    
+
+    const pathSegments = folderPath.split("/").filter(Boolean);
+    let currentPath = "";
+
     for (const segment of pathSegments) {
       const encodedSegment = encodeURIComponent(segment);
       currentPath += `/${encodedSegment}`;
       try {
         await this.client
-          .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${currentPath}`)
+          .api(
+            `/sites/${this.siteId}/drives/${this.driveId}/root:${currentPath}`
+          )
           .get();
       } catch (error) {
         if (error.statusCode === 404) {
           await this.client
-            .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${currentPath}`)
-            .header('Content-Type', 'application/json')
+            .api(
+              `/sites/${this.siteId}/drives/${this.driveId}/root:${currentPath}`
+            )
+            .header("Content-Type", "application/json")
             .put({
               name: segment,
               folder: {},
-              "@microsoft.graph.conflictBehavior": "rename"
+              "@microsoft.graph.conflictBehavior": "rename",
             });
         } else {
           throw error;
@@ -201,19 +208,25 @@ class GraphService {
 
     await this.createFolder(folderPath);
 
-    const fileExtension = file.name.split('.').pop();
-    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    const fileExtension = file.name.split(".").pop();
+    const uniqueFileName = `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(7)}.${fileExtension}`;
     const filePath = `${folderPath}/${uniqueFileName}`;
 
     if (file.size <= 4 * 1024 * 1024) {
       const response = await this.client
-        .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${filePath}:/content`)
+        .api(
+          `/sites/${this.siteId}/drives/${this.driveId}/root:${filePath}:/content`
+        )
         .put(file);
       return response.id;
     }
 
     const uploadSession = await this.client
-      .api(`/sites/${this.siteId}/drives/${this.driveId}/root:${filePath}:/createUploadSession`)
+      .api(
+        `/sites/${this.siteId}/drives/${this.driveId}/root:${filePath}:/createUploadSession`
+      )
       .post({
         item: {
           "@microsoft.graph.conflictBehavior": "rename",
@@ -229,10 +242,10 @@ class GraphService {
       const end = Math.min(start + maxSliceSize, fileSize);
       const slice = file.slice(start, end);
       const response = await fetch(uploadUrl, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Length': `${end - start}`,
-          'Content-Range': `bytes ${start}-${end - 1}/${fileSize}`,
+          "Content-Length": `${end - start}`,
+          "Content-Range": `bytes ${start}-${end - 1}/${fileSize}`,
         },
         body: slice,
       });
@@ -245,25 +258,68 @@ class GraphService {
       if (result.id) {
         return result.id;
       }
-      
+
       start = end;
     }
 
-    throw new Error('Upload failed to complete');
+    throw new Error("Upload failed to complete");
+  }
+
+  async createPeriod(periodData) {
+    await this.initializeGraphClient();
+
+    const fields = {
+      Title: periodData.periodo,
+      Periodo: periodData.periodo,
+      Inicio: periodData.inicio.toISOString(),
+      Fin: periodData.fin.toISOString(),
+    };
+
+    try {
+      const response = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.lists.periods}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .post({
+          fields: fields,
+        });
+
+      return {
+        id: response.id,
+        inicio: new Date(response.fields.Inicio),
+        fin: new Date(response.fields.Fin),
+        periodo: response.fields.Periodo,
+      };
+    } catch (error) {
+      console.error("Error creating period:", error);
+      throw new Error("Error al crear el periodo en SharePoint");
+    }
   }
 
   async createExpenseReport(expenseData, imageFile = null) {
     await this.initializeGraphClient();
 
+    const periodInfo = findOrCreatePeriodForDate(
+      expenseData.fecha,
+      await this.getPeriods()
+    );
+    let periodId = expenseData.periodoId;
+
+    if (!periodInfo.exists) {
+      const newPeriod = await this.createPeriod(periodInfo.period);
+      periodId = newPeriod.id;
+    } else {
+      periodId = periodInfo.period.id;
+    }
+
     let comprobanteId = null;
     if (imageFile) {
-
       const accounts = this.msalInstance.getAllAccounts();
-      const userDisplayName = accounts[0]?.name || 'Unknown';
-
+      const userDisplayName = accounts[0]?.name || "Unknown";
       const folderPath = `/Comprobantes/${userDisplayName}`;
       comprobanteId = await this.uploadFile(imageFile, folderPath);
     }
+
+    console.log("ID: ", comprobanteId);
 
     const fields = {
       Title: expenseData.motivo,
@@ -273,15 +329,14 @@ class GraphService {
       ST: expenseData.st,
       Fondospropios: expenseData.fondosPropios,
       Comprobante: comprobanteId,
-      PeriodoIDLookupId: expenseData.periodoId,
+      PeriodoIDLookupId: periodId,
     };
-
 
     const response = await this.client
       .api(`/sites/${this.siteId}/lists/${this.lists.expenseReports}/items`)
-      .header('Prefer', 'HonorNonIndexedQueriesWarningMayFailRandomly')
+      .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
       .post({
-        fields: fields
+        fields: fields,
       });
 
     return response;
@@ -290,11 +345,24 @@ class GraphService {
   async updateExpenseReport(id, expenseData, newImageFile = null) {
     await this.initializeGraphClient();
 
+    const periodInfo = findOrCreatePeriodForDate(
+      expenseData.fecha,
+      await this.getPeriods()
+    );
+    let periodId = expenseData.periodoId;
+
+    if (!periodInfo.exists) {
+      const newPeriod = await this.createPeriod(periodInfo.period);
+      periodId = newPeriod.id;
+    } else {
+      periodId = periodInfo.period.id;
+    }
+
     let comprobanteId = expenseData.comprobante;
 
     if (newImageFile) {
       const accounts = this.msalInstance.getAllAccounts();
-      const userDisplayName = accounts[0]?.name || 'Unknown';
+      const userDisplayName = accounts[0]?.name || "Unknown";
       const folderPath = `/Comprobantes/${userDisplayName}`;
       comprobanteId = await this.uploadFile(newImageFile, folderPath);
     }
@@ -306,6 +374,7 @@ class GraphService {
       Fecha: expenseData.fecha,
       ST: expenseData.st,
       Fondospropios: expenseData.fondosPropios,
+      PeriodoIDLookupId: periodId,
     };
 
     if (comprobanteId) {
@@ -314,57 +383,124 @@ class GraphService {
 
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.lists.expenseReports}/items/${id}`)
-        .header('Prefer', 'HonorNonIndexedQueriesWarningMayFailRandomly')
+        .api(
+          `/sites/${this.siteId}/lists/${this.lists.expenseReports}/items/${id}`
+        )
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({
-          fields: fields
+          fields: fields,
         });
 
       return {
         ...response,
         fields: {
           ...response.fields,
-          // Ensure we keep the file ID if we didn't upload a new one
-          Comprobante: comprobanteId || response.fields.Comprobante
-        }
+          Comprobante: comprobanteId || response.fields.Comprobante,
+        },
       };
     } catch (error) {
-      console.error('Error updating expense report:', error);
+      console.error("Error updating expense report:", error);
       throw new Error(
-        error.message || 'Error al actualizar el gasto en SharePoint'
+        error.message || "Error al actualizar el gasto en SharePoint"
       );
     }
   }
 
+  async updateApprovalStatus(id, status, type, notes = "") {
+    await this.initializeGraphClient();
+
+    const fields = {
+      Bloqueoedici_x00f3_n: true,
+      Notasrevision: notes,
+    };
+
+    switch (type) {
+      case "assistant":
+        fields.Aprobaci_x00f3_nAsistente = status;
+        break;
+      case "boss":
+        fields.Aprobaci_x00f3_nJefatura = status;
+        break;
+      case "accounting":
+        fields.Aprobaci_x00f3_nContabilidad = status;
+        break;
+      default:
+        throw new Error("Invalid approval type");
+    }
+
+    try {
+      const response = await this.client
+        .api(
+          `/sites/${this.siteId}/lists/${this.lists.expenseReports}/items/${id}`
+        )
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .patch({
+          fields: fields,
+        });
+
+      return response;
+    } catch (error) {
+      console.error("Error updating approval status:", error);
+      throw new Error(
+        error.message || "Error al actualizar el estado de aprobación"
+      );
+    }
+  }
+
+  canApprove(expense, role) {
+    switch (role) {
+      case "Asistente":
+        return expense.aprobacionAsistente === "Pendiente";
+      case "Jefe":
+        return (
+          expense.aprobacionAsistente === "Aprobada" &&
+          expense.aprobacionJefatura === "Pendiente"
+        );
+      case "Contabilidad":
+        return (
+          expense.aprobacionJefatura === "Aprobada" &&
+          expense.aprobacionContabilidad === "Pendiente"
+        );
+      default:
+        return false;
+    }
+  }
+
   mapPeriodReports(periods, reports) {
-    return periods.map(period => ({
+    return periods.map((period) => ({
       ...period,
-      reports: reports.filter(report => report.periodoId === period.id)
+      reports: reports.filter((report) => report.periodoId === period.id),
     }));
   }
 
   mapDepartmentWorkers(departments, roles) {
-    return departments.map(department => ({
+    return departments.map((department) => ({
       ...department,
-      workers: roles.filter(role => role.departamentoId === parseInt(department.id, 10))
+      workers: roles.filter(
+        (role) => role.departamentoId === parseInt(department.id, 10)
+      ),
     }));
   }
 
   filterReportsByEmail(reports, userEmail) {
-    return reports.filter(report => report.createdBy === userEmail);
+    return reports.filter((report) => report.createdBy === userEmail);
   }
 
   createPeriodUserReportsMapping(periods, reports, roles) {
-    const mapping = periods.map(period => {
-      const periodReports = reports.filter(report => report.periodoId === period.id);
-      
+    const mapping = periods.map((period) => {
+      const periodReports = reports.filter(
+        (report) => report.periodoId === period.id
+      );
+
       const userReports = {};
-      periodReports.forEach(report => {
+      periodReports.forEach((report) => {
         if (!userReports[report.createdBy]) {
-          const userRole = roles.find(role => role.empleado?.email === report.createdBy.email);
+          const userRole = roles.find(
+            (role) => role.empleado?.email === report.createdBy.email
+          );
           userReports[report.createdBy] = {
             user: userRole?.empleado || { email: report.createdBy },
-            reports: []
+            reports: [],
           };
         }
         userReports[report.createdBy].reports.push(report);
@@ -372,7 +508,7 @@ class GraphService {
 
       return {
         ...period,
-        users: Object.values(userReports)
+        users: Object.values(userReports),
       };
     });
 
@@ -380,21 +516,25 @@ class GraphService {
   }
 
   getUserDepartmentRole(userEmail, departments, roles) {
-    const userRole = roles.find(role => role.empleado?.email === userEmail);
+    const userRole = roles.find((role) => role.empleado?.email === userEmail);
     if (!userRole) return null;
 
-    const userDepartment = departments.find(dept => dept.id === userRole.departamentoId.toString());
+    const userDepartment = departments.find(
+      (dept) => dept.id === userRole.departamentoId.toString()
+    );
     if (!userDepartment) return null;
 
     const role = (() => {
-      if (userDepartment.asistentes.some(asst => asst.email === userEmail)) return 'Assistente';
-      if (userDepartment.jefes.some(boss => boss.email === userEmail)) return 'Jefe';
-      return 'Empleado';
+      if (userDepartment.asistentes.some((asst) => asst.email === userEmail))
+        return "Assistente";
+      if (userDepartment.jefes.some((boss) => boss.email === userEmail))
+        return "Jefe";
+      return "Empleado";
     })();
 
     return {
       department: userDepartment,
-      role: role
+      role: role,
     };
   }
 }

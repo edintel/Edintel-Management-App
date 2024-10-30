@@ -17,7 +17,7 @@ export function AppProvider({ children }) {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const [periodReports, setPeriodReports] = useState([]);
   const [departmentWorkers, setDepartmentWorkers] = useState([]);
   const [userDepartmentRole, setUserDepartmentRole] = useState(null);
@@ -36,24 +36,40 @@ export function AppProvider({ children }) {
       }
 
       try {
-        const [periodsData, expenseReportsData, departmentsData, rolesData] = await Promise.all([
-          graphService.getPeriods(),
-          graphService.getExpenseReports(),
-          graphService.getDepartments(),
-          graphService.getRoles()
-        ]);
+        const [periodsData, expenseReportsData, departmentsData, rolesData] =
+          await Promise.all([
+            graphService.getPeriods(),
+            graphService.getExpenseReports(),
+            graphService.getDepartments(),
+            graphService.getRoles(),
+          ]);
 
         setPeriods(periodsData);
         setExpenseReports(expenseReportsData);
         setDepartments(departmentsData);
         setRoles(rolesData);
 
-        const mappedPeriodReports = graphService.mapPeriodReports(periodsData, expenseReportsData);
-        const mappedDepartmentWorkers = graphService.mapDepartmentWorkers(departmentsData, rolesData);
-        const mappedPeriodUserReports = graphService.createPeriodUserReportsMapping(periodsData, expenseReportsData, rolesData);
+        const mappedPeriodReports = graphService.mapPeriodReports(
+          periodsData,
+          expenseReportsData
+        );
+        const mappedDepartmentWorkers = graphService.mapDepartmentWorkers(
+          departmentsData,
+          rolesData
+        );
+        const mappedPeriodUserReports =
+          graphService.createPeriodUserReportsMapping(
+            periodsData,
+            expenseReportsData,
+            rolesData
+          );
 
         const currentUserEmail = accounts[0]?.username;
-        const userDeptRole = graphService.getUserDepartmentRole(currentUserEmail, departmentsData, rolesData);
+        const userDeptRole = graphService.getUserDepartmentRole(
+          currentUserEmail,
+          departmentsData,
+          rolesData
+        );
 
         setPeriodReports(mappedPeriodReports);
         setDepartmentWorkers(mappedDepartmentWorkers);
@@ -75,7 +91,10 @@ export function AppProvider({ children }) {
 
   const getCurrentUserReports = () => {
     if (!accounts[0]?.username || !expenseReports) return [];
-    return graphService.filterReportsByEmail(expenseReports, accounts[0].username);
+    return graphService.filterReportsByEmail(
+      expenseReports,
+      accounts[0].username
+    );
   };
 
   const value = {
@@ -87,15 +106,15 @@ export function AppProvider({ children }) {
     roles,
     loading,
     error,
-    
+
     periodReports,
     departmentWorkers,
     userDepartmentRole,
     periodUserReports,
-    
+
     getCurrentUserReports,
-    
-    currentUser: accounts[0]?.username
+
+    currentUser: accounts[0]?.username,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,42 +1,52 @@
 // src/components/Dashboard/Dashboard.js
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAppContext } from '../../contexts/AppContext';
-import Layout from '../layout/Layout';
-import Card from '../common/Card';
-import Table from '../common/Table';
-import Button from '../common/Button';
-import { Plus, FileText, Check, AlertTriangle, X } from 'lucide-react';
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAppContext } from "../../contexts/AppContext";
+import Layout from "../layout/Layout";
+import Card from "../common/Card";
+import Table from "../common/Table";
+import Button from "../common/Button";
+import { Plus, FileText, Check, AlertTriangle, X } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { periods, expenseReports, loading, error } = useAppContext();
 
-  const currentPeriod = periods[periods.length-1] || {};
+  const currentPeriod = periods[periods.length - 1] || {};
+
+  const currentPeriodExpenses = expenseReports.filter(
+    (expense) => expense.periodoId === currentPeriod.id
+  );
+
+  const recentExpenses = [...expenseReports]
+    .sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
+    .slice(0, 5);
 
   const expenseColumns = [
     {
-      key: 'fecha',
-      header: 'Fecha',
-      render: (value) => value.toLocaleDateString('es-CR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      })
+      key: "fecha",
+      header: "Fecha",
+      render: (value) =>
+        value.toLocaleDateString("es-CR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
     },
-    { key: 'rubro', header: 'Rubro' },
+    { key: "rubro", header: "Rubro" },
     {
-      key: 'monto',
-      header: 'Monto',
-      render: (value) => value.toLocaleString('es-CR', {
-        style: 'currency',
-        currency: 'CRC'
-      })
+      key: "monto",
+      header: "Monto",
+      render: (value) =>
+        value.toLocaleString("es-CR", {
+          style: "currency",
+          currency: "CRC",
+        }),
     },
-    { key: 'st', header: 'ST' },
+    { key: "st", header: "ST" },
     {
-      key: 'status',
-      header: 'Estado',
+      key: "status",
+      header: "Estado",
       render: (_, row) => {
         if (row.aprobacionAsistente === "No aprobada") {
           return (
@@ -71,47 +81,54 @@ const Dashboard = () => {
             Pendiente
           </span>
         );
-      }
-    }
+      },
+    },
   ];
 
   const stats = [
     {
-      title: 'Total Gastos',
-      value: expenseReports.reduce((sum, report) => sum + parseFloat(report.monto), 0)
-        .toLocaleString('es-CR', { style: 'currency', currency: 'CRC' }),
-      icon: <FileText className="text-primary" size={24} />
+      title: "Total Gastos",
+      value: currentPeriodExpenses
+        .reduce((sum, report) => sum + parseFloat(report.monto), 0)
+        .toLocaleString("es-CR", { style: "currency", currency: "CRC" }),
+      icon: <FileText className="text-primary" size={24} />,
     },
     {
-      title: 'Pendientes',
-      value: expenseReports.filter(report => report.aprobacionAsistente === "Pendiente").length,
-      icon: <AlertTriangle className="text-warning" size={24} />
+      title: "Pendientes",
+      value: currentPeriodExpenses.filter(
+        (report) => report.aprobacionAsistente === "Pendiente"
+      ).length,
+      icon: <AlertTriangle className="text-warning" size={24} />,
     },
     {
-      title: 'Aprobados',
-      value: expenseReports.filter(report => report.aprobacionContabilidad === "Aprobada").length,
-      icon: <Check className="text-success" size={24} />
+      title: "Aprobados",
+      value: currentPeriodExpenses.filter(
+        (report) => report.aprobacionContabilidad === "Aprobada"
+      ).length,
+      icon: <Check className="text-success" size={24} />,
     },
     {
-      title: 'No Aprobados',
-      value: expenseReports.filter(report => report.aprobacionAsistente === "No aprobada").length,
-      icon: <X className="text-error" size={24} />
-    }
+      title: "No Aprobados",
+      value: currentPeriodExpenses.filter(
+        (report) => report.aprobacionAsistente === "No aprobada"
+      ).length,
+      icon: <X className="text-error" size={24} />,
+    },
   ];
 
   const handleExpenseClick = (expense) => {
     navigate(`/expenses/${expense.id}`, {
-      state: { from: location } // Store dashboard as the return location
+      state: { from: location },
     });
   };
 
   const handleViewAllExpenses = () => {
-    navigate('/expenses');
+    navigate("/expenses");
   };
 
   const handleNewExpense = () => {
-    navigate('/expenses/new', {
-      state: { from: location } // Store dashboard as the return location for new expense
+    navigate("/expenses/new", {
+      state: { from: location },
     });
   };
 
@@ -120,7 +137,9 @@ const Dashboard = () => {
       <Layout>
         <div className="flex flex-col items-center justify-center p-8 text-error">
           <AlertTriangle size={48} className="mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Error al cargar los datos</h2>
+          <h2 className="text-xl font-semibold mb-2">
+            Error al cargar los datos
+          </h2>
           <p>{error}</p>
         </div>
       </Layout>
@@ -134,7 +153,7 @@ const Dashboard = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Periodo actual: {currentPeriod.periodo || 'Cargando...'}
+              Periodo actual: {currentPeriod.periodo || "Cargando..."}
             </p>
           </div>
           <Button
@@ -150,9 +169,7 @@ const Dashboard = () => {
           {stats.map((stat, index) => (
             <Card key={index} className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-gray-100 rounded-lg">
-                  {stat.icon}
-                </div>
+                <div className="p-3 bg-gray-100 rounded-lg">{stat.icon}</div>
                 <div>
                   <h3 className="text-sm text-gray-600">{stat.title}</h3>
                   <p className="text-xl font-semibold mt-1">{stat.value}</p>
@@ -164,7 +181,7 @@ const Dashboard = () => {
 
         <Card
           title="Gastos Recientes"
-          subtitle="Últimos gastos registrados en el periodo actual"
+          subtitle={`Últimos ${recentExpenses.length} gastos registrados`}
           action={
             <Button
               variant="outline"
@@ -177,7 +194,7 @@ const Dashboard = () => {
         >
           <Table
             columns={expenseColumns}
-            data={expenseReports.slice(0, 5)}
+            data={recentExpenses}
             isLoading={loading}
             onRowClick={handleExpenseClick}
             emptyMessage={
