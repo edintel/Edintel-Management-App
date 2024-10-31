@@ -25,6 +25,8 @@ const ExpenseForm = () => {
     fondosPropios: false,
     motivo: "",
     comprobante: null,
+    facturaDividida: false,
+    integrantes: "",
   });
   const [preview, setPreview] = useState(null);
 
@@ -318,6 +320,43 @@ const ExpenseForm = () => {
                   value={formData.motivo || ""}
                   onChange={handleInputChange}
                   placeholder="Ingrese el motivo"
+                  className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="facturaDividida"
+                name="facturaDividida"
+                checked={formData.facturaDividida}
+                onChange={handleInputChange}
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label
+                htmlFor="facturaDividida"
+                className="ml-2 text-sm text-gray-700"
+              >
+                ¿La factura es dividida entre varios integrantes?
+              </label>
+            </div>
+
+            {formData.facturaDividida && (
+              <div className="space-y-2">
+                <label
+                  htmlFor="integrantes"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Integrantes
+                </label>
+                <input
+                  type="text"
+                  id="integrantes"
+                  name="integrantes"
+                  value={formData.integrantes || ""}
+                  onChange={handleInputChange}
+                  placeholder="Ingrese los nombres de los integrantes"
                   className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 />
               </div>

@@ -11,11 +11,13 @@ import {
   validateImage,
   getFileSizeMB,
 } from "../../utils/imageUtils";
+import { useAuth } from "../AuthProvider";
 
 const ExpenseEdit = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const { user } = useAuth();
   const {
     expenseReports,
     setExpenseReports,
@@ -72,7 +74,7 @@ const ExpenseEdit = () => {
         return;
       }
 
-      if (expense.bloqueoEdicion) {
+      if (expense.bloqueoEdicion && (!user?.role || user?.role === 'Empleado')) {
         navigate(`/expenses/${id}`);
         return;
       }
@@ -87,6 +89,8 @@ const ExpenseEdit = () => {
         fondosPropios: expense.fondosPropios,
         motivo: expense.motivo || "",
         comprobante: expense.comprobante,
+        facturaDividida: expense.facturaDividida || false,
+        integrantes: expense.integrantes || "",
       });
 
       if (expense.comprobante) {
@@ -94,7 +98,7 @@ const ExpenseEdit = () => {
         setIsNewFile(false);
       }
     }
-  }, [id, expenseReports, navigate, contextLoading]);
+  }, [id, expenseReports, navigate, contextLoading, user]);
 
   const handleCancel = () => {
     navigate(`/expenses/${id}`, {
@@ -182,30 +186,30 @@ const ExpenseEdit = () => {
         prevReports.map((report) =>
           report.id === id
             ? {
-                ...report,
-                rubro: updatedExpense.fields.Rubro,
-                monto: parseFloat(updatedExpense.fields.Monto),
-                fecha: new Date(updatedExpense.fields.Fecha),
-                st: updatedExpense.fields.ST,
-                fondosPropios: Boolean(updatedExpense.fields.Fondospropios),
-                motivo: updatedExpense.fields.Title || "",
-                comprobante:
-                  updatedExpense.fields.Comprobante || report.comprobante,
-                periodoId: updatedExpense.fields.PeriodoIDLookupId,
-                bloqueoEdicion: Boolean(
-                  updatedExpense.fields.Bloqueoedici_x00f3_n
-                ),
-                aprobacionAsistente:
-                  updatedExpense.fields.Aprobaci_x00f3_n_x0020_Departame ||
-                  report.aprobacionAsistente,
-                aprobacionJefatura:
-                  updatedExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura ||
-                  report.aprobacionJefatura,
-                aprobacionContabilidad:
-                  updatedExpense.fields.Aprobaci_x00f3_n_x0020_Contabili ||
-                  report.aprobacionContabilidad,
-                createdBy: report.createdBy,
-              }
+              ...report,
+              rubro: updatedExpense.fields.Rubro,
+              monto: parseFloat(updatedExpense.fields.Monto),
+              fecha: new Date(updatedExpense.fields.Fecha),
+              st: updatedExpense.fields.ST,
+              fondosPropios: Boolean(updatedExpense.fields.Fondospropios),
+              motivo: updatedExpense.fields.Title || "",
+              comprobante:
+                updatedExpense.fields.Comprobante || report.comprobante,
+              periodoId: updatedExpense.fields.PeriodoIDLookupId,
+              bloqueoEdicion: Boolean(
+                updatedExpense.fields.Bloqueoedici_x00f3_n
+              ),
+              aprobacionAsistente:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Departame ||
+                report.aprobacionAsistente,
+              aprobacionJefatura:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura ||
+                report.aprobacionJefatura,
+              aprobacionContabilidad:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Contabili ||
+                report.aprobacionContabilidad,
+              createdBy: report.createdBy,
+            }
             : report
         )
       );
@@ -217,7 +221,7 @@ const ExpenseEdit = () => {
       console.error("Error updating expense:", err);
       setError(
         err.message ||
-          "Error al actualizar el gasto. Por favor intente nuevamente."
+        "Error al actualizar el gasto. Por favor intente nuevamente."
       );
     } finally {
       setLoading(false);
@@ -349,6 +353,43 @@ const ExpenseEdit = () => {
                   value={formData.motivo || ""}
                   onChange={handleInputChange}
                   placeholder="Ingrese el motivo"
+                  className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="facturaDividida"
+                name="facturaDividida"
+                checked={formData.facturaDividida}
+                onChange={handleInputChange}
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label
+                htmlFor="facturaDividida"
+                className="ml-2 text-sm text-gray-700"
+              >
+                ¿La factura es dividida entre varios integrantes?
+              </label>
+            </div>
+
+            {formData.facturaDividida && (
+              <div className="space-y-2">
+                <label
+                  htmlFor="integrantes"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Integrantes
+                </label>
+                <input
+                  type="text"
+                  id="integrantes"
+                  name="integrantes"
+                  value={formData.integrantes || ""}
+                  onChange={handleInputChange}
+                  placeholder="Ingrese los nombres de los integrantes"
                   className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 />
               </div>

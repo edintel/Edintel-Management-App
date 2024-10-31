@@ -18,6 +18,7 @@ const Layout = ({ children }) => {
     { name: "Dashboard", path: "/dashboard" },
     { name: "Gastos", path: "/expenses" },
     ...(canApprove ? [{ name: "Aprobaciones", path: "/approvals" }] : []),
+    ...(canApprove ? [{ name: "Reportes", path: "/reports" }] : []),
   ];
 
   return (

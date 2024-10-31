@@ -19,6 +19,8 @@ import {
   XCircle,
   Check,
   X,
+  User,
+  Mail,
 } from "lucide-react";
 
 const ExpenseDetail = () => {
@@ -58,6 +60,18 @@ const ExpenseDetail = () => {
     navigate(`/expenses/${id}/edit`, {
       state: { from: location.state?.from },
     });
+  };
+
+  const canEdit = () => {
+    if (!user || !expense) return false;
+
+    if (user.role === 'Jefe' || 
+        user.role === 'Asistente' || 
+        user.department?.toLowerCase().includes('contabilidad')) {
+      return true;
+    }
+    
+    return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
   };
 
   if (loading || reportsLoading) {
@@ -172,9 +186,7 @@ const ExpenseDetail = () => {
                 aprobacionJefatura:
                   type === "boss" ? status : report.aprobacionJefatura,
                 aprobacionContabilidad:
-                  type === "accounting"
-                    ? status
-                    : report.aprobacionContabilidad,
+                  type === "accounting" ? status : report.aprobacionContabilidad,
               }
             : report
         )
@@ -200,7 +212,7 @@ const ExpenseDetail = () => {
           >
             Volver
           </Button>
-          {!expense?.bloqueoEdicion && (
+          {canEdit() && (
             <Button
               variant="outline"
               startIcon={<Edit size={16} />}
@@ -214,17 +226,13 @@ const ExpenseDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <div className="p-6 space-y-6">
-              <div className="flex justify-between items-start">
-                <h2 className="text-2xl font-semibold">{expense.rubro}</h2>
-                <div className="text-2xl font-semibold text-primary">
-                  {expense.monto.toLocaleString("es-CR", {
-                    style: "currency",
-                    currency: "CRC",
-                  })}
-                </div>
-              </div>
-
+              <h2 className="text-2xl font-semibold">Descripción factura</h2>
+              
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div>
+                  <span className="text-sm text-gray-500">Rubro</span>
+                  <p className="text-gray-900 mt-1">{expense.rubro}</p>
+                </div>
                 <div>
                   <span className="text-sm text-gray-500">Fecha</span>
                   <p className="text-gray-900 mt-1">
@@ -240,24 +248,69 @@ const ExpenseDetail = () => {
                   <p className="text-gray-900 mt-1">{expense.st}</p>
                 </div>
                 <div>
+                  <span className="text-sm text-gray-500">Monto</span>
+                  <p className="text-gray-900 mt-1 font-semibold">
+                    {expense.monto.toLocaleString("es-CR", {
+                      style: "currency",
+                      currency: "CRC",
+                    })}
+                  </p>
+                </div>
+                <div>
                   <span className="text-sm text-gray-500">Fondos Propios</span>
                   <p className="text-gray-900 mt-1">
                     {expense.fondosPropios ? "Sí" : "No"}
                   </p>
                 </div>
                 {expense.fondosPropios && (
-                  <div>
+                  <div className="col-span-3">
                     <span className="text-sm text-gray-500">Motivo</span>
-                    <p className="text-gray-900 mt-1">
+                    <p className="text-gray-900 mt-1 break-words">
                       {expense.motivo || "No especificado"}
                     </p>
                   </div>
+                )}
+                {expense.facturaDividida && (
+                  <>
+                    <div>
+                      <span className="text-sm text-gray-500">Factura Dividida</span>
+                      <p className="text-gray-900 mt-1">Sí</p>
+                    </div>
+                    <div className="col-span-3">
+                      <span className="text-sm text-gray-500">Integrantes</span>
+                      <p className="text-gray-900 mt-1 break-words">
+                        {expense.integrantes || "No especificados"}
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
           </Card>
 
           <Card className="lg:col-span-1">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Solicitante</h3>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <User size={20} className="text-gray-400" />
+                  <div>
+                    <span className="text-sm text-gray-500">Nombre</span>
+                    <p className="text-gray-900">{expense.createdBy.name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Mail size={20} className="text-gray-400" />
+                  <div>
+                    <span className="text-sm text-gray-500">Email</span>
+                    <p className="text-gray-900">{expense.createdBy.email}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="lg:col-span-2">
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4">Comprobante</h3>
               {expense.comprobante ? (
@@ -322,19 +375,18 @@ const ExpenseDetail = () => {
                 </Button>
               </div>
             )}
-            <ConfirmationDialog
-              isOpen={confirmDialog.isOpen}
-              onClose={() =>
-                setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
-              }
-              onConfirm={handleConfirmAction}
-              type={confirmDialog.type}
-              title={confirmDialog.title}
-              message={confirmDialog.message}
-            />
           </Card>
         </div>
       </div>
+
+      <ConfirmationDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={handleConfirmAction}
+        type={confirmDialog.type}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+      />
     </Layout>
   );
 };

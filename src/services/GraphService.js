@@ -116,6 +116,8 @@ class GraphService {
       fondosPropios: Boolean(item.fields.Fondospropios),
       motivo: item.fields.Title,
       notasRevision: item.fields.Notasrevision,
+      facturaDividida: Boolean(item.fields.FacturaDividida),
+      integrantes: item.fields.Integrantes || "",
       bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
       aprobacionAsistente: item.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
       aprobacionJefatura: item.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
@@ -269,8 +271,6 @@ class GraphService {
     await this.initializeGraphClient();
 
     const fields = {
-      Title: periodData.periodo,
-      Periodo: periodData.periodo,
       Inicio: periodData.inicio.toISOString(),
       Fin: periodData.fin.toISOString(),
     };
@@ -328,6 +328,8 @@ class GraphService {
       Fondospropios: expenseData.fondosPropios,
       Comprobante: comprobanteId,
       PeriodoIDLookupId: periodId,
+      FacturaDividida: expenseData.facturaDividida,
+      Integrantes: expenseData.integrantes,
     };
 
     const response = await this.client
@@ -373,6 +375,8 @@ class GraphService {
       ST: expenseData.st,
       Fondospropios: expenseData.fondosPropios,
       PeriodoIDLookupId: periodId,
+      FacturaDividida: expenseData.facturaDividida,
+      Integrantes: expenseData.integrantes,
     };
 
     if (comprobanteId) {
@@ -534,6 +538,31 @@ class GraphService {
       department: userDepartment,
       role: role,
     };
+  }
+
+  canApprove(expense, role) {
+    const wasApproved = (status) => {
+      return status === "Aprobada" || status === "No aprobada";
+    };
+
+    switch (role) {
+      case "Asistente":
+        return expense.aprobacionAsistente === "Pendiente" ||
+               expense.aprobacionAsistente === "No aprobada";
+        
+      case "Jefe":
+        return (expense.aprobacionAsistente === "Aprobada" && 
+                expense.aprobacionJefatura === "Pendiente") ||
+               expense.aprobacionJefatura === "No aprobada";
+        
+      case "Contabilidad":
+        return (expense.aprobacionJefatura === "Aprobada" && 
+                expense.aprobacionContabilidad === "Pendiente") ||
+               expense.aprobacionContabilidad === "No aprobada";
+        
+      default:
+        return false;
+    }
   }
 }
 
