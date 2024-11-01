@@ -4,6 +4,7 @@ import Layout from '../layout/Layout';
 import Card from '../common/Card';
 import Table from '../common/Table';
 import Button from '../common/Button';
+import ExpenseSummary from './ExpenseSummary';
 import { Filter, Search, Users, FileDown, Printer, Copy } from 'lucide-react';
 
 const Reports = () => {
@@ -287,6 +288,8 @@ const Reports = () => {
             </div>
           </div>
         </Card>
+
+        <ExpenseSummary expenses={filteredExpenses} />
 
         <Card>
           <div ref={tableRef} className="print:shadow-none">
