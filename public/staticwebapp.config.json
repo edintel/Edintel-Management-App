@@ -1,6 +1,10 @@
 {
-    "navigationFallback": {
-      "rewrite": "/index.html",
-      "exclude": ["/images/*", "/css/*", "/js/*"]
-    }
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/images/*", "/static/*", "/*.{png,jpg,gif,svg,ico}"]
+  },
+  "mimeTypes": {
+    ".ico": "image/x-icon",
+    ".png": "image/png"
   }
+}
