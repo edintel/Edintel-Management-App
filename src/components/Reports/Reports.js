@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useAppContext } from '../../contexts/AppContext';
+import { useExpenseAudit } from '../../contexts/AppContext';
 import Layout from '../layout/Layout';
 import Card from '../common/Card';
 import Table from '../common/Table';
@@ -8,7 +8,7 @@ import ExpenseSummary from './ExpenseSummary';
 import { Filter, Search, Users, FileDown, Printer, Copy } from 'lucide-react';
 
 const Reports = () => {
-  const { expenseReports, periods, departmentWorkers, loading } = useAppContext();
+  const { expenseReports, periods, departmentWorkers, loading } = useExpenseAudit();
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -91,7 +91,7 @@ const Reports = () => {
     }
     
     if (expense.aprobacionContabilidad === "Aprobada") {
-      return "Aprobada";
+      return "Aprobada por Contabilidad";
     }
     
     if (expense.aprobacionJefatura === "Aprobada" && 
@@ -103,8 +103,7 @@ const Reports = () => {
         expense.aprobacionJefatura === "Pendiente") {
       return "Aprobada por Asistente";
     }
-    
-    return "En proceso";
+
   };
 
   const filteredExpenses = expenseReports.filter(expense => {
@@ -279,10 +278,9 @@ const Reports = () => {
                 className="w-full bg-transparent border-none focus:outline-none text-sm"
               >
                 <option value="">Todos los estados</option>
-                <option value="En proceso">En proceso</option>
                 <option value="Aprobada por Asistente">Aprobada por Asistente</option>
                 <option value="Aprobada por Jefatura">Aprobada por Jefatura</option>
-                <option value="Aprobada">Aprobada</option>
+                <option value="Aprobada">Aprobada por Contabilidad</option>
                 <option value="No aprobada">No aprobada</option>
               </select>
             </div>

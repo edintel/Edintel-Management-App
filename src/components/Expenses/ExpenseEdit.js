@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useAppContext } from "../../contexts/AppContext";
+import { useExpenseAudit } from "../../contexts/AppContext";
 import Layout from "../layout/Layout";
 import Card from "../common/Card";
 import Button from "../common/Button";
@@ -23,7 +23,7 @@ const ExpenseEdit = () => {
     setExpenseReports,
     graphService,
     loading: contextLoading,
-  } = useAppContext();
+  } = useExpenseAudit();
   const [formData, setFormData] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isNewFile, setIsNewFile] = useState(false);

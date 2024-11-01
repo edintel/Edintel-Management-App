@@ -1,6 +1,6 @@
 // src/components/Dashboard/Dashboard.js
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAppContext } from "../../contexts/AppContext";
+import { useExpenseAudit  } from "../../contexts/AppContext";
 import { useAuth } from "../AuthProvider";
 import Layout from "../layout/Layout";
 import Card from "../common/Card";
@@ -11,7 +11,7 @@ import { Plus, FileText, Check, AlertTriangle, X } from "lucide-react";
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { periods, expenseReports, loading, error } = useAppContext();
+  const { periods, expenseReports, loading, error } = useExpenseAudit();
   const { user } = useAuth();
 
   const userExpenses = expenseReports.filter(

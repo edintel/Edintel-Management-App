@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppContext } from "../../contexts/AppContext";
+import { useExpenseAudit  } from "../../contexts/AppContext";
 import { useAuth } from "../AuthProvider";
 import Layout from "../layout/Layout";
 import Card from "../common/Card";
@@ -20,7 +20,7 @@ const ApprovalList = () => {
     loading,
     setExpenseReports,
     graphService,
-  } = useAppContext();
+  } = useExpenseAudit();
   const { user } = useAuth();
 
   const [selectedPeriod, setSelectedPeriod] = useState("");

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../../contexts/AppContext';
+import { useExpenseAudit } from '../../contexts/AppContext';
+import { useAuth } from '../AuthProvider';
 import Layout from '../layout/Layout';
 import Card from '../common/Card';
 import Table from '../common/Table';
@@ -9,7 +10,8 @@ import { Plus, Search, Filter, FileText } from 'lucide-react';
 
 const ExpenseList = () => {
   const navigate = useNavigate();
-  const { expenseReports, periods, loading } = useAppContext();
+  const { expenseReports, periods, loading } = useExpenseAudit();
+  const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -75,17 +77,18 @@ const ExpenseList = () => {
   ];
 
   const filteredExpenses = expenseReports
-  .filter(expense => {
-    if (selectedPeriod && expense.periodoId !== selectedPeriod) return false;
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      return (
-        expense.rubro.toLowerCase().includes(search) ||
-        expense.st.toLowerCase().includes(search)
-      );
-    }
-    return true;
-  });
+    .filter(expense => expense.createdBy.email === user?.username) // Filter by current user
+    .filter(expense => {
+      if (selectedPeriod && expense.periodoId !== selectedPeriod) return false;
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        return (
+          expense.rubro.toLowerCase().includes(search) ||
+          expense.st.toLowerCase().includes(search)
+        );
+      }
+      return true;
+    });
 
   return (
     <Layout>
