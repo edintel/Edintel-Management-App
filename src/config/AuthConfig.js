@@ -19,3 +19,8 @@ export const loginRequest = {
     "Files.ReadWrite.All",
   ],
 };
+
+export const logoutRequest = {
+  postLogoutRedirectUri: window.location.origin,
+  mainWindowRedirectUri: window.location.origin
+};

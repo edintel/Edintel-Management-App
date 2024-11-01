@@ -6,5 +6,12 @@
   "mimeTypes": {
     ".ico": "image/x-icon",
     ".png": "image/png"
-  }
+  },
+  "routes": [
+    {
+      "route": "/logout",
+      "rewrite": "/index.html",
+      "allowedRoles": ["anonymous", "authenticated"]
+    }
+  ]
 }
