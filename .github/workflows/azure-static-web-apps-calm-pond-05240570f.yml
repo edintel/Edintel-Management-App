@@ -17,8 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: true
-          lfs: false
+            submodules: true
+            lfs: false
+      - name: List directory contents
+        run: | 
+            ls -la
+            ls -la src/components/Reports
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
