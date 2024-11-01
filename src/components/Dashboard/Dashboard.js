@@ -1,6 +1,7 @@
 // src/components/Dashboard/Dashboard.js
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppContext } from "../../contexts/AppContext";
+import { useAuth } from "../AuthProvider";
 import Layout from "../layout/Layout";
 import Card from "../common/Card";
 import Table from "../common/Table";
@@ -11,14 +12,19 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { periods, expenseReports, loading, error } = useAppContext();
+  const { user } = useAuth();
+
+  const userExpenses = expenseReports.filter(
+    expense => expense.createdBy.email === user?.username
+  );
 
   const currentPeriod = periods[periods.length - 1] || {};
 
-  const currentPeriodExpenses = expenseReports.filter(
+  const currentPeriodExpenses = userExpenses.filter(
     (expense) => expense.periodoId === currentPeriod.id
   );
 
-  const recentExpenses = [...expenseReports]
+  const recentExpenses = [...userExpenses]
     .sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
     .slice(0, 5);
 
@@ -180,7 +186,7 @@ const Dashboard = () => {
         </div>
 
         <Card
-          title="Gastos Recientes"
+          title="Mis Gastos Recientes"
           subtitle={`Últimos ${recentExpenses.length} gastos registrados`}
           action={
             <Button

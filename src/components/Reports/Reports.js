@@ -52,18 +52,30 @@ const Reports = () => {
             </span>
           );
         }
-        if (row.aprobacionAsistente === "Aprobada" && 
-            row.aprobacionJefatura === "Aprobada" && 
-            row.aprobacionContabilidad === "Aprobada") {
+        if (row.aprobacionContabilidad === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
               Aprobado
             </span>
           );
         }
+        if (row.aprobacionJefatura === "Aprobada") {
+          return (
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
+              En Contabilidad
+            </span>
+          );
+        }
+        if (row.aprobacionAsistente === "Aprobada") {
+          return (
+            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
+              En Jefatura
+            </span>
+          );
+        }
         return (
           <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
-            En proceso
+            Pendiente
           </span>
         );
       }
@@ -76,11 +88,21 @@ const Reports = () => {
         expense.aprobacionContabilidad === "No aprobada") {
       return "No aprobada";
     }
-    if (expense.aprobacionAsistente === "Aprobada" && 
-        expense.aprobacionJefatura === "Aprobada" && 
-        expense.aprobacionContabilidad === "Aprobada") {
+    
+    if (expense.aprobacionContabilidad === "Aprobada") {
       return "Aprobada";
     }
+    
+    if (expense.aprobacionJefatura === "Aprobada" && 
+        expense.aprobacionContabilidad === "Pendiente") {
+      return "Aprobada por Jefatura";
+    }
+    
+    if (expense.aprobacionAsistente === "Aprobada" && 
+        expense.aprobacionJefatura === "Pendiente") {
+      return "Aprobada por Asistente";
+    }
+    
     return "En proceso";
   };
 
@@ -257,8 +279,10 @@ const Reports = () => {
               >
                 <option value="">Todos los estados</option>
                 <option value="En proceso">En proceso</option>
-                <option value="Aprobada">Aprobadas</option>
-                <option value="No aprobada">No aprobadas</option>
+                <option value="Aprobada por Asistente">Aprobada por Asistente</option>
+                <option value="Aprobada por Jefatura">Aprobada por Jefatura</option>
+                <option value="Aprobada">Aprobada</option>
+                <option value="No aprobada">No aprobada</option>
               </select>
             </div>
           </div>
