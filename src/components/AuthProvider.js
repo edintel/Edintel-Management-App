@@ -1,6 +1,7 @@
+// src/components/AuthProvider.js
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useMsal } from "@azure/msal-react";
-import { loginRequest } from "../config/AuthConfig";
+import { loginRequest, logoutRequest } from "../config/AuthConfig";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppContext } from "../contexts/AppContext";
 
@@ -20,15 +21,13 @@ export function AuthProvider({ children }) {
   const getUserDepartmentInfo = useCallback((email) => {
     if (!appContext?.roles || !appContext?.departments) return null;
     
-    // Find the user's role
     const userRole = appContext.roles.find(role => role.empleado?.email === email);
     if (!userRole) return null;
 
-    // Find the department
-    const department = appContext.departments.find(dept => dept.id === userRole.departamentoId.toString());
+    const department = appContext.departments.find(dept => 
+      dept.id === userRole.departamentoId.toString());
     if (!department) return null;
 
-    // Determine role type
     let roleType = 'Empleado';
     if (department.asistentes.some(asst => asst.email === email)) {
       roleType = 'Asistente';
@@ -73,12 +72,17 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      await instance.logoutPopup();
       setUser(null);
-      navigate('/login');
+      
+      await instance.logoutPopup(logoutRequest);
+      
+      sessionStorage.clear();
+    
+      navigate('/login', { replace: true });
+      
     } catch (error) {
       console.error("Logout failed:", error);
-      navigate('/login');
+      navigate('/login', { replace: true });
     }
   };
 

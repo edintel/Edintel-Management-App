@@ -21,6 +21,7 @@ import Profile from "./components/Profile/Profile";
 import StyleGuide from "./components/StyleGuide/StyleGuide";
 import { useAuth } from "./components/AuthProvider";
 import Reports from "./components/Reports/Reports";
+import LogoutHandler from './components/LogoutHandler';
 import "./App.css";
 
 const msalInstance = new PublicClientApplication(msalConfig);
@@ -55,6 +56,7 @@ function AppRoutes() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/logout" element={<LogoutHandler />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/expenses" element={<ExpenseList />} />
