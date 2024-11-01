@@ -449,25 +449,6 @@ class GraphService {
     }
   }
 
-  canApprove(expense, role) {
-    switch (role) {
-      case "Asistente":
-        return expense.aprobacionAsistente === "Pendiente";
-      case "Jefe":
-        return (
-          expense.aprobacionAsistente === "Aprobada" &&
-          expense.aprobacionJefatura === "Pendiente"
-        );
-      case "Contabilidad":
-        return (
-          expense.aprobacionJefatura === "Aprobada" &&
-          expense.aprobacionContabilidad === "Pendiente"
-        );
-      default:
-        return false;
-    }
-  }
-
   mapPeriodReports(periods, reports) {
     return periods.map((period) => ({
       ...period,
@@ -541,10 +522,6 @@ class GraphService {
   }
 
   canApprove(expense, role) {
-    const wasApproved = (status) => {
-      return status === "Aprobada" || status === "No aprobada";
-    };
-
     switch (role) {
       case "Asistente":
         return expense.aprobacionAsistente === "Pendiente" ||
