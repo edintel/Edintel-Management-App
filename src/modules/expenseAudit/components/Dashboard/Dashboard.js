@@ -1,12 +1,13 @@
 // src/components/Dashboard/Dashboard.js
 import { useNavigate, useLocation } from "react-router-dom";
-import { useExpenseAudit  } from "../../contexts/AppContext";
-import { useAuth } from "../AuthProvider";
+import { useExpenseAudit  } from "../../context/expenseAuditContext";
+import { useAuth } from "../../../../components/AuthProvider";
 import Layout from "../layout/Layout";
-import Card from "../common/Card";
-import Table from "../common/Table";
-import Button from "../common/Button";
+import Card from "../../../../components/common/Card";
+import Table from "../../../../components/common/Table";
+import Button from "../../../../components/common/Button";
 import { Plus, FileText, Check, AlertTriangle, X } from "lucide-react";
+import { EXPENSE_AUDIT_ROUTES } from '../../routes';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -123,17 +124,17 @@ const Dashboard = () => {
   ];
 
   const handleExpenseClick = (expense) => {
-    navigate(`/expenses/${expense.id}`, {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
       state: { from: location },
     });
   };
 
   const handleViewAllExpenses = () => {
-    navigate("/expenses");
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST);
   };
 
   const handleNewExpense = () => {
-    navigate("/expenses/new", {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.NEW, {
       state: { from: location },
     });
   };

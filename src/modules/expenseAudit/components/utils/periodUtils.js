@@ -4,7 +4,6 @@ const findPeriodForDate = (date, periodsArray) => {
     (period) => expenseDate >= period.inicio && expenseDate <= period.fin
   );
 };
-// src/utils/periodUtils.js
 
 /**
  * Gets the Monday of the week for a given date
@@ -60,7 +59,6 @@ const findOrCreatePeriodForDate = (date, periodsArray) => {
   const weekStart = getWeekStart(expenseDate);
   const weekEnd = getWeekEnd(expenseDate);
 
-  // Try to find existing period
   const existingPeriod = periodsArray.find(
     (period) =>
       expenseDate >= new Date(period.inicio) &&
@@ -74,7 +72,6 @@ const findOrCreatePeriodForDate = (date, periodsArray) => {
     };
   }
 
-  // Create new period suggestion
   return {
     exists: false,
     period: {

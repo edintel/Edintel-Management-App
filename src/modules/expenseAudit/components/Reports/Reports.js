@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { useExpenseAudit } from '../../contexts/AppContext';
+import { useExpenseAudit } from '../../context/expenseAuditContext';
 import Layout from '../layout/Layout';
-import Card from '../common/Card';
-import Table from '../common/Table';
-import Button from '../common/Button';
+import Card from '../../../../components/common/Card';
+import Table from '../../../../components/common/Table';
+import Button from '../../../../components/common/Button';
 import ExpenseSummary from './ExpenseSummary';
 import { Filter, Search, Users, FileDown, Printer, Copy } from 'lucide-react';
 

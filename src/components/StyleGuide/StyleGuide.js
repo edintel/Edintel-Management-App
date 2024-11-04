@@ -1,5 +1,5 @@
 import React from 'react';
-import Layout from '../layout/Layout';
+import Layout from '../../modules/expenseAudit/components/layout/Layout';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import './StyleGuide.css';

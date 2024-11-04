@@ -1,14 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useExpenseAudit  } from "../../contexts/AppContext";
-import { useAuth } from "../AuthProvider";
+import { useExpenseAudit  } from "../../context/expenseAuditContext";
+import { useAuth } from "../../../../components/AuthProvider";
 import Layout from "../layout/Layout";
-import Card from "../common/Card";
-import Table from "../common/Table";
-import Button from "../common/Button";
-import ConfirmationDialog from "../common/ConfirmationDialog";
+import Card from "../../../../components/common/Card";
+import Table from "../../../../components/common/Table";
+import Button from "../../../../components/common/Button";
+import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
 import { Check, X, Eye, Filter, Search, Users } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { EXPENSE_AUDIT_ROUTES } from '../../routes';
 
 const ApprovalList = () => {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ const ApprovalList = () => {
     departmentWorkers,
     loading,
     setExpenseReports,
-    graphService,
+    service,
   } = useExpenseAudit();
   const { user } = useAuth();
 
@@ -72,7 +73,7 @@ const ApprovalList = () => {
       const status =
         confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
 
-      await graphService.updateApprovalStatus(
+      await service.updateApprovalStatus(
         confirmDialog.expenseId,
         status,
         type,
@@ -109,8 +110,8 @@ const ApprovalList = () => {
   };
 
   const canApprove = (expense) => {
-    if (!user || !expense || !graphService) return false;
-    return graphService.canApprove(expense, user.role);
+    if (!user || !expense || !service) return false;
+    return service.canApprove(expense, user.role);
   };
 
   const columns = [
@@ -221,7 +222,7 @@ const ApprovalList = () => {
   ];
 
   const handleRowClick = (expense) => {
-    navigate(`/expenses/${expense.id}`, {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
       state: { from: location },
     });
   };
