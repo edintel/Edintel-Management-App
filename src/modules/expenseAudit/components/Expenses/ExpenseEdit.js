@@ -1,56 +1,36 @@
-import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useExpenseAudit } from "../../contexts/AppContext";
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Layout from "../layout/Layout";
-import Card from "../common/Card";
-import Button from "../common/Button";
-import { Upload, Save, X, Loader } from "lucide-react";
+import Card from "../../../../components/common/Card";
+import Button from "../../../../components/common/Button";
+import ExpenseImage from "./ExpenseImage";
+import { EXPENSE_AUDIT_ROUTES } from '../../routes';
+import { Save, X, Upload, Loader, AlertTriangle } from "lucide-react";
 import {
   optimizeImage,
   validateImage,
   getFileSizeMB,
-} from "../../utils/imageUtils";
+} from "../utils/imageUtils";
+import { useAuth } from "../../../../components/AuthProvider";
 
-const ExpenseForm = () => {
+const ExpenseEdit = () => {
   const navigate = useNavigate();
-  const { graphService, setExpenseReports } = useExpenseAudit();
+  const { id } = useParams();
+  const location = useLocation();
+  const { user } = useAuth();
+  const {
+    expenseReports,
+    setExpenseReports,
+    service,
+    loading: contextLoading,
+  } = useExpenseAudit();
+  const [formData, setFormData] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [isNewFile, setIsNewFile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [imageInfo, setImageInfo] = useState(null);
-  const [formData, setFormData] = useState({
-    rubro: "",
-    monto: "",
-    fecha: "",
-    st: "",
-    fondosPropios: false,
-    motivo: "",
-    comprobante: null,
-    facturaDividida: false,
-    integrantes: "",
-  });
-  const [preview, setPreview] = useState(null);
-
-  const dateLimits = useMemo(() => {
-    const today = new Date();
-    const twoWeeksAgo = new Date(today);
-    twoWeeksAgo.setDate(today.getDate() - 14);
-
-    return {
-      max: today.toISOString().split("T")[0],
-      min: twoWeeksAgo.toISOString().split("T")[0],
-
-      displayMax: today.toLocaleDateString("es-CR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-      displayMin: twoWeeksAgo.toLocaleDateString("es-CR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-    };
-  }, []);
 
   const rubroOptions = [
     "Almuerzo",
@@ -66,6 +46,67 @@ const ExpenseForm = () => {
     "Versatec",
   ];
 
+  const dateLimits = useMemo(() => {
+    const today = new Date();
+    const twoWeeksAgo = new Date(today);
+    twoWeeksAgo.setDate(today.getDate() - 14);
+
+    return {
+      max: today.toISOString().split("T")[0],
+      min: twoWeeksAgo.toISOString().split("T")[0],
+      displayMax: today.toLocaleDateString("es-CR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      displayMin: twoWeeksAgo.toLocaleDateString("es-CR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!contextLoading) {
+      const expense = expenseReports.find((exp) => exp.id === id);
+      if (!expense) {
+        navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST);
+        return;
+      }
+
+      if (expense.bloqueoEdicion && (!user?.role || user?.role === 'Empleado')) {
+        navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id));
+        return;
+      }
+
+      const formattedDate = expense.fecha.toISOString().split("T")[0];
+
+      setFormData({
+        rubro: expense.rubro,
+        monto: expense.monto,
+        fecha: formattedDate,
+        st: expense.st,
+        fondosPropios: expense.fondosPropios,
+        motivo: expense.motivo || "",
+        comprobante: expense.comprobante,
+        facturaDividida: expense.facturaDividida || false,
+        integrantes: expense.integrantes || "",
+      });
+
+      if (expense.comprobante) {
+        setPreview(expense.comprobante);
+        setIsNewFile(false);
+      }
+    }
+  }, [id, expenseReports, navigate, contextLoading, user]);
+
+  const handleCancel = () => {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id), {
+      state: { from: location.state?.from },
+    });
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -80,12 +121,10 @@ const ExpenseForm = () => {
 
     try {
       validateImage(file);
-
       setLoading(true);
       setError(null);
 
       const originalSize = getFileSizeMB(file);
-
       const optimizedFile = await optimizeImage(file);
       const optimizedSize = getFileSizeMB(optimizedFile);
 
@@ -94,6 +133,7 @@ const ExpenseForm = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
+        setIsNewFile(true);
         setImageInfo({
           originalSize,
           optimizedSize,
@@ -123,10 +163,6 @@ const ExpenseForm = () => {
         throw new Error("Por favor complete todos los campos requeridos");
       }
 
-      if (!formData.comprobante) {
-        throw new Error("Debe adjuntar un comprobante");
-      }
-
       const selectedDate = new Date(formData.fecha);
       const minDate = new Date(dateLimits.min);
       const maxDate = new Date(dateLimits.max);
@@ -141,66 +177,86 @@ const ExpenseForm = () => {
         ...formData,
       };
 
-      const newExpense = await graphService.createExpenseReport(
+      const updatedExpense = await service.updateExpenseReport(
+        id,
         expenseDataWithPeriod,
-        formData.comprobante
+        isNewFile ? formData.comprobante : null
       );
 
-      const formattedExpense = {
-        id: newExpense.id,
-        rubro: newExpense.fields.Rubro,
-        comprobante: newExpense.fields.Comprobante,
-        fecha: new Date(newExpense.fields.Fecha),
-        monto: parseFloat(newExpense.fields.Monto),
-        st: newExpense.fields.ST,
-        periodoId: newExpense.fields.PeriodoIDLookupId,
-        fondosPropios: Boolean(newExpense.fields.Fondospropios),
-        motivo: newExpense.fields.Title,
-        notasRevision: newExpense.fields.Notasrevision || "",
-        bloqueoEdicion: false,
-        aprobacionAsistente: "Pendiente",
-        aprobacionJefatura: "Pendiente",
-        aprobacionContabilidad: "Pendiente",
-        createdBy: {
-          name: newExpense.createdBy.user.displayName,
-          email: newExpense.createdBy.user.email,
-          id: newExpense.createdBy.user.id,
-        },
-      };
+      setExpenseReports((prevReports) =>
+        prevReports.map((report) =>
+          report.id === id
+            ? {
+              ...report,
+              rubro: updatedExpense.fields.Rubro,
+              monto: parseFloat(updatedExpense.fields.Monto),
+              fecha: new Date(updatedExpense.fields.Fecha),
+              st: updatedExpense.fields.ST,
+              fondosPropios: Boolean(updatedExpense.fields.Fondospropios),
+              motivo: updatedExpense.fields.Title || "",
+              comprobante:
+                updatedExpense.fields.Comprobante || report.comprobante,
+              periodoId: updatedExpense.fields.PeriodoIDLookupId,
+              bloqueoEdicion: Boolean(
+                updatedExpense.fields.Bloqueoedici_x00f3_n
+              ),
+              aprobacionAsistente:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Departame ||
+                report.aprobacionAsistente,
+              aprobacionJefatura:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura ||
+                report.aprobacionJefatura,
+              aprobacionContabilidad:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Contabili ||
+                report.aprobacionContabilidad,
+              createdBy: report.createdBy,
+            }
+            : report
+        )
+      );
 
-      setExpenseReports((prevReports) => [formattedExpense, ...prevReports]);
-      navigate("/expenses");
+      navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id), {
+        state: { from: location.state?.from },
+      });
     } catch (err) {
-      console.error("Error creating expense:", err);
+      console.error("Error updating expense:", err);
       setError(
-        err.message || "Error al crear el gasto. Por favor intente nuevamente."
+        err.message ||
+        "Error al actualizar el gasto. Por favor intente nuevamente."
       );
     } finally {
       setLoading(false);
     }
   };
 
+  if (!formData || contextLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader size={48} className="animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <Card title="Nuevo Gasto">
+        <Card title="Editar Gasto">
           {error && (
-            <div className="mb-4 p-4 bg-error/10 text-error rounded-lg">
-              {error}
+            <div className="mb-6 p-4 bg-error/10 text-error rounded-lg flex items-center gap-2">
+              <AlertTriangle size={20} />
+              <p>{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label
-                  htmlFor="rubro"
-                  className="block text-sm font-medium text-gray-700"
-                >
+                <label className="block text-sm font-medium text-gray-700">
                   Rubro *
                 </label>
                 <select
-                  id="rubro"
                   name="rubro"
                   value={formData.rubro}
                   onChange={handleInputChange}
@@ -217,10 +273,7 @@ const ExpenseForm = () => {
               </div>
 
               <div className="space-y-2">
-                <label
-                  htmlFor="monto"
-                  className="block text-sm font-medium text-gray-700"
-                >
+                <label className="block text-sm font-medium text-gray-700">
                   Monto *
                 </label>
                 <div className="relative">
@@ -229,7 +282,6 @@ const ExpenseForm = () => {
                   </span>
                   <input
                     type="number"
-                    id="monto"
                     name="monto"
                     value={formData.monto}
                     onChange={handleInputChange}
@@ -242,41 +294,27 @@ const ExpenseForm = () => {
               </div>
 
               <div className="space-y-2">
-                <label
-                  htmlFor="fecha"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Fecha * (últimas 2 semanas)
+                <label className="block text-sm font-medium text-gray-700">
+                  Fecha *
                 </label>
                 <input
                   type="date"
-                  id="fecha"
                   name="fecha"
-                  value={formData.fecha}
+                  value={formData?.fecha || ""}
                   onChange={handleInputChange}
                   min={dateLimits.min}
                   max={dateLimits.max}
                   required
                   className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 />
-                <div className="text-sm">
-                  <p className="text-gray-500">
-                    Rango permitido: {dateLimits.displayMin} -{" "}
-                    {dateLimits.displayMax}
-                  </p>
-                </div>
               </div>
 
               <div className="space-y-2">
-                <label
-                  htmlFor="st"
-                  className="block text-sm font-medium text-gray-700"
-                >
+                <label className="block text-sm font-medium text-gray-700">
                   ST *
                 </label>
                 <input
                   type="text"
-                  id="st"
                   name="st"
                   value={formData.st}
                   onChange={handleInputChange}
@@ -307,15 +345,11 @@ const ExpenseForm = () => {
 
             {formData.fondosPropios && (
               <div className="space-y-2">
-                <label
-                  htmlFor="motivo"
-                  className="block text-sm font-medium text-gray-700"
-                >
+                <label className="block text-sm font-medium text-gray-700">
                   Motivo
                 </label>
                 <input
                   type="text"
-                  id="motivo"
                   name="motivo"
                   value={formData.motivo || ""}
                   onChange={handleInputChange}
@@ -370,11 +404,18 @@ const ExpenseForm = () => {
                 {preview ? (
                   <div className="space-y-4">
                     <div className="relative inline-block">
-                      <img
-                        src={preview}
-                        alt="Preview"
-                        className="max-w-xs rounded-lg mx-auto"
-                      />
+                      {isNewFile ? (
+                        <img
+                          src={preview}
+                          alt="Preview"
+                          className="max-w-xs rounded-lg mx-auto"
+                        />
+                      ) : (
+                        <ExpenseImage
+                          itemId={preview}
+                          className="max-w-xs mx-auto"
+                        />
+                      )}
                       <button
                         type="button"
                         className="absolute -top-2 -right-2 bg-error text-white rounded-full p-1 shadow-lg hover:bg-error/90 transition-colors"
@@ -384,6 +425,7 @@ const ExpenseForm = () => {
                             comprobante: null,
                           }));
                           setPreview(null);
+                          setIsNewFile(false);
                           setImageInfo(null);
                         }}
                       >
@@ -420,7 +462,6 @@ const ExpenseForm = () => {
                       accept="image/*"
                       onChange={handleFileChange}
                       disabled={loading}
-                      required
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                       aria-label="Upload comprobante"
                     />
@@ -433,7 +474,7 @@ const ExpenseForm = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/expenses")}
+                onClick={handleCancel}
                 disabled={loading}
               >
                 Cancelar
@@ -460,4 +501,4 @@ const ExpenseForm = () => {
   );
 };
 
-export default ExpenseForm;
+export default ExpenseEdit;

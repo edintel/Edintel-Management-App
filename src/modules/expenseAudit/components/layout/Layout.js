@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import { useAuth } from "../AuthProvider";
-import ProfileMenu from "../common/ProfileMenu";
+import { useAuth } from "../../../../components/AuthProvider";
+import ProfileMenu from "../Profile/ProfileMenu";
+import { EXPENSE_AUDIT_ROUTES } from '../../routes';
 
 const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -15,10 +16,11 @@ const Layout = ({ children }) => {
     user?.department?.toLowerCase().includes("contabilidad");
 
   const navigation = [
-    { name: "Dashboard", path: "/dashboard" },
-    { name: "Gastos", path: "/expenses" },
-    ...(canApprove ? [{ name: "Aprobaciones", path: "/approvals" }] : []),
-    ...(canApprove ? [{ name: "Reportes", path: "/reports" }] : []),
+    { name: "Dashboard", path: EXPENSE_AUDIT_ROUTES.DASHBOARD },
+    { name: "Gastos", path: EXPENSE_AUDIT_ROUTES.EXPENSES.LIST },
+    ...(canApprove ? [{ name: "Aprobaciones", path: EXPENSE_AUDIT_ROUTES.APPROVALS }] : []),
+    ...(canApprove ? [{ name: "Reportes", path: EXPENSE_AUDIT_ROUTES.REPORTS }] : []),
+    { name: "Menu principal", path: "/" },
   ];
 
   return (

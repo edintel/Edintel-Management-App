@@ -1,8 +1,8 @@
 // src/contexts/AppContext.js
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { useMsal } from "@azure/msal-react";
-import ExpenseAuditService from "../services/modules/ExpenseAuditService";
-import { expenseAuditConfig } from "../config/sharepoint/expenseAudit.config";
+import ExpenseAuditService from "../components/services/ExpenseAuditService";
+import { expenseAuditConfig } from "../config/expenseAudit.config";
 
 const AppContext = createContext();
 
@@ -10,7 +10,7 @@ export function useAppContext() {
   return useContext(AppContext);
 }
 
-export function AppProvider({ children }) {
+export function AppProviderExpenseAudit({ children }) {
   const { instance, accounts } = useMsal();
   
   const [services, setServices] = useState({
@@ -29,6 +29,15 @@ export function AppProvider({ children }) {
     loading: false,
     error: null,
   });
+
+  const updateExpenseReports = useCallback((updaterFn) => {
+    setExpenseState(prev => ({
+      ...prev,
+      expenseReports: typeof updaterFn === 'function' 
+        ? updaterFn(prev.expenseReports)
+        : updaterFn,
+    }));
+  }, []);
 
   const initializeExpenseService = useCallback(async () => {
     if (!instance || accounts.length === 0) return null;
@@ -146,29 +155,55 @@ export function AppProvider({ children }) {
     initializeExpenseService,
     // Data loading methods
     loadExpenseData,
+    updateExpenseReports,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-// Custom hook for Expense Audit module
 export function useExpenseAudit() {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error("useExpenseAudit must be used within AppProvider");
+    throw new Error("useExpenseAudit must be used within AppProviderExpenseAudit");
   }
 
-  const { services, expenseState, loadExpenseData } = context;
+  const {
+    services: { expense: service },
+    expenseState: {
+      periods,
+      expenseReports,
+      departments,
+      roles,
+      periodReports,
+      departmentWorkers,
+      userDepartmentRole,
+      periodUserReports,
+      loading,
+      error
+    },
+    updateExpenseReports,
+    loadExpenseData
+  } = context;
 
-  // Initialize data if not already loaded
   React.useEffect(() => {
-    if (!services.expense && !expenseState.loading && !expenseState.error) {
+    if (!service && !loading && !error) {
       loadExpenseData();
     }
-  }, [services.expense, expenseState.loading, expenseState.error, loadExpenseData]);
+  }, [service, loading, error, loadExpenseData]);
 
   return {
-    service: services.expense,
-    ...expenseState,
+    service,
+    periods,
+    expenseReports,
+    departments,
+    roles,
+    periodReports,
+    departmentWorkers,
+    userDepartmentRole,
+    periodUserReports,
+    loading,
+    error,
+    setExpenseReports: updateExpenseReports,
+    loadExpenseData
   };
 }

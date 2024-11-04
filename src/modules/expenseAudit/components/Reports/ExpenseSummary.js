@@ -1,6 +1,6 @@
 import React from 'react';
 import _ from 'lodash';
-import Card from '../common/Card';
+import Card from '../../../../components/common/Card';
 
 const ExpenseSummary = ({ expenses }) => {
   // Group expenses by rubro and calculate total

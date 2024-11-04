@@ -1,109 +1,65 @@
-// src/components/AuthProvider.js
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useMsal } from "@azure/msal-react";
-import { loginRequest, logoutRequest } from "../config/AuthConfig";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { useMsal, useIsAuthenticated } from "@azure/msal-react";
+import { loginRequest } from "../config/AuthConfig";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useExpenseAudit } from '../contexts/AppContext';
+import LoadingScreen from "./LoadingScreen";
 
 const AuthContext = createContext();
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return context;
+  return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }) {
-  const { instance, accounts, inProgress } = useMsal();
+  const { instance, accounts } = useMsal();
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const { service, roles, departments } = useExpenseAudit();
-
-  const getUserDepartmentInfo = useCallback((email) => {
-    if (!roles || !departments) return null;
-    
-    const userRole = roles.find(role => role.empleado?.email === email);
-    if (!userRole) return null;
-
-    const department = departments.find(dept => 
-      dept.id === userRole.departamentoId.toString());
-    if (!department) return null;
-
-    let roleType = 'Empleado';
-    if (department.asistentes.some(asst => asst.email === email)) {
-      roleType = 'Asistente';
-    } else if (department.jefes.some(boss => boss.email === email)) {
-      roleType = 'Jefe';
-    }
-
-    return {
-      departamento: department.departamento,
-      tipo: roleType
-    };
-  }, [roles, departments]);
+  const isAuthenticated = useIsAuthenticated();
 
   useEffect(() => {
-    if (accounts.length > 0 && !user && service) {
-      service.initialize();
-    }
-  }, [accounts, user, service]);
+    const initializeAuth = async () => {
+      try {
+        if (accounts.length > 0) {
+          const response = await instance.acquireTokenSilent({
+            ...loginRequest,
+            account: accounts[0]
+          });
 
-  useEffect(() => {
-    if (accounts.length > 0 && roles && departments) {
-      const departmentInfo = getUserDepartmentInfo(accounts[0].username);
-      setUser(prev => ({
-        ...accounts[0],
-        department: departmentInfo?.departamento || 'No asignado',
-        role: departmentInfo?.tipo || 'No asignado'
-      }));
-    }
-  }, [accounts, roles, departments, getUserDepartmentInfo]);
+          setUser({
+            name: response.account.name,
+            username: response.account.username,
+          });
 
-  const login = async () => {
-    try {
-      const result = await instance.loginPopup(loginRequest);
-      if (result.account) {
-        if (service) {
-          await service.initialize();
+          if (location.pathname === '/login') {
+            navigate(location.state?.from?.pathname || '/', { replace: true });
+          }
+        } else if (location.pathname !== '/login' && !isAuthenticated) {
+          navigate('/login', { state: { from: location }, replace: true });
         }
-        
-        const departmentInfo = getUserDepartmentInfo(result.account.username);
-        setUser({
-          ...result.account,
-          department: departmentInfo?.departamento || 'No asignado',
-          role: departmentInfo?.tipo || 'No asignado'
-        });
-        const returnUrl = location.state?.from?.pathname || '/dashboard';
-        navigate(returnUrl);
+      } catch {
+        if (location.pathname !== '/login') {
+          navigate('/login', { state: { from: location }, replace: true });
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Login failed:", error);
-    }
-  };
+    };
 
-  const logout = async () => {
-    try {
-      setUser(null);
-      await instance.logoutPopup(logoutRequest);
-      sessionStorage.clear();
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error("Logout failed:", error);
-      navigate('/login', { replace: true });
-    }
-  };
+    initializeAuth();
+  }, [instance, accounts, isAuthenticated, navigate, location]);
 
-  const value = {
-    getUserDepartmentInfo,
-    user,
-    login,
-    logout,
-    inProgress,
-  };
+  const login = () => instance.loginRedirect(loginRequest);
+  const logout = () => instance.logoutRedirect();
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

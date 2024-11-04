@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useExpenseAudit } from "../../contexts/AppContext";
-import { useAuth } from "../AuthProvider";
+import { useExpenseAudit } from "../../context/expenseAuditContext";
+import { useAuth } from "../../../../components/AuthProvider";
 import Layout from "../layout/Layout";
-import Card from "../common/Card";
-import Button from "../common/Button";
-import ExpenseImage from "../common/ExpenseImage";
-import ConfirmationDialog from "../common/ConfirmationDialog";
+import Card from "../../../../components/common/Card";
+import Button from "../../../../components/common/Button";
+import ExpenseImage from "./ExpenseImage";
+import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
+import { EXPENSE_AUDIT_ROUTES } from '../../routes';
 import {
   ArrowLeft,
   Edit,
@@ -35,7 +36,7 @@ const ExpenseDetail = () => {
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const returnPath = location.state?.from?.pathname || "/expenses";
+  const returnPath = location.state?.from?.pathname || EXPENSE_AUDIT_ROUTES.EXPENSES.LIST;
   const { user } = useAuth();
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -57,7 +58,7 @@ const ExpenseDetail = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/expenses/${id}/edit`, {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.EDIT(id), {
       state: { from: location.state?.from },
     });
   };
@@ -94,7 +95,7 @@ const ExpenseDetail = () => {
           <Button
             variant="outline"
             startIcon={<ArrowLeft size={16} />}
-            onClick={() => navigate("/expenses")}
+            onClick={() => navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST)}
           >
             Volver a la lista
           </Button>

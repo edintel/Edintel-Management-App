@@ -1,6 +1,5 @@
-// src/services/modules/ExpenseAuditService.js
-import BaseGraphService from '../BaseGraphService';
-import { findOrCreatePeriodForDate } from '../../utils/periodUtils';
+import BaseGraphService from '../../../../services/BaseGraphService';
+import { findOrCreatePeriodForDate } from '../utils/periodUtils';
 
 class ExpenseAuditService extends BaseGraphService {
   constructor(msalInstance, config) {
@@ -22,7 +21,6 @@ class ExpenseAuditService extends BaseGraphService {
     this.driveId = this.config.driveId;
   }
 
-  // Period Methods
   async getPeriods() {
     const items = await this.getListItems(this.siteId, this.config.lists.periods);
     return items.map((item) => ({
@@ -61,7 +59,6 @@ class ExpenseAuditService extends BaseGraphService {
     }
   }
 
-  // Expense Report Methods
   async getExpenseReports() {
     const items = await this.getListItems(this.siteId, this.config.lists.expenseReports);
     return items.map((item) => ({
@@ -235,7 +232,6 @@ class ExpenseAuditService extends BaseGraphService {
     }
   }
 
-  // Department and Role Methods
   async getDepartments() {
     const items = await this.getListItems(this.siteId, this.config.lists.departments);
     return items.map((item) => ({
@@ -276,7 +272,6 @@ class ExpenseAuditService extends BaseGraphService {
     }));
   }
 
-  // Helper Methods for Data Mapping
   mapPeriodReports(periods, reports) {
     return periods.map((period) => ({
       ...period,

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useExpenseAudit  } from '../../contexts/AppContext';
+import { useExpenseAudit } from '../../context/expenseAuditContext';
 import { AlertCircle, ZoomIn } from 'lucide-react';
-import ImageModal from './ImageModal';
+import ImageModal from '../../../../components/common/ImageModal';
+import { expenseAuditConfig } from '../../config/expenseAudit.config';
 
 const ExpenseImage = ({ itemId, className = '' }) => {
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { service } = useExpenseAudit ();
+  const { service } = useExpenseAudit();
 
   useEffect(() => {
     let mounted = true;
@@ -28,7 +29,12 @@ const ExpenseImage = ({ itemId, className = '' }) => {
         setLoading(true);
         setError(null);
 
-        const { url, token } = await service.getImageContent(itemId);
+        const { url, token } = await service.getImageContent(
+          expenseAuditConfig.siteId,
+          expenseAuditConfig.driveId,
+          itemId
+        );
+
         const response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${token}` },
           signal: abortController.signal
@@ -46,6 +52,7 @@ const ExpenseImage = ({ itemId, className = '' }) => {
       } catch (err) {
         if (mounted && !abortController.signal.aborted) {
           setError('Error al cargar la imagen. Por favor, intente nuevamente.');
+          console.error('Error loading image:', err);
         }
       } finally {
         if (mounted) setLoading(false);

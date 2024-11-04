@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "-": "^0.0.1",
     "@azure/msal-browser": "^3.26.1",
     "@azure/msal-react": "^2.1.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
@@ -17,8 +18,12 @@
     "react-scripts": "5.0.1",
     "recharts": "^2.13.2",
     "repopack": "^0.1.43",
+    "save-dev": "^0.0.1-security",
     "tailwind-merge": "^2.5.4",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.1.0"
   },
   "scripts": {
     "start": "react-scripts start",

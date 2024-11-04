@@ -1,5 +1,3 @@
-// src/utils/imageUtils.js
-
 /**
  * Compresses an image while maintaining readability
  * Target size is approximately 800x800 max dimensions

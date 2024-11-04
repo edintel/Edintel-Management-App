@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useExpenseAudit } from '../../contexts/AppContext';
-import { useAuth } from '../AuthProvider';
+import { useExpenseAudit } from '../../context/expenseAuditContext';
+import { useAuth } from '../../../../components/AuthProvider';
 import Layout from '../layout/Layout';
-import Card from '../common/Card';
-import Table from '../common/Table';
-import Button from '../common/Button';
+import Card from '../../../../components/common/Card';
+import Table from '../../../../components/common/Table';
+import Button from '../../../../components/common/Button';
 import { Plus, Search, Filter, FileText } from 'lucide-react';
+import { EXPENSE_AUDIT_ROUTES } from '../../routes';
 
 const ExpenseList = () => {
   const navigate = useNavigate();
@@ -103,7 +104,7 @@ const ExpenseList = () => {
           <Button 
             variant="primary"
             startIcon={<Plus size={16} />}
-            onClick={() => navigate('/expenses/new')}
+            onClick={() => navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.NEW)}
           >
             Nuevo Gasto
           </Button>
@@ -145,7 +146,7 @@ const ExpenseList = () => {
             columns={columns}
             data={filteredExpenses}
             isLoading={loading}
-            onRowClick={(expense) => navigate(`/expenses/${expense.id}`)}
+            onRowClick={(expense) => navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id))}
             emptyMessage={
               <div className="flex flex-col items-center justify-center py-12">
                 <FileText size={48} className="text-gray-400 mb-4" />

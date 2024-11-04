@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, UserCircle } from 'lucide-react';
-import { useAuth } from '../AuthProvider';
+import { useAuth } from '../../../../components/AuthProvider';
+import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 
 const ProfileMenu = () => {
   const { logout } = useAuth();
@@ -22,7 +23,7 @@ const ProfileMenu = () => {
 
   const handleProfile = () => {
     setIsOpen(false);
-    navigate('/profile');
+    navigate(EXPENSE_AUDIT_ROUTES.PROFILE);
   };
 
   const handleLogout = async () => {
