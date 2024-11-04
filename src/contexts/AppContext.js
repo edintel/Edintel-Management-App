@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+// src/contexts/AppContext.js
+import React, { createContext, useContext, useState, useCallback } from "react";
 import { useMsal } from "@azure/msal-react";
-import GraphService from "../services/GraphService";
+import ExpenseAuditService from "../services/modules/ExpenseAuditService";
+import { expenseAuditConfig } from "../config/sharepoint/expenseAudit.config";
 
 const AppContext = createContext();
 
@@ -10,112 +12,163 @@ export function useAppContext() {
 
 export function AppProvider({ children }) {
   const { instance, accounts } = useMsal();
-  const [graphService, setGraphService] = useState(null);
-  const [periods, setPeriods] = useState([]);
-  const [expenseReports, setExpenseReports] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  
+  const [services, setServices] = useState({
+    expense: { service: null, initialized: false, initializing: false },
+  });
 
-  const [periodReports, setPeriodReports] = useState([]);
-  const [departmentWorkers, setDepartmentWorkers] = useState([]);
-  const [userDepartmentRole, setUserDepartmentRole] = useState(null);
-  const [periodUserReports, setPeriodUserReports] = useState([]);
+  const [expenseState, setExpenseState] = useState({
+    periods: [],
+    expenseReports: [],
+    departments: [],
+    roles: [],
+    periodReports: [],
+    departmentWorkers: [],
+    userDepartmentRole: null,
+    periodUserReports: [],
+    loading: false,
+    error: null,
+  });
 
-  useEffect(() => {
-    const newGraphService = new GraphService(instance);
-    setGraphService(newGraphService);
-  }, [instance, accounts]);
+  const initializeExpenseService = useCallback(async () => {
+    if (!instance || accounts.length === 0) return null;
+    if (services.expense.initialized) return services.expense.service;
+    if (services.expense.initializing) return null;
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!graphService || accounts.length === 0) {
-        setLoading(false);
-        return;
-      }
+    try {
+      setServices(prev => ({
+        ...prev,
+        expense: { ...prev.expense, initializing: true }
+      }));
 
-      try {
-        const [periodsData, expenseReportsData, departmentsData, rolesData] =
-          await Promise.all([
-            graphService.getPeriods(),
-            graphService.getExpenseReports(),
-            graphService.getDepartments(),
-            graphService.getRoles(),
-          ]);
+      const expenseService = new ExpenseAuditService(instance, expenseAuditConfig);
+      await expenseService.initialize();
 
-        setPeriods(periodsData);
-        setExpenseReports(expenseReportsData);
-        setDepartments(departmentsData);
-        setRoles(rolesData);
+      setServices(prev => ({
+        ...prev,
+        expense: { 
+          service: expenseService, 
+          initialized: true, 
+          initializing: false 
+        }
+      }));
 
-        const mappedPeriodReports = graphService.mapPeriodReports(
-          periodsData,
-          expenseReportsData
-        );
-        const mappedDepartmentWorkers = graphService.mapDepartmentWorkers(
-          departmentsData,
-          rolesData
-        );
-        const mappedPeriodUserReports =
-          graphService.createPeriodUserReportsMapping(
-            periodsData,
-            expenseReportsData,
-            rolesData
-          );
-
-        const currentUserEmail = accounts[0]?.username;
-        const userDeptRole = graphService.getUserDepartmentRole(
-          currentUserEmail,
-          departmentsData,
-          rolesData
-        );
-
-        setPeriodReports(mappedPeriodReports);
-        setDepartmentWorkers(mappedDepartmentWorkers);
-        setUserDepartmentRole(userDeptRole);
-        setPeriodUserReports(mappedPeriodUserReports);
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError(`An error occurred while fetching data: ${error.message}`);
-        setLoading(false);
-      }
+      return expenseService;
+    } catch (error) {
+      console.error("Error initializing expense service:", error);
+      setServices(prev => ({
+        ...prev,
+        expense: { 
+          service: null, 
+          initialized: false, 
+          initializing: false,
+        }
+      }));
+      return null;
     }
+  }, [instance, accounts, services.expense.initialized, services.expense.initializing, services.expense.service]);
 
-    if (graphService) {
-      fetchData();
+  const loadExpenseData = useCallback(async () => {
+    if (expenseState.loading) return;
+
+    const service = await initializeExpenseService();
+    if (!service) return;
+
+    setExpenseState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const [
+        periodsData,
+        expenseReportsData,
+        departmentsData,
+        rolesData
+      ] = await Promise.all([
+        service.getPeriods(),
+        service.getExpenseReports(),
+        service.getDepartments(),
+        service.getRoles(),
+      ]);
+
+      // Create mapped data
+      const mappedPeriodReports = service.mapPeriodReports(
+        periodsData,
+        expenseReportsData
+      );
+
+      const mappedDepartmentWorkers = service.mapDepartmentWorkers(
+        departmentsData,
+        rolesData
+      );
+
+      const mappedPeriodUserReports = service.createPeriodUserReportsMapping(
+        periodsData,
+        expenseReportsData,
+        rolesData
+      );
+
+      const currentUserEmail = accounts[0]?.username;
+      const userDeptRole = service.getUserDepartmentRole(
+        currentUserEmail,
+        departmentsData,
+        rolesData
+      );
+
+      setExpenseState({
+        periods: periodsData,
+        expenseReports: expenseReportsData,
+        departments: departmentsData,
+        roles: rolesData,
+        periodReports: mappedPeriodReports,
+        departmentWorkers: mappedDepartmentWorkers,
+        userDepartmentRole: userDeptRole,
+        periodUserReports: mappedPeriodUserReports,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error("Error loading expense data:", error);
+      setExpenseState(prev => ({
+        ...prev,
+        loading: false,
+        error: "Failed to load expense data"
+      }));
     }
-  }, [graphService, accounts]);
-
-  const getCurrentUserReports = () => {
-    if (!accounts[0]?.username || !expenseReports) return [];
-    return graphService.filterReportsByEmail(
-      expenseReports,
-      accounts[0].username
-    );
-  };
+  }, [accounts, initializeExpenseService, expenseState.loading]);
 
   const value = {
-    graphService,
-    periods,
-    expenseReports,
-    setExpenseReports,
-    departments,
-    roles,
-    loading,
-    error,
-
-    periodReports,
-    departmentWorkers,
-    userDepartmentRole,
-    periodUserReports,
-
-    getCurrentUserReports,
-
-    currentUser: accounts[0]?.username,
+    // Services access
+    services: {
+      expense: services.expense.service,
+    },
+    // Module states
+    expenseState,
+    // Initialization methods
+    initializeExpenseService,
+    // Data loading methods
+    loadExpenseData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+// Custom hook for Expense Audit module
+export function useExpenseAudit() {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error("useExpenseAudit must be used within AppProvider");
+  }
+
+  const { services, expenseState, loadExpenseData } = context;
+
+  // Initialize data if not already loaded
+  React.useEffect(() => {
+    if (!services.expense && !expenseState.loading && !expenseState.error) {
+      loadExpenseData();
+    }
+  }, [services.expense, expenseState.loading, expenseState.error, loadExpenseData]);
+
+  return {
+    service: services.expense,
+    ...expenseState,
+  };
 }

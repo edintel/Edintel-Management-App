@@ -3,12 +3,16 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useMsal } from "@azure/msal-react";
 import { loginRequest, logoutRequest } from "../config/AuthConfig";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAppContext } from "../contexts/AppContext";
+import { useExpenseAudit } from '../contexts/AppContext';
 
 const AuthContext = createContext();
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
 }
 
 export function AuthProvider({ children }) {
@@ -16,15 +20,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const appContext = useAppContext();
+  
+  const { service, roles, departments } = useExpenseAudit();
 
   const getUserDepartmentInfo = useCallback((email) => {
-    if (!appContext?.roles || !appContext?.departments) return null;
+    if (!roles || !departments) return null;
     
-    const userRole = appContext.roles.find(role => role.empleado?.email === email);
+    const userRole = roles.find(role => role.empleado?.email === email);
     if (!userRole) return null;
 
-    const department = appContext.departments.find(dept => 
+    const department = departments.find(dept => 
       dept.id === userRole.departamentoId.toString());
     if (!department) return null;
 
@@ -39,10 +44,16 @@ export function AuthProvider({ children }) {
       departamento: department.departamento,
       tipo: roleType
     };
-  }, [appContext?.roles, appContext?.departments]);
+  }, [roles, departments]);
 
   useEffect(() => {
-    if (accounts.length > 0 && appContext?.roles && appContext?.departments) {
+    if (accounts.length > 0 && !user && service) {
+      service.initialize();
+    }
+  }, [accounts, user, service]);
+
+  useEffect(() => {
+    if (accounts.length > 0 && roles && departments) {
       const departmentInfo = getUserDepartmentInfo(accounts[0].username);
       setUser(prev => ({
         ...accounts[0],
@@ -50,12 +61,16 @@ export function AuthProvider({ children }) {
         role: departmentInfo?.tipo || 'No asignado'
       }));
     }
-  }, [accounts, appContext?.roles, appContext?.departments, getUserDepartmentInfo]);
+  }, [accounts, roles, departments, getUserDepartmentInfo]);
 
   const login = async () => {
     try {
       const result = await instance.loginPopup(loginRequest);
       if (result.account) {
+        if (service) {
+          await service.initialize();
+        }
+        
         const departmentInfo = getUserDepartmentInfo(result.account.username);
         setUser({
           ...result.account,
@@ -73,13 +88,9 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       setUser(null);
-      
       await instance.logoutPopup(logoutRequest);
-      
       sessionStorage.clear();
-    
       navigate('/login', { replace: true });
-      
     } catch (error) {
       console.error("Logout failed:", error);
       navigate('/login', { replace: true });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useAppContext } from "../../contexts/AppContext";
+import { useExpenseAudit } from "../../contexts/AppContext";
 import { useAuth } from "../AuthProvider";
 import Layout from "../layout/Layout";
 import Card from "../common/Card";
@@ -30,8 +30,8 @@ const ExpenseDetail = () => {
     expenseReports,
     loading: reportsLoading,
     setExpenseReports,
-    graphService,
-  } = useAppContext();
+    service,
+  } = useExpenseAudit ();
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
@@ -161,7 +161,7 @@ const ExpenseDetail = () => {
       const status =
         confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
 
-      await graphService.updateApprovalStatus(id, status, type, notes);
+      await service.updateApprovalStatus(id, status, type, notes);
 
       setExpense((prev) => ({
         ...prev,
@@ -197,8 +197,8 @@ const ExpenseDetail = () => {
   };
 
   const canApprove = () => {
-    if (!user || !expense) return false;
-    return graphService.canApprove(expense, user.role);
+    if (!user || !expense || !service) return false;
+    return service.canApprove(expense, user.role);
   };
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppContext } from "../../contexts/AppContext";
+import { useExpenseAudit } from "../../contexts/AppContext";
 import Layout from "../layout/Layout";
 import Card from "../common/Card";
 import Button from "../common/Button";
@@ -13,7 +13,7 @@ import {
 
 const ExpenseForm = () => {
   const navigate = useNavigate();
-  const { graphService, setExpenseReports } = useAppContext();
+  const { graphService, setExpenseReports } = useExpenseAudit();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [imageInfo, setImageInfo] = useState(null);

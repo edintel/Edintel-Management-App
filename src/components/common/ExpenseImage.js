@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAppContext } from '../../contexts/AppContext';
+import { useExpenseAudit  } from '../../contexts/AppContext';
 import { AlertCircle, ZoomIn } from 'lucide-react';
 import ImageModal from './ImageModal';
 
@@ -8,7 +8,7 @@ const ExpenseImage = ({ itemId, className = '' }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { graphService } = useAppContext();
+  const { service } = useExpenseAudit ();
 
   useEffect(() => {
     let mounted = true;
@@ -22,13 +22,13 @@ const ExpenseImage = ({ itemId, className = '' }) => {
         return;
       }
 
-      if (!graphService) return;
+      if (!service) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        const { url, token } = await graphService.getImageContent(itemId);
+        const { url, token } = await service.getImageContent(itemId);
         const response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${token}` },
           signal: abortController.signal
@@ -59,7 +59,7 @@ const ExpenseImage = ({ itemId, className = '' }) => {
       abortController.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [itemId, graphService]);
+  }, [itemId, service]);
 
   if (loading) {
     return (
