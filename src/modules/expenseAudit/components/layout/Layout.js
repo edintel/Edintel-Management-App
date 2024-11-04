@@ -1,27 +1,37 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import { useAuth } from "../../../../components/AuthProvider";
+import { useExpenseAudit } from "../../context/expenseAuditContext";
 import ProfileMenu from "../Profile/ProfileMenu";
 import { EXPENSE_AUDIT_ROUTES } from '../../routes';
 
 const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
+  const { userDepartmentRole, loading } = useExpenseAudit();
 
-  const canApprove =
-    user?.role === "Jefe" ||
-    user?.role === "Asistente" ||
-    user?.department?.toLowerCase().includes("contabilidad");
+  const canApprove = userDepartmentRole?.role === "Jefe" || 
+                     userDepartmentRole?.role === "Asistente" || 
+                     (userDepartmentRole?.department?.departamento || "").toLowerCase().includes("contabilidad");
 
-  const navigation = [
-    { name: "Dashboard", path: EXPENSE_AUDIT_ROUTES.DASHBOARD },
-    { name: "Gastos", path: EXPENSE_AUDIT_ROUTES.EXPENSES.LIST },
-    ...(canApprove ? [{ name: "Aprobaciones", path: EXPENSE_AUDIT_ROUTES.APPROVALS }] : []),
-    ...(canApprove ? [{ name: "Reportes", path: EXPENSE_AUDIT_ROUTES.REPORTS }] : []),
-    { name: "Menu principal", path: "/" },
-  ];
+  const getNavigationItems = () => {
+    const baseItems = [
+      { name: "Dashboard", path: EXPENSE_AUDIT_ROUTES.DASHBOARD },
+      { name: "Gastos", path: EXPENSE_AUDIT_ROUTES.EXPENSES.LIST },
+    ];
+
+    if (!loading && canApprove) {
+      baseItems.push(
+        { name: "Aprobaciones", path: EXPENSE_AUDIT_ROUTES.APPROVALS },
+        { name: "Reportes", path: EXPENSE_AUDIT_ROUTES.REPORTS }
+      );
+    }
+
+    baseItems.push({ name: "Menu principal", path: "/" });
+    return baseItems;
+  };
+
+  const navigation = getNavigationItems();
 
   return (
     <div className="min-h-screen flex flex-col">

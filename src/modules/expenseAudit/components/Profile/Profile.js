@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../../../components/AuthProvider';
 import { useExpenseAudit } from '../../context/expenseAuditContext';
-import Layout from '../layout/Layout';
 import Card from '../../../../components/common/Card';
 import { User, Mail, Building, Briefcase } from 'lucide-react';
 import './Profile.css';
@@ -11,7 +10,6 @@ const Profile = () => {
   const { userDepartmentRole } = useExpenseAudit();
 
   return (
-    <Layout>
       <div className="profile-container">
         <Card title="Mi Perfil" className="profile-card">
           <div className="profile-content">
@@ -50,7 +48,6 @@ const Profile = () => {
           </div>
         </Card>
       </div>
-    </Layout>
   );
 };
 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
-import Layout from "../layout/Layout";
 import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
 import ExpenseImage from "./ExpenseImage";
@@ -231,16 +230,13 @@ const ExpenseEdit = () => {
 
   if (!formData || contextLoading) {
     return (
-      <Layout>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader size={48} className="animate-spin text-primary" />
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
       <div className="max-w-3xl mx-auto px-4 py-6">
         <Card title="Editar Gasto">
           {error && (
@@ -497,7 +493,6 @@ const ExpenseEdit = () => {
           </form>
         </Card>
       </div>
-    </Layout>
   );
 };
 

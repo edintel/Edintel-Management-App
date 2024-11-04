@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExpenseAudit  } from "../../context/expenseAuditContext";
 import { useAuth } from "../../../../components/AuthProvider";
-import Layout from "../layout/Layout";
 import Card from "../../../../components/common/Card";
 import Table from "../../../../components/common/Table";
 import Button from "../../../../components/common/Button";
@@ -275,8 +274,8 @@ const ApprovalList = () => {
   });
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 py-6">
+    <>
+    <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Aprobaciones</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -393,7 +392,7 @@ const ApprovalList = () => {
         title={confirmDialog.title}
         message={confirmDialog.message}
       />
-    </Layout>
+    </>    
   );
 };
 
