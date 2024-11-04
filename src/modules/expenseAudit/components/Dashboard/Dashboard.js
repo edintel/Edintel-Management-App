@@ -1,8 +1,7 @@
 // src/components/Dashboard/Dashboard.js
 import { useNavigate, useLocation } from "react-router-dom";
-import { useExpenseAudit  } from "../../context/expenseAuditContext";
+import { useExpenseAudit } from "../../context/expenseAuditContext";
 import { useAuth } from "../../../../components/AuthProvider";
-import Layout from "../layout/Layout";
 import Card from "../../../../components/common/Card";
 import Table from "../../../../components/common/Table";
 import Button from "../../../../components/common/Button";
@@ -141,7 +140,6 @@ const Dashboard = () => {
 
   if (error) {
     return (
-      <Layout>
         <div className="flex flex-col items-center justify-center p-8 text-error">
           <AlertTriangle size={48} className="mb-4" />
           <h2 className="text-xl font-semibold mb-2">
@@ -149,76 +147,73 @@ const Dashboard = () => {
           </h2>
           <p>{error}</p>
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Periodo actual: {currentPeriod.periodo || "Cargando..."}
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            startIcon={<Plus size={16} />}
-            onClick={handleNewExpense}
-          >
-            Nuevo Gasto
-          </Button>
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Periodo actual: {currentPeriod.periodo || "Cargando..."}
+          </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <Card key={index} className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gray-100 rounded-lg">{stat.icon}</div>
-                <div>
-                  <h3 className="text-sm text-gray-600">{stat.title}</h3>
-                  <p className="text-xl font-semibold mt-1">{stat.value}</p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        <Card
-          title="Mis Gastos Recientes"
-          subtitle={`Últimos ${recentExpenses.length} gastos registrados`}
-          action={
-            <Button
-              variant="outline"
-              size="small"
-              onClick={handleViewAllExpenses}
-            >
-              Ver todos
-            </Button>
-          }
+        <Button
+          variant="primary"
+          startIcon={<Plus size={16} />}
+          onClick={handleNewExpense}
         >
-          <Table
-            columns={expenseColumns}
-            data={recentExpenses}
-            isLoading={loading}
-            onRowClick={handleExpenseClick}
-            emptyMessage={
-              <div className="flex flex-col items-center justify-center py-12">
-                <FileText size={48} className="text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  No se encontraron gastos
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Intenta ajustar los filtros o crea un nuevo gasto
-                </p>
-              </div>
-            }
-          />
-        </Card>
+          Nuevo Gasto
+        </Button>
       </div>
-    </Layout>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {stats.map((stat, index) => (
+          <Card key={index} className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gray-100 rounded-lg">{stat.icon}</div>
+              <div>
+                <h3 className="text-sm text-gray-600">{stat.title}</h3>
+                <p className="text-xl font-semibold mt-1">{stat.value}</p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Card
+        title="Mis Gastos Recientes"
+        subtitle={`Últimos ${recentExpenses.length} gastos registrados`}
+        action={
+          <Button
+            variant="outline"
+            size="small"
+            onClick={handleViewAllExpenses}
+          >
+            Ver todos
+          </Button>
+        }
+      >
+        <Table
+          columns={expenseColumns}
+          data={recentExpenses}
+          isLoading={loading}
+          onRowClick={handleExpenseClick}
+          emptyMessage={
+            <div className="flex flex-col items-center justify-center py-12">
+              <FileText size={48} className="text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">
+                No se encontraron gastos
+              </h3>
+              <p className="text-sm text-gray-500">
+                Intenta ajustar los filtros o crea un nuevo gasto
+              </p>
+            </div>
+          }
+        />
+      </Card>
+    </div>
   );
 };
 

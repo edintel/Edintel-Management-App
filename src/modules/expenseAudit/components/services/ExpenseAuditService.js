@@ -133,31 +133,73 @@ class ExpenseAuditService extends BaseGraphService {
     return response;
   }
 
+  async deleteImage(itemId) {
+    if (!itemId) return;
+    
+    await this.initializeGraphClient();
+    try {
+      await this.client
+        .api(`/sites/${this.siteId}/drives/${this.driveId}/items/${itemId}`)
+        .delete();
+    } catch (error) {
+      console.error("Error deleting image:", error);
+    }
+  }
+
+  async deleteExpenseReport(id) {
+    await this.initializeGraphClient();
+  
+    try {
+      const expense = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
+        .expand('fields')
+        .get();
+  
+      if (expense.fields.Comprobante) {
+        await this.deleteImage(expense.fields.Comprobante);
+      }
+
+      await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
+        .delete();
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting expense report:", error);
+      throw new Error(error.message || "Error al eliminar el gasto");
+    }
+  }
+
   async updateExpenseReport(id, expenseData, newImageFile = null) {
     await this.initializeGraphClient();
-
+  
     const periodInfo = findOrCreatePeriodForDate(
       expenseData.fecha,
       await this.getPeriods()
     );
     let periodId = expenseData.periodoId;
-
+  
     if (!periodInfo.exists) {
       const newPeriod = await this.createPeriod(periodInfo.period);
       periodId = newPeriod.id;
     } else {
       periodId = periodInfo.period.id;
     }
-
+  
     let comprobanteId = expenseData.comprobante;
-
+  
     if (newImageFile) {
+      await this.deleteImage(comprobanteId);
+      
       const accounts = this.msalInstance.getAllAccounts();
       const userDisplayName = accounts[0]?.name || "Unknown";
       const folderPath = `/Comprobantes/${userDisplayName}`;
       comprobanteId = await this.uploadFile(this.siteId, this.driveId, newImageFile, folderPath);
+    } else if (newImageFile === null && comprobanteId) {
+      await this.deleteImage(comprobanteId);
+      comprobanteId = null;
     }
-
+  
     const fields = {
       Title: expenseData.motivo,
       Rubro: expenseData.rubro,
@@ -168,12 +210,9 @@ class ExpenseAuditService extends BaseGraphService {
       PeriodoIDLookupId: periodId,
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
+      Comprobante: comprobanteId
     };
-
-    if (comprobanteId) {
-      fields.Comprobante = comprobanteId;
-    }
-
+  
     try {
       const response = await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
@@ -181,12 +220,12 @@ class ExpenseAuditService extends BaseGraphService {
         .patch({
           fields: fields,
         });
-
+  
       return {
         ...response,
         fields: {
           ...response.fields,
-          Comprobante: comprobanteId || response.fields.Comprobante,
+          Comprobante: comprobanteId
         },
       };
     } catch (error) {

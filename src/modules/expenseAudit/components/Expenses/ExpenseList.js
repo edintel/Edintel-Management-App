@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExpenseAudit } from '../../context/expenseAuditContext';
 import { useAuth } from '../../../../components/AuthProvider';
-import Layout from '../layout/Layout';
 import Card from '../../../../components/common/Card';
 import Table from '../../../../components/common/Table';
 import Button from '../../../../components/common/Button';
@@ -92,7 +91,6 @@ const ExpenseList = () => {
     });
 
   return (
-    <Layout>
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
@@ -161,7 +159,6 @@ const ExpenseList = () => {
           />
         </Card>
       </div>
-    </Layout>
   );
 };
 

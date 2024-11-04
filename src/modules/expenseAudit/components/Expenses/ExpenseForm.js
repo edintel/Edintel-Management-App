@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
-import Layout from "../layout/Layout";
 import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
 import { Upload, Save, X, Loader } from "lucide-react";
@@ -182,7 +181,6 @@ const ExpenseForm = () => {
   };
 
   return (
-    <Layout>
       <div className="max-w-3xl mx-auto px-4 py-6">
         <Card title="Nuevo Gasto">
           {error && (
@@ -457,7 +455,6 @@ const ExpenseForm = () => {
           </form>
         </Card>
       </div>
-    </Layout>
   );
 };
 

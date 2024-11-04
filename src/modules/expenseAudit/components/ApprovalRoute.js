@@ -1,15 +1,17 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../../components/AuthProvider';
-import { EXPENSE_AUDIT_ROUTES } from "../routes"
+import { useExpenseAudit } from '../context/expenseAuditContext';
+import { EXPENSE_AUDIT_ROUTES } from "../routes";
 
 export const ApprovalRoute = ({ children }) => {
-  const { user } = useAuth();
+  const { userDepartmentRole, loading } = useExpenseAudit();
 
-  const canApprove =
-    user?.role === "Jefe" ||
-    user?.role === "Asistente" ||
-    user?.department?.toLowerCase().includes("contabilidad");
+  if (loading) return null;
+
+  const canApprove = 
+    userDepartmentRole?.role === "Jefe" || 
+    userDepartmentRole?.role === "Asistente" || 
+    (userDepartmentRole?.department?.departamento || "").toLowerCase().includes("contabilidad");
 
   if (!canApprove) {
     return <Navigate to={EXPENSE_AUDIT_ROUTES.DASHBOARD} replace />;
