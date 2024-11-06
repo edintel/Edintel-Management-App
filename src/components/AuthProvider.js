@@ -19,7 +19,11 @@ export function AuthProvider({ children }) {
   const isAuthenticated = useIsAuthenticated();
 
   useEffect(() => {
+    let mounted = true;
+
     const initializeAuth = async () => {
+      if (!mounted) return;
+
       try {
         if (accounts.length > 0) {
           const response = await instance.acquireTokenSilent({
@@ -27,27 +31,37 @@ export function AuthProvider({ children }) {
             account: accounts[0]
           });
 
-          setUser({
-            name: response.account.name,
-            username: response.account.username,
-          });
+          if (mounted) {
+            setUser({
+              name: response.account.name,
+              username: response.account.username,
+            });
 
-          if (location.pathname === '/login') {
-            navigate(location.state?.from?.pathname || '/', { replace: true });
+            // Only navigate if we're on the login page and authenticated
+            if (location.pathname === '/login') {
+              navigate(location.state?.from?.pathname || '/', { replace: true });
+            }
           }
         } else if (location.pathname !== '/login' && !isAuthenticated) {
           navigate('/login', { state: { from: location }, replace: true });
         }
-      } catch {
-        if (location.pathname !== '/login') {
+      } catch (error) {
+        if (mounted && location.pathname !== '/login') {
           navigate('/login', { state: { from: location }, replace: true });
         }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     initializeAuth();
+
+    // Cleanup function
+    return () => {
+      mounted = false;
+    };
   }, [instance, accounts, isAuthenticated, navigate, location]);
 
   const login = () => instance.loginRedirect(loginRequest);

@@ -319,31 +319,47 @@ class ExpenseAuditService extends BaseGraphService {
     };
   }
 
-  canApprove(expense, role) {
+  canApprove(expense, role, department = '') {
+    if (role !== "Jefe" && role !== "Asistente") {
+      return false;
+    }
+
+    const isAccountingApprover = (department || '').toLowerCase().includes('contabilidad');
+    
+    if (isAccountingApprover) {
+      return (expense.aprobacionJefatura === "Aprobada" &&
+        expense.aprobacionContabilidad === "Pendiente") ||
+        expense.aprobacionContabilidad === "No aprobada";
+    }
+
     switch (role) {
       case "Asistente":
-        return (
-          expense.aprobacionAsistente === "Pendiente" ||
-          expense.aprobacionAsistente === "No aprobada"
-        );
+        return expense.aprobacionAsistente === "Pendiente" ||
+               expense.aprobacionAsistente === "No aprobada";
 
       case "Jefe":
-        return (
-          (expense.aprobacionAsistente === "Aprobada" &&
-            expense.aprobacionJefatura === "Pendiente") ||
-          expense.aprobacionJefatura === "No aprobada"
-        );
-
-      case "Contabilidad":
-        return (
-          (expense.aprobacionJefatura === "Aprobada" &&
-            expense.aprobacionContabilidad === "Pendiente") ||
-          expense.aprobacionContabilidad === "No aprobada"
-        );
+        return (expense.aprobacionAsistente === "Aprobada" &&
+                expense.aprobacionJefatura === "Pendiente") ||
+                expense.aprobacionJefatura === "No aprobada";
 
       default:
         return false;
     }
+  }
+
+  getEffectiveRole(userDepartmentRole) {
+    if (!userDepartmentRole || 
+        (userDepartmentRole.role !== "Jefe" && 
+         userDepartmentRole.role !== "Asistente")) {
+      return null;
+    }
+
+    const isAccountingApprover = (userDepartmentRole.department?.departamento || '')
+      .toLowerCase()
+      .includes('contabilidad');
+
+    if (isAccountingApprover) return 'Contabilidad';
+    return userDepartmentRole.role;
   }
 }
 
