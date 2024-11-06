@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
-import { useAuth } from "../../../../components/AuthProvider";
 import Card from "../../../../components/common/Card";
 import Table from "../../../../components/common/Table";
 import Button from "../../../../components/common/Button";
@@ -22,7 +21,6 @@ const ApprovalList = () => {
     service,
     userDepartmentRole,
   } = useExpenseAudit();
-  const { user } = useAuth();
 
   // Initialize date range for last week
   const today = new Date();
@@ -46,10 +44,26 @@ const ApprovalList = () => {
     expenseId: null,
   });
 
+  const canViewApprovals = () => {
+    if (!userDepartmentRole) return false;
+    
+    // Only Jefe and Asistente can view approvals
+    if (userDepartmentRole.role !== "Jefe" && userDepartmentRole.role !== "Asistente") {
+      return false;
+    }
+
+    return true;
+  };
+
   const getApprovalType = () => {
-    const userDept = user?.department?.toLowerCase() || "";
-    if (userDept.includes("contabilidad")) return "accounting";
-    return user?.role === "Jefe" ? "boss" : "assistant";
+    if (!userDepartmentRole) return null;
+    
+    const isAccountant = (userDepartmentRole.department?.departamento || '')
+      .toLowerCase()
+      .includes('contabilidad');
+
+    if (isAccountant) return "accounting";
+    return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
   };
 
   const handleApprove = (id, e) => {
@@ -114,11 +128,6 @@ const ApprovalList = () => {
     } catch (error) {
       console.error("Error updating approval status:", error);
     }
-  };
-
-  const canApprove = (expense) => {
-    if (!userDepartmentRole || !expense || !service) return false;
-    return service.canApprove(expense, userDepartmentRole.role);
   };
 
   const columns = [
@@ -203,7 +212,11 @@ const ApprovalList = () => {
           >
             <Eye size={16} />
           </Button>
-          {canApprove(row) && viewMode === "pending" && (
+          {service.canApprove(
+            row,
+            userDepartmentRole.role,
+            userDepartmentRole.department?.departamento
+          ) && viewMode === "pending" && (
             <>
               <Button
                 variant="ghost"
@@ -246,46 +259,68 @@ const ApprovalList = () => {
     return acc;
   }, []);
 
-  const filteredExpenses = expenseReports.filter((expense) => {
-    // Date range filter
-    if (startDate && endDate) {
-      const expenseDate = expense.fecha.getTime();
-      const start = new Date(startDate).getTime();
-      const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
-      if (expenseDate < start || expenseDate > end) return false;
-    }
+  const getFilteredExpenses = () => {
+    if (!canViewApprovals()) return [];
 
-    if (selectedPerson && expense.createdBy.email !== selectedPerson)
-      return false;
+    return expenseReports.filter((expense) => {
+      // Date range filter
+      if (startDate && endDate) {
+        const expenseDate = expense.fecha.getTime();
+        const start = new Date(startDate).getTime();
+        const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
+        if (expenseDate < start || expenseDate > end) return false;
+      }
 
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      return (
-        expense.rubro.toLowerCase().includes(search) ||
-        expense.st.toLowerCase().includes(search) ||
-        expense.createdBy.name.toLowerCase().includes(search)
-      );
-    }
-    const type = getApprovalType();
-    switch (viewMode) {
-      case "pending":
-        return canApprove(expense);
-      case "approved":
-        return type === "assistant"
-          ? expense.aprobacionAsistente === "Aprobada"
-          : type === "boss"
-          ? expense.aprobacionJefatura === "Aprobada"
-          : expense.aprobacionContabilidad === "Aprobada";
-      case "rejected":
-        return type === "assistant"
-          ? expense.aprobacionAsistente === "No aprobada"
-          : type === "boss"
-          ? expense.aprobacionJefatura === "No aprobada"
-          : expense.aprobacionContabilidad === "No aprobada";
-      default:
-        return true;
-    }
-  });
+      if (selectedPerson && expense.createdBy.email !== selectedPerson) return false;
+      
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        return (
+          expense.rubro.toLowerCase().includes(search) ||
+          expense.st.toLowerCase().includes(search) ||
+          expense.createdBy.name.toLowerCase().includes(search)
+        );
+      }
+
+      if (!service || !userDepartmentRole) return false;
+
+      switch (viewMode) {
+        case "pending":
+          return service.canApprove(
+            expense,
+            userDepartmentRole.role,
+            userDepartmentRole.department?.departamento
+          );
+
+        case "approved": {
+          const type = getApprovalType();
+          if (type === "accounting") {
+            return expense.aprobacionContabilidad === "Aprobada";
+          }
+          if (type === "boss") {
+            return expense.aprobacionJefatura === "Aprobada";
+          }
+          return expense.aprobacionAsistente === "Aprobada";
+        }
+
+        case "rejected": {
+          const type = getApprovalType();
+          if (type === "accounting") {
+            return expense.aprobacionContabilidad === "No aprobada";
+          }
+          if (type === "boss") {
+            return expense.aprobacionJefatura === "No aprobada";
+          }
+          return expense.aprobacionAsistente === "No aprobada";
+        }
+
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredExpenses = getFilteredExpenses();
 
   return (
     <>

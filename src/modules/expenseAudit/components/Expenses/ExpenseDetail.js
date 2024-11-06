@@ -123,17 +123,12 @@ const ExpenseDetail = () => {
 
   const canEdit = () => {
     if (!userDepartmentRole || !expense) return false;
-
-    if (
-      userDepartmentRole.role === "Jefe" ||
-      userDepartmentRole.role === "Asistente" ||
-      (userDepartmentRole.department?.departamento || "")
-        .toLowerCase()
-        .includes("contabilidad")
-    ) {
+  
+    if (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente") {
       return true;
     }
-
+  
+    
     return (
       userDepartmentRole.username === expense.createdBy.email &&
       !expense.bloqueoEdicion
@@ -193,9 +188,14 @@ const ExpenseDetail = () => {
   };
 
   const getApprovalType = () => {
-    const userDept = user?.department?.toLowerCase() || "";
-    if (userDept.includes("contabilidad")) return "accounting";
-    return user?.role === "Jefe" ? "boss" : "assistant";
+    if (!userDepartmentRole) return null;
+    
+    const isAccountant = (userDepartmentRole.department?.departamento || '')
+      .toLowerCase()
+      .includes('contabilidad');
+
+    if (isAccountant) return "accounting";
+    return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
   };
 
   const handleApprove = async () => {
@@ -262,8 +262,15 @@ const ExpenseDetail = () => {
 
   const canApprove = () => {
     if (!user || !expense || !service || !userDepartmentRole) return false;
-    return service.canApprove(expense, userDepartmentRole.role);
+    
+    return service.canApprove(
+      expense,
+      userDepartmentRole.role,
+      userDepartmentRole.department?.departamento
+    );
   };
+
+  
 
   return (
     <>
