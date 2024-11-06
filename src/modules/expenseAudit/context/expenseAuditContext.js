@@ -12,30 +12,28 @@ export function useAppContext() {
 
 export function AppProviderExpenseAudit({ children }) {
   const { instance, accounts } = useMsal();
-  
+
   const [services, setServices] = useState({
     expense: { service: null, initialized: false, initializing: false },
   });
 
   const [expenseState, setExpenseState] = useState({
-    periods: [],
     expenseReports: [],
     departments: [],
     roles: [],
-    periodReports: [],
     departmentWorkers: [],
     userDepartmentRole: null,
-    periodUserReports: [],
     loading: false,
     error: null,
   });
 
   const updateExpenseReports = useCallback((updaterFn) => {
-    setExpenseState(prev => ({
+    setExpenseState((prev) => ({
       ...prev,
-      expenseReports: typeof updaterFn === 'function' 
-        ? updaterFn(prev.expenseReports)
-        : updaterFn,
+      expenseReports:
+        typeof updaterFn === "function"
+          ? updaterFn(prev.expenseReports)
+          : updaterFn,
     }));
   }, []);
 
@@ -45,37 +43,46 @@ export function AppProviderExpenseAudit({ children }) {
     if (services.expense.initializing) return null;
 
     try {
-      setServices(prev => ({
+      setServices((prev) => ({
         ...prev,
-        expense: { ...prev.expense, initializing: true }
+        expense: { ...prev.expense, initializing: true },
       }));
 
-      const expenseService = new ExpenseAuditService(instance, expenseAuditConfig);
+      const expenseService = new ExpenseAuditService(
+        instance,
+        expenseAuditConfig
+      );
       await expenseService.initialize();
 
-      setServices(prev => ({
+      setServices((prev) => ({
         ...prev,
-        expense: { 
-          service: expenseService, 
-          initialized: true, 
-          initializing: false 
-        }
+        expense: {
+          service: expenseService,
+          initialized: true,
+          initializing: false,
+        },
       }));
 
       return expenseService;
     } catch (error) {
       console.error("Error initializing expense service:", error);
-      setServices(prev => ({
+      setServices((prev) => ({
         ...prev,
-        expense: { 
-          service: null, 
-          initialized: false, 
+        expense: {
+          service: null,
+          initialized: false,
           initializing: false,
-        }
+        },
       }));
       return null;
     }
-  }, [instance, accounts, services.expense.initialized, services.expense.initializing, services.expense.service]);
+  }, [
+    instance,
+    accounts,
+    services.expense.initialized,
+    services.expense.initializing,
+    services.expense.service,
+  ]);
 
   const loadExpenseData = useCallback(async () => {
     if (expenseState.loading) return;
@@ -83,35 +90,18 @@ export function AppProviderExpenseAudit({ children }) {
     const service = await initializeExpenseService();
     if (!service) return;
 
-    setExpenseState(prev => ({ ...prev, loading: true, error: null }));
+    setExpenseState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      const [
-        periodsData,
-        expenseReportsData,
-        departmentsData,
-        rolesData
-      ] = await Promise.all([
-        service.getPeriods(),
-        service.getExpenseReports(),
-        service.getDepartments(),
-        service.getRoles(),
-      ]);
-
-      // Create mapped data
-      const mappedPeriodReports = service.mapPeriodReports(
-        periodsData,
-        expenseReportsData
-      );
+      const [expenseReportsData, departmentsData, rolesData] =
+        await Promise.all([
+          service.getExpenseReports(),
+          service.getDepartments(),
+          service.getRoles(),
+        ]);
 
       const mappedDepartmentWorkers = service.mapDepartmentWorkers(
         departmentsData,
-        rolesData
-      );
-
-      const mappedPeriodUserReports = service.createPeriodUserReportsMapping(
-        periodsData,
-        expenseReportsData,
         rolesData
       );
 
@@ -123,23 +113,20 @@ export function AppProviderExpenseAudit({ children }) {
       );
 
       setExpenseState({
-        periods: periodsData,
         expenseReports: expenseReportsData,
         departments: departmentsData,
         roles: rolesData,
-        periodReports: mappedPeriodReports,
         departmentWorkers: mappedDepartmentWorkers,
         userDepartmentRole: userDeptRole,
-        periodUserReports: mappedPeriodUserReports,
         loading: false,
         error: null,
       });
     } catch (error) {
       console.error("Error loading expense data:", error);
-      setExpenseState(prev => ({
+      setExpenseState((prev) => ({
         ...prev,
         loading: false,
-        error: "Failed to load expense data"
+        error: "Failed to load expense data",
       }));
     }
   }, [accounts, initializeExpenseService, expenseState.loading]);
@@ -164,25 +151,24 @@ export function AppProviderExpenseAudit({ children }) {
 export function useExpenseAudit() {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error("useExpenseAudit must be used within AppProviderExpenseAudit");
+    throw new Error(
+      "useExpenseAudit must be used within AppProviderExpenseAudit"
+    );
   }
 
   const {
     services: { expense: service },
     expenseState: {
-      periods,
       expenseReports,
       departments,
       roles,
-      periodReports,
       departmentWorkers,
       userDepartmentRole,
-      periodUserReports,
       loading,
-      error
+      error,
     },
     updateExpenseReports,
-    loadExpenseData
+    loadExpenseData,
   } = context;
 
   React.useEffect(() => {
@@ -193,17 +179,14 @@ export function useExpenseAudit() {
 
   return {
     service,
-    periods,
     expenseReports,
     departments,
     roles,
-    periodReports,
     departmentWorkers,
     userDepartmentRole,
-    periodUserReports,
     loading,
     error,
     setExpenseReports: updateExpenseReports,
-    loadExpenseData
+    loadExpenseData,
   };
 }

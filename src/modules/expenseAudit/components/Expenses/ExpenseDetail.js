@@ -6,7 +6,7 @@ import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
 import ExpenseImage from "./ExpenseImage";
 import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
-import { EXPENSE_AUDIT_ROUTES } from '../../routes';
+import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import {
   ArrowLeft,
   Edit,
@@ -37,7 +37,8 @@ const ExpenseDetail = () => {
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const returnPath = location.state?.from?.pathname || EXPENSE_AUDIT_ROUTES.EXPENSES.LIST;
+  const returnPath =
+    location.state?.from?.pathname || EXPENSE_AUDIT_ROUTES.EXPENSES.LIST;
   const { user } = useAuth();
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -48,7 +49,8 @@ const ExpenseDetail = () => {
   const [deleteDialog, setDeleteDialog] = useState({
     isOpen: false,
     title: "¿Confirmar eliminación?",
-    message: "¿Está seguro que desea eliminar este gasto? Esta acción no se puede deshacer.",
+    message:
+      "¿Está seguro que desea eliminar este gasto? Esta acción no se puede deshacer.",
   });
 
   useEffect(() => {
@@ -72,45 +74,70 @@ const ExpenseDetail = () => {
   const canDelete = () => {
     if (!userDepartmentRole || !expense) return false;
 
-    if (userDepartmentRole.username === expense.createdBy.email && !expense.bloqueoEdicion) {
+    if (
+      userDepartmentRole.username === expense.createdBy.email &&
+      !expense.bloqueoEdicion
+    ) {
       return true;
     }
 
-    return userDepartmentRole.role === 'Jefe' ||
-      userDepartmentRole.role === 'Asistente' ||
-      userDepartmentRole.department?.toLowerCase().includes('contabilidad');
+    if (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente"
+    ) {
+      return true;
+    }
+
+    if (
+      userDepartmentRole.department &&
+      userDepartmentRole.department.departamento &&
+      userDepartmentRole.department.departamento
+        .toLowerCase()
+        .includes("contabilidad")
+    ) {
+      return true;
+    }
+
+    return false;
   };
 
   const handleDelete = () => {
-    setDeleteDialog(prev => ({ ...prev, isOpen: true }));
+    setDeleteDialog((prev) => ({ ...prev, isOpen: true }));
   };
 
   const handleConfirmDelete = async () => {
     try {
       await service.deleteExpenseReport(id);
 
-      setExpenseReports(prevReports =>
-        prevReports.filter(report => report.id !== id)
+      setExpenseReports((prevReports) =>
+        prevReports.filter((report) => report.id !== id)
       );
 
       navigate(returnPath);
     } catch (error) {
       console.error("Error deleting expense:", error);
     } finally {
-      setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+      setDeleteDialog((prev) => ({ ...prev, isOpen: false }));
     }
   };
 
   const canEdit = () => {
-    if (!user || !expense) return false;
+    if (!userDepartmentRole || !expense) return false;
 
-    if (userDepartmentRole?.role === 'Jefe' ||
-      userDepartmentRole?.role === 'Asistente' ||
-      userDepartmentRole?.department?.toLowerCase().includes('contabilidad')) {
+    if (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente" ||
+      (userDepartmentRole.department?.departamento || "")
+        .toLowerCase()
+        .includes("contabilidad")
+    ) {
       return true;
     }
 
-    return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
+    return (
+      userDepartmentRole.username === expense.createdBy.email &&
+      !expense.bloqueoEdicion
+    );
   };
 
   if (loading || reportsLoading) {
@@ -213,16 +240,18 @@ const ExpenseDetail = () => {
         prevReports.map((report) =>
           report.id === id
             ? {
-              ...report,
-              bloqueoEdicion: true,
-              notasRevision: notes,
-              aprobacionAsistente:
-                type === "assistant" ? status : report.aprobacionAsistente,
-              aprobacionJefatura:
-                type === "boss" ? status : report.aprobacionJefatura,
-              aprobacionContabilidad:
-                type === "accounting" ? status : report.aprobacionContabilidad,
-            }
+                ...report,
+                bloqueoEdicion: true,
+                notasRevision: notes,
+                aprobacionAsistente:
+                  type === "assistant" ? status : report.aprobacionAsistente,
+                aprobacionJefatura:
+                  type === "boss" ? status : report.aprobacionJefatura,
+                aprobacionContabilidad:
+                  type === "accounting"
+                    ? status
+                    : report.aprobacionContabilidad,
+              }
             : report
         )
       );
@@ -232,8 +261,8 @@ const ExpenseDetail = () => {
   };
 
   const canApprove = () => {
-    if (!user || !expense || !service) return false;
-    return service.canApprove(expense, user.role);
+    if (!user || !expense || !service || !userDepartmentRole) return false;
+    return service.canApprove(expense, userDepartmentRole.role);
   };
 
   return (
@@ -266,7 +295,6 @@ const ExpenseDetail = () => {
               Editar
             </Button>
           )}
-          
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -319,7 +347,9 @@ const ExpenseDetail = () => {
                 {expense.facturaDividida && (
                   <>
                     <div>
-                      <span className="text-sm text-gray-500">Factura Dividida</span>
+                      <span className="text-sm text-gray-500">
+                        Factura Dividida
+                      </span>
                       <p className="text-gray-900 mt-1">Sí</p>
                     </div>
                     <div className="col-span-3">
@@ -435,7 +465,7 @@ const ExpenseDetail = () => {
       />
       <ConfirmationDialog
         isOpen={deleteDialog.isOpen}
-        onClose={() => setDeleteDialog(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setDeleteDialog((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={handleConfirmDelete}
         type="delete"
         title={deleteDialog.title}

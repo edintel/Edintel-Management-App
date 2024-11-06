@@ -1,4 +1,4 @@
-// src/components/Dashboard/Dashboard.js
+// src/modules/expenseAudit/components/Dashboard/Dashboard.js
 import { useNavigate, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import { useAuth } from "../../../../components/AuthProvider";
@@ -6,24 +6,43 @@ import Card from "../../../../components/common/Card";
 import Table from "../../../../components/common/Table";
 import Button from "../../../../components/common/Button";
 import { Plus, FileText, Check, AlertTriangle, X } from "lucide-react";
-import { EXPENSE_AUDIT_ROUTES } from '../../routes';
+import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { periods, expenseReports, loading, error } = useExpenseAudit();
+  const { expenseReports, loading, error } = useExpenseAudit();
   const { user } = useAuth();
 
+  // Get last week's date range
+  const getLastWeekRange = () => {
+    const today = new Date();
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+
+    // Set to start of day for lastWeek
+    lastWeek.setHours(0, 0, 0, 0);
+
+    // Set to end of day for today
+    today.setHours(23, 59, 59, 999);
+
+    return { start: lastWeek, end: today };
+  };
+
+  const { start: lastWeekStart, end: lastWeekEnd } = getLastWeekRange();
+
+  // Filter user's expenses
   const userExpenses = expenseReports.filter(
-    expense => expense.createdBy.email === user?.username
+    (expense) => expense.createdBy.email === user?.username
   );
 
-  const currentPeriod = periods[periods.length - 1] || {};
+  // Filter current week expenses
+  const currentWeekExpenses = userExpenses.filter((expense) => {
+    const expenseDate = new Date(expense.fecha);
+    return expenseDate >= lastWeekStart && expenseDate <= lastWeekEnd;
+  });
 
-  const currentPeriodExpenses = userExpenses.filter(
-    (expense) => expense.periodoId === currentPeriod.id
-  );
-
+  // Get recent expenses (last 5)
   const recentExpenses = [...userExpenses]
     .sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
     .slice(0, 5);
@@ -94,28 +113,28 @@ const Dashboard = () => {
   const stats = [
     {
       title: "Total Gastos",
-      value: currentPeriodExpenses
+      value: currentWeekExpenses
         .reduce((sum, report) => sum + parseFloat(report.monto), 0)
         .toLocaleString("es-CR", { style: "currency", currency: "CRC" }),
       icon: <FileText className="text-primary" size={24} />,
     },
     {
       title: "Pendientes",
-      value: currentPeriodExpenses.filter(
+      value: currentWeekExpenses.filter(
         (report) => report.aprobacionAsistente === "Pendiente"
       ).length,
       icon: <AlertTriangle className="text-warning" size={24} />,
     },
     {
       title: "Aprobados",
-      value: currentPeriodExpenses.filter(
+      value: currentWeekExpenses.filter(
         (report) => report.aprobacionContabilidad === "Aprobada"
       ).length,
       icon: <Check className="text-success" size={24} />,
     },
     {
       title: "No Aprobados",
-      value: currentPeriodExpenses.filter(
+      value: currentWeekExpenses.filter(
         (report) => report.aprobacionAsistente === "No aprobada"
       ).length,
       icon: <X className="text-error" size={24} />,
@@ -140,13 +159,13 @@ const Dashboard = () => {
 
   if (error) {
     return (
-        <div className="flex flex-col items-center justify-center p-8 text-error">
-          <AlertTriangle size={48} className="mb-4" />
-          <h2 className="text-xl font-semibold mb-2">
-            Error al cargar los datos
-          </h2>
-          <p>{error}</p>
-        </div>
+      <div className="flex flex-col items-center justify-center p-8 text-error">
+        <AlertTriangle size={48} className="mb-4" />
+        <h2 className="text-xl font-semibold mb-2">
+          Error al cargar los datos
+        </h2>
+        <p>{error}</p>
+      </div>
     );
   }
 
@@ -156,7 +175,8 @@ const Dashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Periodo actual: {currentPeriod.periodo || "Cargando..."}
+            Últimos 7 días: {lastWeekStart.toLocaleDateString("es-CR")} -{" "}
+            {lastWeekEnd.toLocaleDateString("es-CR")}
           </p>
         </div>
         <Button

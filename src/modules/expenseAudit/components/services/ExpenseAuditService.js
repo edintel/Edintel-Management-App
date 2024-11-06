@@ -1,5 +1,4 @@
-import BaseGraphService from '../../../../services/BaseGraphService';
-import { findOrCreatePeriodForDate } from '../utils/periodUtils';
+import BaseGraphService from "../../../../services/BaseGraphService";
 
 class ExpenseAuditService extends BaseGraphService {
   constructor(msalInstance, config) {
@@ -21,46 +20,11 @@ class ExpenseAuditService extends BaseGraphService {
     this.driveId = this.config.driveId;
   }
 
-  async getPeriods() {
-    const items = await this.getListItems(this.siteId, this.config.lists.periods);
-    return items.map((item) => ({
-      id: item.id,
-      inicio: new Date(item.fields.Inicio),
-      fin: new Date(item.fields.Fin),
-      periodo: item.fields.Periodo,
-    }));
-  }
-
-  async createPeriod(periodData) {
-    await this.initializeGraphClient();
-
-    const fields = {
-      Inicio: periodData.inicio.toISOString(),
-      Fin: periodData.fin.toISOString(),
-    };
-
-    try {
-      const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.periods}/items`)
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .post({
-          fields: fields,
-        });
-
-      return {
-        id: response.id,
-        inicio: new Date(response.fields.Inicio),
-        fin: new Date(response.fields.Fin),
-        periodo: response.fields.Periodo,
-      };
-    } catch (error) {
-      console.error("Error creating period:", error);
-      throw new Error("Error al crear el periodo en SharePoint");
-    }
-  }
-
   async getExpenseReports() {
-    const items = await this.getListItems(this.siteId, this.config.lists.expenseReports);
+    const items = await this.getListItems(
+      this.siteId,
+      this.config.lists.expenseReports
+    );
     return items.map((item) => ({
       id: item.id,
       rubro: item.fields.Rubro,
@@ -68,7 +32,6 @@ class ExpenseAuditService extends BaseGraphService {
       fecha: new Date(item.fields.Fecha),
       monto: parseFloat(item.fields.Monto) || 0,
       st: item.fields.ST,
-      periodoId: item.fields.PeriodoIDLookupId,
       fondosPropios: Boolean(item.fields.Fondospropios),
       motivo: item.fields.Title,
       notasRevision: item.fields.Notasrevision,
@@ -77,7 +40,8 @@ class ExpenseAuditService extends BaseGraphService {
       bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
       aprobacionAsistente: item.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
       aprobacionJefatura: item.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
-      aprobacionContabilidad: item.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
+      aprobacionContabilidad:
+        item.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
       createdBy: {
         name: item.createdBy.user.displayName || "",
         email: item.createdBy.user.email || "",
@@ -89,25 +53,17 @@ class ExpenseAuditService extends BaseGraphService {
   async createExpenseReport(expenseData, imageFile = null) {
     await this.initializeGraphClient();
 
-    const periodInfo = findOrCreatePeriodForDate(
-      expenseData.fecha,
-      await this.getPeriods()
-    );
-    let periodId = expenseData.periodoId;
-
-    if (!periodInfo.exists) {
-      const newPeriod = await this.createPeriod(periodInfo.period);
-      periodId = newPeriod.id;
-    } else {
-      periodId = periodInfo.period.id;
-    }
-
     let comprobanteId = null;
     if (imageFile) {
       const accounts = this.msalInstance.getAllAccounts();
       const userDisplayName = accounts[0]?.name || "Unknown";
       const folderPath = `/Comprobantes/${userDisplayName}`;
-      comprobanteId = await this.uploadFile(this.siteId, this.driveId, imageFile, folderPath);
+      comprobanteId = await this.uploadFile(
+        this.siteId,
+        this.driveId,
+        imageFile,
+        folderPath
+      );
     }
 
     const fields = {
@@ -118,13 +74,14 @@ class ExpenseAuditService extends BaseGraphService {
       ST: expenseData.st,
       Fondospropios: expenseData.fondosPropios,
       Comprobante: comprobanteId,
-      PeriodoIDLookupId: periodId,
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
     };
 
     const response = await this.client
-      .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items`)
+      .api(
+        `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items`
+      )
       .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
       .post({
         fields: fields,
@@ -135,7 +92,7 @@ class ExpenseAuditService extends BaseGraphService {
 
   async deleteImage(itemId) {
     if (!itemId) return;
-    
+
     await this.initializeGraphClient();
     try {
       await this.client
@@ -148,21 +105,25 @@ class ExpenseAuditService extends BaseGraphService {
 
   async deleteExpenseReport(id) {
     await this.initializeGraphClient();
-  
+
     try {
       const expense = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`
+        )
+        .expand("fields")
         .get();
-  
+
       if (expense.fields.Comprobante) {
         await this.deleteImage(expense.fields.Comprobante);
       }
 
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`
+        )
         .delete();
-      
+
       return true;
     } catch (error) {
       console.error("Error deleting expense report:", error);
@@ -170,36 +131,37 @@ class ExpenseAuditService extends BaseGraphService {
     }
   }
 
-  async updateExpenseReport(id, expenseData, newImageFile = null) {
+  async updateExpenseReport(id, expenseData, newImageFile = undefined) {
     await this.initializeGraphClient();
-  
-    const periodInfo = findOrCreatePeriodForDate(
-      expenseData.fecha,
-      await this.getPeriods()
-    );
-    let periodId = expenseData.periodoId;
-  
-    if (!periodInfo.exists) {
-      const newPeriod = await this.createPeriod(periodInfo.period);
-      periodId = newPeriod.id;
-    } else {
-      periodId = periodInfo.period.id;
-    }
-  
+
     let comprobanteId = expenseData.comprobante;
-  
+
+    // Case 1: New image is being uploaded
     if (newImageFile) {
-      await this.deleteImage(comprobanteId);
-      
+      if (comprobanteId) {
+        await this.deleteImage(comprobanteId);
+      }
+
       const accounts = this.msalInstance.getAllAccounts();
       const userDisplayName = accounts[0]?.name || "Unknown";
       const folderPath = `/Comprobantes/${userDisplayName}`;
-      comprobanteId = await this.uploadFile(this.siteId, this.driveId, newImageFile, folderPath);
-    } else if (newImageFile === null && comprobanteId) {
-      await this.deleteImage(comprobanteId);
+      comprobanteId = await this.uploadFile(
+        this.siteId,
+        this.driveId,
+        newImageFile,
+        folderPath
+      );
+    }
+    // Case 2: Image is explicitly being removed (user clicked remove button)
+    else if (newImageFile === null) {
+      if (comprobanteId) {
+        await this.deleteImage(comprobanteId);
+      }
       comprobanteId = null;
     }
-  
+    // Case 3: No image changes (newImageFile is undefined)
+    // Keep existing comprobanteId
+
     const fields = {
       Title: expenseData.motivo,
       Rubro: expenseData.rubro,
@@ -207,30 +169,33 @@ class ExpenseAuditService extends BaseGraphService {
       Fecha: expenseData.fecha,
       ST: expenseData.st,
       Fondospropios: expenseData.fondosPropios,
-      PeriodoIDLookupId: periodId,
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
-      Comprobante: comprobanteId
+      Comprobante: comprobanteId,
     };
-  
+
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({
           fields: fields,
         });
-  
+
       return {
         ...response,
         fields: {
           ...response.fields,
-          Comprobante: comprobanteId
+          Comprobante: comprobanteId,
         },
       };
     } catch (error) {
       console.error("Error updating expense report:", error);
-      throw new Error(error.message || "Error al actualizar el gasto en SharePoint");
+      throw new Error(
+        error.message || "Error al actualizar el gasto en SharePoint"
+      );
     }
   }
 
@@ -258,7 +223,9 @@ class ExpenseAuditService extends BaseGraphService {
 
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({
           fields: fields,
@@ -267,12 +234,17 @@ class ExpenseAuditService extends BaseGraphService {
       return response;
     } catch (error) {
       console.error("Error updating approval status:", error);
-      throw new Error(error.message || "Error al actualizar el estado de aprobación");
+      throw new Error(
+        error.message || "Error al actualizar el estado de aprobación"
+      );
     }
   }
 
   async getDepartments() {
-    const items = await this.getListItems(this.siteId, this.config.lists.departments);
+    const items = await this.getListItems(
+      this.siteId,
+      this.config.lists.departments
+    );
     return items.map((item) => ({
       id: item.id,
       departamento: item.fields.Departamento,
@@ -311,13 +283,6 @@ class ExpenseAuditService extends BaseGraphService {
     }));
   }
 
-  mapPeriodReports(periods, reports) {
-    return periods.map((period) => ({
-      ...period,
-      reports: reports.filter((report) => report.periodoId === period.id),
-    }));
-  }
-
   mapDepartmentWorkers(departments, roles) {
     return departments.map((department) => ({
       ...department,
@@ -329,35 +294,6 @@ class ExpenseAuditService extends BaseGraphService {
 
   filterReportsByEmail(reports, userEmail) {
     return reports.filter((report) => report.createdBy.email === userEmail);
-  }
-
-  createPeriodUserReportsMapping(periods, reports, roles) {
-    const mapping = periods.map((period) => {
-      const periodReports = reports.filter(
-        (report) => report.periodoId === period.id
-      );
-
-      const userReports = {};
-      periodReports.forEach((report) => {
-        if (!userReports[report.createdBy.email]) {
-          const userRole = roles.find(
-            (role) => role.empleado?.email === report.createdBy.email
-          );
-          userReports[report.createdBy.email] = {
-            user: userRole?.empleado || { email: report.createdBy.email },
-            reports: [],
-          };
-        }
-        userReports[report.createdBy.email].reports.push(report);
-      });
-
-      return {
-        ...period,
-        users: Object.values(userReports),
-      };
-    });
-
-    return mapping;
   }
 
   getUserDepartmentRole(userEmail, departments, roles) {
@@ -386,19 +322,25 @@ class ExpenseAuditService extends BaseGraphService {
   canApprove(expense, role) {
     switch (role) {
       case "Asistente":
-        return expense.aprobacionAsistente === "Pendiente" ||
-               expense.aprobacionAsistente === "No aprobada";
-        
+        return (
+          expense.aprobacionAsistente === "Pendiente" ||
+          expense.aprobacionAsistente === "No aprobada"
+        );
+
       case "Jefe":
-        return (expense.aprobacionAsistente === "Aprobada" && 
-                expense.aprobacionJefatura === "Pendiente") ||
-               expense.aprobacionJefatura === "No aprobada";
-        
+        return (
+          (expense.aprobacionAsistente === "Aprobada" &&
+            expense.aprobacionJefatura === "Pendiente") ||
+          expense.aprobacionJefatura === "No aprobada"
+        );
+
       case "Contabilidad":
-        return (expense.aprobacionJefatura === "Aprobada" && 
-                expense.aprobacionContabilidad === "Pendiente") ||
-               expense.aprobacionContabilidad === "No aprobada";
-        
+        return (
+          (expense.aprobacionJefatura === "Aprobada" &&
+            expense.aprobacionContabilidad === "Pendiente") ||
+          expense.aprobacionContabilidad === "No aprobada"
+        );
+
       default:
         return false;
     }
