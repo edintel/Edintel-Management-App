@@ -1,5 +1,4 @@
-// src/contexts/AppContext.js
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
 import ExpenseAuditService from "../components/services/ExpenseAuditService";
 import { expenseAuditConfig } from "../config/expenseAudit.config";
@@ -12,7 +11,7 @@ export function useAppContext() {
 
 export function AppProviderExpenseAudit({ children }) {
   const { instance, accounts } = useMsal();
-
+  const [initialized, setInitialized] = useState(false);
   const [services, setServices] = useState({
     expense: { service: null, initialized: false, initializing: false },
   });
@@ -48,10 +47,7 @@ export function AppProviderExpenseAudit({ children }) {
         expense: { ...prev.expense, initializing: true },
       }));
 
-      const expenseService = new ExpenseAuditService(
-        instance,
-        expenseAuditConfig
-      );
+      const expenseService = new ExpenseAuditService(instance, expenseAuditConfig);
       await expenseService.initialize();
 
       setServices((prev) => ({
@@ -68,21 +64,11 @@ export function AppProviderExpenseAudit({ children }) {
       console.error("Error initializing expense service:", error);
       setServices((prev) => ({
         ...prev,
-        expense: {
-          service: null,
-          initialized: false,
-          initializing: false,
-        },
+        expense: { service: null, initialized: false, initializing: false },
       }));
       return null;
     }
-  }, [
-    instance,
-    accounts,
-    services.expense.initialized,
-    services.expense.initializing,
-    services.expense.service,
-  ]);
+  }, [instance, accounts, services.expense.initialized, services.expense.initializing, services.expense.service]);
 
   const loadExpenseData = useCallback(async () => {
     if (expenseState.loading) return;
@@ -93,12 +79,11 @@ export function AppProviderExpenseAudit({ children }) {
     setExpenseState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      const [expenseReportsData, departmentsData, rolesData] =
-        await Promise.all([
-          service.getExpenseReports(),
-          service.getDepartments(),
-          service.getRoles(),
-        ]);
+      const [expenseReportsData, departmentsData, rolesData] = await Promise.all([
+        service.getExpenseReports(),
+        service.getDepartments(),
+        service.getRoles(),
+      ]);
 
       const mappedDepartmentWorkers = service.mapDepartmentWorkers(
         departmentsData,
@@ -121,6 +106,7 @@ export function AppProviderExpenseAudit({ children }) {
         loading: false,
         error: null,
       });
+      setInitialized(true);
     } catch (error) {
       console.error("Error loading expense data:", error);
       setExpenseState((prev) => ({
@@ -128,19 +114,22 @@ export function AppProviderExpenseAudit({ children }) {
         loading: false,
         error: "Failed to load expense data",
       }));
+      setInitialized(true);
     }
   }, [accounts, initializeExpenseService, expenseState.loading]);
 
+  // Single useEffect for initialization
+  useEffect(() => {
+    if (!initialized && !expenseState.loading && accounts.length > 0) {
+      loadExpenseData();
+    }
+  }, [initialized, accounts, loadExpenseData, expenseState.loading]);
+
   const value = {
-    // Services access
-    services: {
-      expense: services.expense.service,
-    },
-    // Module states
+    services: { expense: services.expense.service },
     expenseState,
-    // Initialization methods
+    initialized,
     initializeExpenseService,
-    // Data loading methods
     loadExpenseData,
     updateExpenseReports,
   };
@@ -151,9 +140,7 @@ export function AppProviderExpenseAudit({ children }) {
 export function useExpenseAudit() {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error(
-      "useExpenseAudit must be used within AppProviderExpenseAudit"
-    );
+    throw new Error("useExpenseAudit must be used within AppProviderExpenseAudit");
   }
 
   const {
@@ -167,15 +154,10 @@ export function useExpenseAudit() {
       loading,
       error,
     },
+    initialized,
     updateExpenseReports,
     loadExpenseData,
   } = context;
-
-  React.useEffect(() => {
-    if (!service && !loading && !error) {
-      loadExpenseData();
-    }
-  }, [service, loading, error, loadExpenseData]);
 
   return {
     service,
@@ -186,6 +168,7 @@ export function useExpenseAudit() {
     userDepartmentRole,
     loading,
     error,
+    initialized,
     setExpenseReports: updateExpenseReports,
     loadExpenseData,
   };
