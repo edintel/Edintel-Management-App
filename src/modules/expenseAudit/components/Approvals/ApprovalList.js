@@ -1,32 +1,41 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppContext } from "../../contexts/AppContext";
-import { useAuth } from "../AuthProvider";
-import Layout from "../layout/Layout";
-import Card from "../common/Card";
-import Table from "../common/Table";
-import Button from "../common/Button";
-import ConfirmationDialog from "../common/ConfirmationDialog";
-import { Check, X, Eye, Filter, Search, Users } from "lucide-react";
+import { useExpenseAudit } from "../../context/expenseAuditContext";
+import { useAuth } from "../../../../components/AuthProvider";
+import Card from "../../../../components/common/Card";
+import Table from "../../../../components/common/Table";
+import Button from "../../../../components/common/Button";
+import DateRangePicker from "../../../../components/common/DateRangePicker";
+import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
+import { Check, X, Eye, Search, Users } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 
 const ApprovalList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const {
     expenseReports,
-    periods,
     departmentWorkers,
     loading,
     setExpenseReports,
-    graphService,
-  } = useAppContext();
+    service,
+    userDepartmentRole,
+  } = useExpenseAudit();
   const { user } = useAuth();
 
-  const [selectedPeriod, setSelectedPeriod] = useState("");
+  // Initialize date range for last week
+  const today = new Date();
+  const lastWeek = new Date(today);
+  lastWeek.setDate(lastWeek.getDate() - 7);
+
   const [selectedPerson, setSelectedPerson] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState("pending");
+  const [startDate, setStartDate] = useState(
+    lastWeek.toISOString().split("T")[0]
+  );
+  const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
 
   // Add state for confirmation dialog
   const [confirmDialog, setConfirmDialog] = useState({
@@ -72,7 +81,7 @@ const ApprovalList = () => {
       const status =
         confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
 
-      await graphService.updateApprovalStatus(
+      await service.updateApprovalStatus(
         confirmDialog.expenseId,
         status,
         type,
@@ -104,13 +113,12 @@ const ApprovalList = () => {
       setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error("Error updating approval status:", error);
-      // You might want to show an error message to the user here
     }
   };
 
   const canApprove = (expense) => {
-    if (!user || !expense || !graphService) return false;
-    return graphService.canApprove(expense, user.role);
+    if (!userDepartmentRole || !expense || !service) return false;
+    return service.canApprove(expense, userDepartmentRole.role);
   };
 
   const columns = [
@@ -221,7 +229,7 @@ const ApprovalList = () => {
   ];
 
   const handleRowClick = (expense) => {
-    navigate(`/expenses/${expense.id}`, {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
       state: { from: location },
     });
   };
@@ -239,7 +247,13 @@ const ApprovalList = () => {
   }, []);
 
   const filteredExpenses = expenseReports.filter((expense) => {
-    if (selectedPeriod && expense.periodoId !== selectedPeriod) return false;
+    // Date range filter
+    if (startDate && endDate) {
+      const expenseDate = expense.fecha.getTime();
+      const start = new Date(startDate).getTime();
+      const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
+      if (expenseDate < start || expenseDate > end) return false;
+    }
 
     if (selectedPerson && expense.createdBy.email !== selectedPerson)
       return false;
@@ -274,7 +288,7 @@ const ApprovalList = () => {
   });
 
   return (
-    <Layout>
+    <>
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Aprobaciones</h1>
@@ -320,20 +334,14 @@ const ApprovalList = () => {
                 />
               </div>
 
-              <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-                <Filter size={16} className="text-gray-400 mr-2" />
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="w-full bg-transparent border-none focus:outline-none text-sm"
-                >
-                  <option value="">Todos los periodos</option>
-                  {periods.map((period) => (
-                    <option key={period.id} value={period.id}>
-                      {period.periodo}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex-1">
+                <DateRangePicker
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  maxDate={today.toISOString().split("T")[0]}
+                />
               </div>
 
               <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
@@ -392,7 +400,7 @@ const ApprovalList = () => {
         title={confirmDialog.title}
         message={confirmDialog.message}
       />
-    </Layout>
+    </>
   );
 };
 

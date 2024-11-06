@@ -1,15 +1,15 @@
 import React from 'react';
-import { useAuth } from '../AuthProvider';
-import Layout from '../layout/Layout';
-import Card from '../common/Card';
+import { useAuth } from '../../../../components/AuthProvider';
+import { useExpenseAudit } from '../../context/expenseAuditContext';
+import Card from '../../../../components/common/Card';
 import { User, Mail, Building, Briefcase } from 'lucide-react';
 import './Profile.css';
 
 const Profile = () => {
   const { user } = useAuth();
+  const { userDepartmentRole } = useExpenseAudit();
 
   return (
-    <Layout>
       <div className="profile-container">
         <Card title="Mi Perfil" className="profile-card">
           <div className="profile-content">
@@ -33,7 +33,7 @@ const Profile = () => {
                 <Building size={20} />
                 <div className="info-content">
                   <label>Departamento</label>
-                  <span>{user?.department}</span>
+                  <span>{userDepartmentRole?.department?.departamento || 'No asignado'}</span>
                 </div>
               </div>
 
@@ -41,14 +41,13 @@ const Profile = () => {
                 <Briefcase size={20} />
                 <div className="info-content">
                   <label>Rol</label>
-                  <span>{user?.role}</span>
+                  <span>{userDepartmentRole?.role || 'No asignado'}</span>
                 </div>
               </div>
             </div>
           </div>
         </Card>
       </div>
-    </Layout>
   );
 };
 

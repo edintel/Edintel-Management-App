@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useAppContext } from "../../contexts/AppContext";
-import { useAuth } from "../AuthProvider";
-import Layout from "../layout/Layout";
-import Card from "../common/Card";
-import Button from "../common/Button";
-import ExpenseImage from "../common/ExpenseImage";
-import ConfirmationDialog from "../common/ConfirmationDialog";
+import { useExpenseAudit } from "../../context/expenseAuditContext";
+import { useAuth } from "../../../../components/AuthProvider";
+import Card from "../../../../components/common/Card";
+import Button from "../../../../components/common/Button";
+import ExpenseImage from "./ExpenseImage";
+import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
+import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import {
   ArrowLeft,
   Edit,
@@ -21,6 +21,7 @@ import {
   X,
   User,
   Mail,
+  Trash2,
 } from "lucide-react";
 
 const ExpenseDetail = () => {
@@ -30,18 +31,26 @@ const ExpenseDetail = () => {
     expenseReports,
     loading: reportsLoading,
     setExpenseReports,
-    graphService,
-  } = useAppContext();
+    service,
+    userDepartmentRole,
+  } = useExpenseAudit();
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const returnPath = location.state?.from?.pathname || "/expenses";
+  const returnPath =
+    location.state?.from?.pathname || EXPENSE_AUDIT_ROUTES.EXPENSES.LIST;
   const { user } = useAuth();
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     type: "approve",
     title: "",
     message: "",
+  });
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
+    title: "¿Confirmar eliminación?",
+    message:
+      "¿Está seguro que desea eliminar este gasto? Esta acción no se puede deshacer.",
   });
 
   useEffect(() => {
@@ -57,49 +66,102 @@ const ExpenseDetail = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/expenses/${id}/edit`, {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.EDIT(id), {
       state: { from: location.state?.from },
     });
   };
 
-  const canEdit = () => {
-    if (!user || !expense) return false;
+  const canDelete = () => {
+    if (!userDepartmentRole || !expense) return false;
 
-    if (user.role === 'Jefe' || 
-        user.role === 'Asistente' || 
-        user.department?.toLowerCase().includes('contabilidad')) {
+    if (
+      userDepartmentRole.username === expense.createdBy.email &&
+      !expense.bloqueoEdicion
+    ) {
       return true;
     }
-    
-    return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
+
+    if (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente"
+    ) {
+      return true;
+    }
+
+    if (
+      userDepartmentRole.department &&
+      userDepartmentRole.department.departamento &&
+      userDepartmentRole.department.departamento
+        .toLowerCase()
+        .includes("contabilidad")
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleDelete = () => {
+    setDeleteDialog((prev) => ({ ...prev, isOpen: true }));
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await service.deleteExpenseReport(id);
+
+      setExpenseReports((prevReports) =>
+        prevReports.filter((report) => report.id !== id)
+      );
+
+      navigate(returnPath);
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+    } finally {
+      setDeleteDialog((prev) => ({ ...prev, isOpen: false }));
+    }
+  };
+
+  const canEdit = () => {
+    if (!userDepartmentRole || !expense) return false;
+
+    if (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente" ||
+      (userDepartmentRole.department?.departamento || "")
+        .toLowerCase()
+        .includes("contabilidad")
+    ) {
+      return true;
+    }
+
+    return (
+      userDepartmentRole.username === expense.createdBy.email &&
+      !expense.bloqueoEdicion
+    );
   };
 
   if (loading || reportsLoading) {
     return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[400px] text-gray-500">
-          <Loader size={48} className="animate-spin mb-4" />
-          <p>Cargando detalles del gasto...</p>
-        </div>
-      </Layout>
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-gray-500">
+        <Loader size={48} className="animate-spin mb-4" />
+        <p>Cargando detalles del gasto...</p>
+      </div>
     );
   }
 
   if (!expense) {
     return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <AlertTriangle size={48} className="text-error mb-4" />
-          <h2 className="text-xl font-semibold mb-4">Gasto no encontrado</h2>
-          <Button
-            variant="outline"
-            startIcon={<ArrowLeft size={16} />}
-            onClick={() => navigate("/expenses")}
-          >
-            Volver a la lista
-          </Button>
-        </div>
-      </Layout>
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <AlertTriangle size={48} className="text-error mb-4" />
+        <h2 className="text-xl font-semibold mb-4">Gasto no encontrado</h2>
+        <Button
+          variant="outline"
+          startIcon={<ArrowLeft size={16} />}
+          onClick={() => navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST)}
+        >
+          Volver a la lista
+        </Button>
+      </div>
     );
   }
 
@@ -161,7 +223,7 @@ const ExpenseDetail = () => {
       const status =
         confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
 
-      await graphService.updateApprovalStatus(id, status, type, notes);
+      await service.updateApprovalStatus(id, status, type, notes);
 
       setExpense((prev) => ({
         ...prev,
@@ -186,7 +248,9 @@ const ExpenseDetail = () => {
                 aprobacionJefatura:
                   type === "boss" ? status : report.aprobacionJefatura,
                 aprobacionContabilidad:
-                  type === "accounting" ? status : report.aprobacionContabilidad,
+                  type === "accounting"
+                    ? status
+                    : report.aprobacionContabilidad,
               }
             : report
         )
@@ -197,12 +261,12 @@ const ExpenseDetail = () => {
   };
 
   const canApprove = () => {
-    if (!user || !expense) return false;
-    return graphService.canApprove(expense, user.role);
+    if (!user || !expense || !service || !userDepartmentRole) return false;
+    return service.canApprove(expense, userDepartmentRole.role);
   };
 
   return (
-    <Layout>
+    <>
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
           <Button
@@ -212,6 +276,16 @@ const ExpenseDetail = () => {
           >
             Volver
           </Button>
+          {canDelete() && (
+            <Button
+              variant="outline"
+              className="text-error hover:bg-error/10"
+              startIcon={<Trash2 size={16} />}
+              onClick={handleDelete}
+            >
+              Eliminar
+            </Button>
+          )}
           {canEdit() && (
             <Button
               variant="outline"
@@ -227,7 +301,7 @@ const ExpenseDetail = () => {
           <Card className="lg:col-span-2">
             <div className="p-6 space-y-6">
               <h2 className="text-2xl font-semibold">Descripción factura</h2>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
                   <span className="text-sm text-gray-500">Rubro</span>
@@ -273,7 +347,9 @@ const ExpenseDetail = () => {
                 {expense.facturaDividida && (
                   <>
                     <div>
-                      <span className="text-sm text-gray-500">Factura Dividida</span>
+                      <span className="text-sm text-gray-500">
+                        Factura Dividida
+                      </span>
                       <p className="text-gray-900 mt-1">Sí</p>
                     </div>
                     <div className="col-span-3">
@@ -387,7 +463,15 @@ const ExpenseDetail = () => {
         title={confirmDialog.title}
         message={confirmDialog.message}
       />
-    </Layout>
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={handleConfirmDelete}
+        type="delete"
+        title={deleteDialog.title}
+        message={deleteDialog.message}
+      />
+    </>
   );
 };
 

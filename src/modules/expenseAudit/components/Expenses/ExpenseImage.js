@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useAppContext } from '../../contexts/AppContext';
+import { useExpenseAudit } from '../../context/expenseAuditContext';
 import { AlertCircle, ZoomIn } from 'lucide-react';
-import ImageModal from './ImageModal';
+import ImageModal from '../../../../components/common/ImageModal';
+import { expenseAuditConfig } from '../../config/expenseAudit.config';
 
 const ExpenseImage = ({ itemId, className = '' }) => {
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { graphService } = useAppContext();
+  const { service } = useExpenseAudit();
 
   useEffect(() => {
     let mounted = true;
@@ -22,13 +23,18 @@ const ExpenseImage = ({ itemId, className = '' }) => {
         return;
       }
 
-      if (!graphService) return;
+      if (!service) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        const { url, token } = await graphService.getImageContent(itemId);
+        const { url, token } = await service.getImageContent(
+          expenseAuditConfig.siteId,
+          expenseAuditConfig.driveId,
+          itemId
+        );
+
         const response = await fetch(url, {
           headers: { 'Authorization': `Bearer ${token}` },
           signal: abortController.signal
@@ -46,6 +52,7 @@ const ExpenseImage = ({ itemId, className = '' }) => {
       } catch (err) {
         if (mounted && !abortController.signal.aborted) {
           setError('Error al cargar la imagen. Por favor, intente nuevamente.');
+          console.error('Error loading image:', err);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -59,7 +66,7 @@ const ExpenseImage = ({ itemId, className = '' }) => {
       abortController.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [itemId, graphService]);
+  }, [itemId, service]);
 
   if (loading) {
     return (

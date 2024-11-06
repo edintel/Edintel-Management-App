@@ -1,19 +1,19 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
+import LoadingScreen from './LoadingScreen';
 
-function ProtectedRoute({ children }) {
+export function ProtectedRoute({ children }) {
   const { user, inProgress } = useAuth();
+  const location = useLocation();
 
   if (inProgress === "login") {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;
 }
-
-export default ProtectedRoute;
