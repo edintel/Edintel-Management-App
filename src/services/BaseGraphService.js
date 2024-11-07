@@ -171,6 +171,72 @@ class BaseGraphService {
         throw error;
       }
     }
+
+    async createCalendarEvent(calendarId, title, startTime, attendees = []) {
+      await this.initializeGraphClient();
+  
+      const event = {
+        subject: title,
+        start: {
+          dateTime: startTime,
+          timeZone: "America/Costa_Rica"
+        },
+        end: {
+          dateTime: new Date(new Date(startTime).getTime() + (4 * 60 * 60 * 1000)).toISOString(), // 4 hour default duration
+          timeZone: "America/Costa_Rica"
+        },
+        attendees: attendees.map(attendee => ({
+          emailAddress: {
+            address: attendee.email,
+            name: attendee.name
+          },
+          type: "required"
+        }))
+      };
+  
+      const response = await this.client
+        .api(`/me/calendars/${calendarId}/events`)
+        .post(event);
+  
+      return response.id;
+    }
+  
+    async updateCalendarEvent(calendarId, eventId, updates) {
+      await this.initializeGraphClient();
+      
+      await this.client
+        .api(`/me/calendars/${calendarId}/events/${eventId}`)
+        .patch(updates);
+    }
+  
+    async updateCalendarEventAttendees(calendarId, eventId, attendees) {
+      const updates = {
+        attendees: attendees.map(attendee => ({
+          emailAddress: {
+            address: attendee.email,
+            name: attendee.name
+          },
+          type: "required"
+        }))
+      };
+  
+      await this.updateCalendarEvent(calendarId, eventId, updates);
+    }
+  
+    async updateCalendarEventDate(calendarId, eventId, newStartTime) {
+      const updates = {
+        start: {
+          dateTime: newStartTime,
+          timeZone: "America/Costa_Rica"
+        },
+        end: {
+          dateTime: new Date(new Date(newStartTime).getTime() + (4 * 60 * 60 * 1000)).toISOString(),
+          timeZone: "America/Costa_Rica"
+        }
+      };
+  
+      await this.updateCalendarEvent(calendarId, eventId, updates);
+    }
   }
 
   export default BaseGraphService;

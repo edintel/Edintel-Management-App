@@ -1,8 +1,9 @@
+// src/components/MainMenu.js
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import Card from './common/Card';
-import { FileText } from 'lucide-react';
+import { FileText, Ticket } from 'lucide-react';
 
 const MainMenu = () => {
   const navigate = useNavigate();
@@ -17,7 +18,14 @@ const MainMenu = () => {
       path: '/expense-audit/dashboard',
       roles: ['*'] // * means all roles have access
     },
-    // Add more modules here as needed
+    {
+      id: 'post-venta',
+      name: 'Control Post Venta',
+      description: 'Sistema de gestión de STs',
+      icon: Ticket,
+      path: '/post-venta/dashboard',
+      roles: ['*']
+    }
   ];
 
   const hasAccess = (moduleRoles) => {
@@ -27,7 +35,6 @@ const MainMenu = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Simple header bar */}
       <div className="h-16 bg-primary flex justify-center items-center">
         <img src="/LogoEdintel.png" alt="Edintel S.A." className="h-10" />
       </div>
