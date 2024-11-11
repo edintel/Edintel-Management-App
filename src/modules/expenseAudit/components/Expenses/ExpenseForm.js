@@ -57,6 +57,7 @@ const ExpenseForm = () => {
     "Peaje",
     "Habitación",
     "Uber",
+    "Parqueo",
     "Versatec",
   ];
 

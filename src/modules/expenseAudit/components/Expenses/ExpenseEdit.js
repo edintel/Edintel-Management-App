@@ -37,6 +37,7 @@ const ExpenseEdit = () => {
     "Peaje",
     "Habitación",
     "Uber",
+    "Parqueo",
     "Versatec",
   ];
 
