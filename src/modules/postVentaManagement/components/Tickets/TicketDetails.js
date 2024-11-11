@@ -17,6 +17,7 @@ import {
   User,
   Clock,
   CheckCircle,
+  LucideSquareSplitVertical,
   AlertTriangle,
   Loader
 } from 'lucide-react';
@@ -25,12 +26,12 @@ const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { 
-    serviceTickets, 
-    getSiteDetails, 
-    service, 
+  const {
+    serviceTickets,
+    getSiteDetails,
+    service,
     loading,
-    systems 
+    systems
   } = usePostVentaManagement();
 
   if (loading) {
@@ -40,6 +41,21 @@ const TicketDetails = () => {
       </div>
     );
   }
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'Cerrada':
+      case 'Finalizada':
+        return 'bg-success/10 text-success';
+      case 'Trabajo iniciado':
+      case 'Confirmado por tecnico':
+        return 'bg-info/10 text-info';
+      case 'Técnico asignado':
+        return 'bg-warning/10 text-warning';
+      default:
+        return 'bg-gray-200 text-gray-700';
+    }
+  };
 
   const ticket = serviceTickets.find(t => t.id === id);
   if (!ticket) {
@@ -128,20 +144,29 @@ const TicketDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Ticket Information */}
-        <Card 
-          className="lg:col-span-2"
-          title={
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-semibold">ST {ticket.stNumber}</h2>
-                <p className="text-sm text-gray-500 mt-1">{ticket.type}</p>
-              </div>
-              <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(ticket.state)}`}>
-                {ticket.state}
-              </span>
-            </div>
-          }
+        <Card
+          className="lg:col-span-2 overflow-hidden"
         >
+          <div className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl font-bold text-gray-900">ST {ticket.stNumber}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusClass(ticket.state)}`}>
+                      {ticket.state}
+                    </span>
+                  </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <span className="inline-flex items-center gap-1.5">
+                    <LucideSquareSplitVertical size={16} className="text-gray-400" />
+                    {ticket.type}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="space-y-6">
             <div className="border-t pt-6">
               <h3 className="text-lg font-medium mb-4">Fechas</h3>
@@ -238,20 +263,20 @@ const TicketDetails = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-500">Empresa</p>
-                <p className="font-medium">{siteDetails?.company?.name || 'N/A'}</p>
+                <p className="font-small">{siteDetails?.company?.name || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Edificio</p>
-                <p className="font-medium">{siteDetails?.building?.name || 'N/A'}</p>
+                <p className="font-small">{siteDetails?.building?.name || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Sitio</p>
-                <p className="font-medium">{siteDetails?.site?.name || 'N/A'}</p>
+                <p className="font-small">{siteDetails?.site?.name || 'N/A'}</p>
               </div>
               {system && (
                 <div>
                   <p className="text-sm text-gray-500">Sistema</p>
-                  <p className="font-medium">{system.name}</p>
+                  <p className="font-small">{system.name}</p>
                 </div>
               )}
             </div>
@@ -264,7 +289,7 @@ const TicketDetails = () => {
                   <User size={20} className="text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-500">Nombre de contacto</p>
-                    <p className="font-medium">{siteDetails.site.contactName}</p>
+                    <p className="font-small">{siteDetails.site.contactName}</p>
                   </div>
                 </div>
               )}
@@ -273,7 +298,7 @@ const TicketDetails = () => {
                   <Mail size={20} className="text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-500">Correo electrónico</p>
-                    <p className="font-medium">{siteDetails.site.contactEmail}</p>
+                    <p className="font-small">{siteDetails.site.contactEmail}</p>
                   </div>
                 </div>
               )}
@@ -282,7 +307,7 @@ const TicketDetails = () => {
                   <Phone size={20} className="text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-500">Teléfono</p>
-                    <p className="font-medium">{siteDetails.site.contactPhone}</p>
+                    <p className="font-small">{siteDetails.site.contactPhone}</p>
                   </div>
                 </div>
               )}
@@ -291,7 +316,7 @@ const TicketDetails = () => {
                   <MapPin size={20} className="text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-500">Ubicación</p>
-                    <p className="font-medium">{siteDetails.site.location}</p>
+                    <p className="font-small">{siteDetails.site.location}</p>
                   </div>
                 </div>
               )}

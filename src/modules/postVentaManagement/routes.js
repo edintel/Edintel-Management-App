@@ -5,6 +5,7 @@ import Layout from './components/layout/Layout';
 import PostVentaDashboard from './components/Dashboard/PostVentaDashboard';
 import TicketList from './components/Tickets/TicketList';
 import TicketDetails from './components/Tickets/TicketDetails';
+import Profile from './components/Profile/Profile';
 
 // Navigation configuration for the module
 export const POST_VENTA_ROUTES = {
@@ -14,6 +15,7 @@ export const POST_VENTA_ROUTES = {
     LIST: '/post-venta/tickets',
     DETAIL: (id) => `/post-venta/tickets/${id}`,
   },
+  PROFILE: '/post-venta/profile',
 };
 
 // Main routes component
@@ -22,31 +24,36 @@ export const PostVentaRoutes = () => {
     <Layout>
       <Routes>
         {/* Default redirect */}
-        <Route 
-          path="/" 
-          element={<Navigate to="dashboard" replace />} 
+        <Route
+          path="/"
+          element={<Navigate to="dashboard" replace />}
         />
 
         {/* Dashboard */}
-        <Route 
-          path="dashboard" 
-          element={<PostVentaDashboard />} 
+        <Route
+          path="dashboard"
+          element={<PostVentaDashboard />}
         />
 
         {/* Tickets routes */}
-        <Route 
-          path="tickets" 
-          element={<TicketList />} 
+        <Route
+          path="tickets"
+          element={<TicketList />}
         />
-        <Route 
-          path="tickets/:id" 
-          element={<TicketDetails />} 
+        <Route
+          path="tickets/:id"
+          element={<TicketDetails />}
+        />
+
+        <Route
+          path="profile"
+          element={<Profile />}
         />
 
         {/* Catch-all redirect */}
-        <Route 
-          path="*" 
-          element={<Navigate to="dashboard" replace />} 
+        <Route
+          path="*"
+          element={<Navigate to="dashboard" replace />}
         />
       </Routes>
     </Layout>

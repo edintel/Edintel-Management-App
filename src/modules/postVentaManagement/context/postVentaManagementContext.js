@@ -99,7 +99,7 @@ export function AppProviderPostVentaManagement({ children }) {
 
       const currentUserEmail = accounts[0]?.username;
       const userRole = rolesData.find(
-        (role) => role.employee?.email === currentUserEmail
+        (role) => role.employee?.Email === currentUserEmail
       );
 
       setPostVentaState({
@@ -182,10 +182,10 @@ export function usePostVentaManagement() {
   }, [companies, buildings, sites]);
 
   const getTicketsAssignedToMe = useCallback(() => {
-    if (!userRole?.employee?.id) return [];
-    
+    if (!userRole?.employee?.LookupId) return [];
+
     return serviceTickets.filter(ticket => 
-      ticket.technicians.some(tech => tech.LookupId === userRole.employee.id)
+      ticket.technicians.some(tech => tech.LookupId === userRole.employee.LookupId)
     );
   }, [serviceTickets, userRole]);
 

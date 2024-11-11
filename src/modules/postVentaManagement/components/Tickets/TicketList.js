@@ -6,9 +6,9 @@ import Card from '../../../../components/common/Card';
 import Table from '../../../../components/common/Table';
 import Button from '../../../../components/common/Button';
 import DateRangePicker from '../../../../components/common/DateRangePicker';
-import { 
-  Search, 
-  Filter, 
+import {
+  Search,
+  Filter,
   Download,
   FileDown,
   Building,
@@ -19,11 +19,12 @@ import { POST_VENTA_ROUTES } from '../../routes';
 
 const TicketList = () => {
   const navigate = useNavigate();
-  const { 
-    serviceTickets, 
+  const {
+    serviceTickets,
     getSiteDetails,
     service,
-    loading 
+    loading,
+    systems
   } = usePostVentaManagement();
 
   // Filter states
@@ -75,23 +76,33 @@ const TicketList = () => {
         const siteDetails = getSiteDetails(value);
         return (
           <div className="space-y-1">
-            <div className="font-medium">{siteDetails?.site?.name || 'N/A'}</div>
             <div className="text-sm text-gray-500">
+              {siteDetails?.company?.name || 'N/A'}
+            </div>
+            <div className="text-sm text-gray-900">
               {siteDetails?.building?.name || 'N/A'}
             </div>
+            <div className="font-medium">{siteDetails?.site?.name || 'N/A'}</div>
           </div>
         );
       }
     },
     {
+      key: 'systemId',
+      header: 'Sistema',
+      render: (value) => {
+        const system = systems.find(s => s.id === value);
+        return (
+          <div className="max-w-[150px] break-words">
+            {system?.name || 'N/A'}
+          </div>
+        );
+      } 
+    },
+    {
       key: 'type',
       header: 'Tipo',
       render: (value) => value || 'N/A'
-    },
-    {
-      key: 'tentativeDate',
-      header: 'Fecha Tentativa',
-      render: (value) => value ? new Date(value).toLocaleDateString('es-CR') : 'No programada'
     },
     {
       key: 'state',
@@ -108,7 +119,7 @@ const TicketList = () => {
             case 'Técnico asignado':
               return 'bg-warning/10 text-warning';
             default:
-              return 'bg-gray-100 text-gray-700';
+              return 'bg-gray-200 text-gray-700';
           }
         };
 
@@ -120,51 +131,50 @@ const TicketList = () => {
       }
     },
     {
+      key: 'tentativeDate',
+      header: 'Fecha Tentativa',
+      render: (value) => value ? new Date(value).toLocaleDateString('es-CR') : 'No programada'
+    },
+    {
       key: 'files',
       header: 'Archivos',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1">
           {row.descriptionId && (
-            <Button
-              variant="ghost"
-              size="small"
-              className="text-primary hover:text-primary/90"
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleFileDownload(row.descriptionId, `ST_${row.stNumber}_descripcion.pdf`);
               }}
+              className="text-left text-sm text-primary hover:text-primary/80 hover:underline"
             >
-              <FileText size={16} />
-            </Button>
+              Descripción
+            </button>
           )}
           {row.serviceTicketId && (
-            <Button
-              variant="ghost"
-              size="small"
-              className="text-primary hover:text-primary/90"
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleFileDownload(row.serviceTicketId, `ST_${row.stNumber}_boleta.pdf`);
               }}
+              className="text-left text-sm text-primary hover:text-primary/80 hover:underline"
             >
-              <Download size={16} />
-            </Button>
+              Boleta
+            </button>
           )}
           {row.reportId && (
-            <Button
-              variant="ghost"
-              size="small"
-              className="text-primary hover:text-primary/90"
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleFileDownload(row.reportId, `ST_${row.stNumber}_informe.pdf`);
               }}
+              className="text-left text-sm text-primary hover:text-primary/80 hover:underline"
             >
-              <FileDown size={16} />
-            </Button>
+              Informe
+            </button>
           )}
         </div>
-      )
+      ),
     }
   ];
 
@@ -189,6 +199,7 @@ const TicketList = () => {
           ticket.stNumber?.toLowerCase().includes(search) ||
           siteDetails?.site?.name?.toLowerCase().includes(search) ||
           siteDetails?.building?.name?.toLowerCase().includes(search) ||
+          siteDetails?.company?.name?.toLowerCase().includes(search) ||
           ticket.type?.toLowerCase().includes(search)
         );
       }
@@ -227,7 +238,7 @@ const TicketList = () => {
             <Search size={16} className="text-gray-400 mr-2" />
             <input
               type="text"
-              placeholder="Buscar por ST, sitio o tipo..."
+              placeholder="Buscar por ST, empresa, edificio, sitio o tipo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-transparent border-none focus:outline-none text-sm"

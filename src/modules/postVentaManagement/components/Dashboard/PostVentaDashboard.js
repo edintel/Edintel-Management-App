@@ -20,10 +20,9 @@ const PostVentaDashboard = () => {
   // Calculate summary statistics
   const stats = {
     total: assignedTickets.length,
-    pending: assignedTickets.filter(ticket => ticket.state === 'Iniciada').length,
-    inProgress: assignedTickets.filter(ticket => 
-      ['Técnico asignado', 'Confirmado por tecnico', 'Trabajo iniciado'].includes(ticket.state)
-    ).length,
+    pending: assignedTickets.filter(ticket => ticket.state === 'Técnico asignado').length,
+    confirmed: assignedTickets.filter(ticket => ticket.state === 'Confirmado por tecnico').length,
+    inProgress: assignedTickets.filter(ticket => ticket.state === 'Trabajo iniciado').length,
     completed: assignedTickets.filter(ticket => 
       ['Finalizada', 'Cerrada'].includes(ticket.state)
     ).length
@@ -86,10 +85,16 @@ const PostVentaDashboard = () => {
       bgColor: "bg-primary/10"
     },
     {
-      title: "Pendientes",
+      title: "Pendientes confirmación",
       value: stats.pending,
       icon: <Clock className="w-6 h-6 text-warning" />,
       bgColor: "bg-warning/10"
+    },
+    {
+      title: "Espera a iniciar",
+      value: stats.confirmed,
+      icon: <Clock className="w-6 h-6 text-success" />,
+      bgColor: "bg-success/10"
     },
     {
       title: "En Progreso",
@@ -129,29 +134,6 @@ const PostVentaDashboard = () => {
           </Card>
         ))}
       </div>
-
-      <Card 
-        title="Tickets Asignados"
-        subtitle={`${assignedTickets.length} tickets en total`}
-      >
-        <Table
-          columns={columns}
-          data={assignedTickets}
-          onRowClick={handleRowClick}
-          isLoading={loading}
-          emptyMessage={
-            <div className="flex flex-col items-center justify-center py-12">
-              <AlertTriangle size={48} className="text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-1">
-                No hay tickets asignados
-              </h3>
-              <p className="text-sm text-gray-500">
-                No tienes tickets asignados en este momento
-              </p>
-            </div>
-          }
-        />
-      </Card>
     </div>
   );
 };

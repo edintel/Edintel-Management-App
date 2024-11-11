@@ -114,7 +114,7 @@ class PostVentaManagementService extends BaseGraphService {
       type: item.fields.Tipo,
       descriptionId: item.fields.Descripci_x00f3_n,
       siteId: item.fields.SitioIDLookupId,
-      state: this.getSTState(item.fields),
+      state: item.fields.Estado,
       technicians: item.fields.Tecnicoasignado || [],
       tentativeDate: item.fields.Fecha,
       confirmationDate: item.fields.Fechaconfirmaci_x00f3_n,

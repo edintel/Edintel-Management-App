@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '../../../../components/AuthProvider';
-import ProfileMenu from '../../../../components/Profile/ProfileMenu';
+import ProfileMenu from '../Profile/ProfileMenu';
 import { POST_VENTA_ROUTES } from '../../routes';
 
 const Layout = ({ children }) => {
