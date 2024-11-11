@@ -5,6 +5,7 @@ import Table from "../../../../components/common/Table";
 import Button from "../../../../components/common/Button";
 import DateRangePicker from "../../../../components/common/DateRangePicker";
 import ExpenseSummary from "./ExpenseSummary";
+import PrintSummary from "./PrintSummary";
 import { Filter, Search, Users, FileDown, Printer, Copy } from "lucide-react";
 
 const Reports = () => {
@@ -66,14 +67,20 @@ const Reports = () => {
             </span>
           );
         }
-        if (row.aprobacionJefatura === "Aprobada") {
+        if (
+          row.aprobacionJefatura === "Aprobada" &&
+          row.aprobacionContabilidad === "Pendiente"
+        ) {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
               En Contabilidad
             </span>
           );
         }
-        if (row.aprobacionAsistente === "Aprobada") {
+        if (
+          row.aprobacionAsistente === "Aprobada" &&
+          row.aprobacionJefatura === "Pendiente"
+        ) {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
               En Jefatura
@@ -231,131 +238,142 @@ const Reports = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {getDateRangeLabel()} • {filteredExpenses.length} gastos encontrados
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="small"
-            startIcon={<Copy size={16} />}
-            onClick={handleCopyTable}
-          >
-            Copiar
-          </Button>
-          <Button
-            variant="outline"
-            size="small"
-            startIcon={<FileDown size={16} />}
-            onClick={handleExportCSV}
-          >
-            Exportar CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="small"
-            startIcon={<Printer size={16} />}
-            onClick={handlePrint}
-          >
-            Imprimir
-          </Button>
-        </div>
-      </div>
+    <>
+      {/* Print Summary - Hidden during normal view, shown only when printing */}
+      <PrintSummary
+        expenses={filteredExpenses}
+        dateRange={dateRange}
+        selectedPerson={selectedPerson}
+        people={people}
+      />
 
-      <Card className="mb-6">
-        <div className="flex flex-col md:flex-row gap-4 p-4">
-          <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-            <Search size={16} className="text-gray-400 mr-2" />
-            <input
-              type="text"
-              placeholder="Buscar por rubro, ST o solicitante..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent border-none focus:outline-none text-sm"
-            />
+      <div className="max-w-7xl mx-auto px-4 py-6 print:hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {getDateRangeLabel()} • {filteredExpenses.length} gastos
+              encontrados
+            </p>
           </div>
-
-          <div className="flex-1">
-            <DateRangePicker
-              startDate={dateRange.startDate}
-              endDate={dateRange.endDate}
-              onStartDateChange={(date) =>
-                setDateRange((prev) => ({ ...prev, startDate: date }))
-              }
-              onEndDateChange={(date) =>
-                setDateRange((prev) => ({ ...prev, endDate: date }))
-              }
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-            <Users size={16} className="text-gray-400 mr-2" />
-            <select
-              value={selectedPerson}
-              onChange={(e) => setSelectedPerson(e.target.value)}
-              className="w-full bg-transparent border-none focus:outline-none text-sm"
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="small"
+              startIcon={<Copy size={16} />}
+              onClick={handleCopyTable}
             >
-              <option value="">Todos los solicitantes</option>
-              {people.map((person) => (
-                <option key={person.id} value={person.email}>
-                  {person.displayName}
+              Copiar
+            </Button>
+            <Button
+              variant="outline"
+              size="small"
+              startIcon={<FileDown size={16} />}
+              onClick={handleExportCSV}
+            >
+              Exportar CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="small"
+              startIcon={<Printer size={16} />}
+              onClick={handlePrint}
+            >
+              Imprimir
+            </Button>
+          </div>
+        </div>
+
+        <Card className="mb-6">
+          <div className="flex flex-col md:flex-row gap-4 p-4">
+            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
+              <Search size={16} className="text-gray-400 mr-2" />
+              <input
+                type="text"
+                placeholder="Buscar por rubro, ST o solicitante..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-transparent border-none focus:outline-none text-sm"
+              />
+            </div>
+
+            <div className="flex-1">
+              <DateRangePicker
+                startDate={dateRange.startDate}
+                endDate={dateRange.endDate}
+                onStartDateChange={(date) =>
+                  setDateRange((prev) => ({ ...prev, startDate: date }))
+                }
+                onEndDateChange={(date) =>
+                  setDateRange((prev) => ({ ...prev, endDate: date }))
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
+              <Users size={16} className="text-gray-400 mr-2" />
+              <select
+                value={selectedPerson}
+                onChange={(e) => setSelectedPerson(e.target.value)}
+                className="w-full bg-transparent border-none focus:outline-none text-sm"
+              >
+                <option value="">Todos los solicitantes</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.email}>
+                    {person.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
+              <Filter size={16} className="text-gray-400 mr-2" />
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full bg-transparent border-none focus:outline-none text-sm"
+              >
+                <option value="">Todos los estados</option>
+                <option value="Aprobada por Asistente">
+                  Aprobada por Asistente
                 </option>
-              ))}
-            </select>
+                <option value="Aprobada por Jefatura">
+                  Aprobada por Jefatura
+                </option>
+                <option value="Aprobada por Contabilidad">
+                  Aprobada por Contabilidad
+                </option>
+                <option value="No aprobada">No aprobada</option>
+              </select>
+            </div>
           </div>
+        </Card>
 
-          <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-            <Filter size={16} className="text-gray-400 mr-2" />
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full bg-transparent border-none focus:outline-none text-sm"
-            >
-              <option value="">Todos los estados</option>
-              <option value="Aprobada por Asistente">
-                Aprobada por Asistente
-              </option>
-              <option value="Aprobada por Jefatura">
-                Aprobada por Jefatura
-              </option>
-              <option value="Aprobada por Contabilidad">
-                Aprobada por Contabilidad
-              </option>
-              <option value="No aprobada">No aprobada</option>
-            </select>
+        <ExpenseSummary expenses={filteredExpenses} />
+
+        <Card>
+          <div className="print:shadow-none">
+            <Table
+              columns={columns}
+              data={filteredExpenses}
+              isLoading={loading}
+              emptyMessage={
+                <div className="flex flex-col items-center justify-center py-12">
+                  <FileDown size={48} className="text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-1">
+                    No se encontraron gastos
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Intenta ajustar los filtros para ver más resultados
+                  </p>
+                </div>
+              }
+            />
           </div>
-        </div>
-      </Card>
-
-      <ExpenseSummary expenses={filteredExpenses} />
-
-      <Card>
-        <div className="print:shadow-none">
-          <Table
-            columns={columns}
-            data={filteredExpenses}
-            isLoading={loading}
-            emptyMessage={
-              <div className="flex flex-col items-center justify-center py-12">
-                <FileDown size={48} className="text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  No se encontraron gastos
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Intenta ajustar los filtros para ver más resultados
-                </p>
-              </div>
-            }
-          />
-        </div>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </>
   );
 };
 

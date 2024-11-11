@@ -1,20 +1,18 @@
 // src/modules/postVentaManagement/components/layout/Layout.js
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
-import { useAuth } from '../../../../components/AuthProvider';
-import ProfileMenu from '../Profile/ProfileMenu';
-import { POST_VENTA_ROUTES } from '../../routes';
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Menu, X } from "lucide-react";
+import ProfileMenu from "../Profile/ProfileMenu";
+import { POST_VENTA_ROUTES } from "../../routes";
 
 const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
 
   const navigation = [
-    { name: 'Dashboard', path: POST_VENTA_ROUTES.DASHBOARD },
-    { name: 'Tickets', path: POST_VENTA_ROUTES.TICKETS.LIST },
-    { name: 'Menu principal', path: '/' }
+    { name: "Dashboard", path: POST_VENTA_ROUTES.DASHBOARD },
+    { name: "Tickets", path: POST_VENTA_ROUTES.TICKETS.LIST },
+    { name: "Menu principal", path: "/" },
   ];
 
   return (
@@ -43,7 +41,7 @@ const Layout = ({ children }) => {
 
       <aside
         className={`fixed inset-y-0 left-0 w-72 bg-white transform transition-transform duration-300 ease-in-out z-50 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="h-16 flex items-center justify-end px-4 border-b">
@@ -63,8 +61,8 @@ const Layout = ({ children }) => {
               to={item.path}
               className={`block px-4 py-2 rounded-lg transition-colors ${
                 location.pathname === item.path
-                  ? 'bg-primary text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? "bg-primary text-white"
+                  : "text-gray-700 hover:bg-gray-100"
               }`}
               onClick={() => setIsSidebarOpen(false)}
             >

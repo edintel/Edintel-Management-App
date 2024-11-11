@@ -4,7 +4,7 @@ import { useExpenseAudit } from "../../context/expenseAuditContext";
 import { useAuth } from "../../../../components/AuthProvider";
 import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
-import ExpenseImage from "./ExpenseImage";
+import SharePointImage from "../../../../components/common/SharePointImage";
 import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import {
@@ -123,12 +123,14 @@ const ExpenseDetail = () => {
 
   const canEdit = () => {
     if (!userDepartmentRole || !expense) return false;
-  
-    if (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente") {
+
+    if (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente"
+    ) {
       return true;
     }
-  
-    
+
     return (
       userDepartmentRole.username === expense.createdBy.email &&
       !expense.bloqueoEdicion
@@ -189,10 +191,10 @@ const ExpenseDetail = () => {
 
   const getApprovalType = () => {
     if (!userDepartmentRole) return null;
-    
-    const isAccountant = (userDepartmentRole.department?.departamento || '')
+
+    const isAccountant = (userDepartmentRole.department?.departamento || "")
       .toLowerCase()
-      .includes('contabilidad');
+      .includes("contabilidad");
 
     if (isAccountant) return "accounting";
     return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
@@ -262,15 +264,13 @@ const ExpenseDetail = () => {
 
   const canApprove = () => {
     if (!user || !expense || !service || !userDepartmentRole) return false;
-    
+
     return service.canApprove(
       expense,
       userDepartmentRole.role,
       userDepartmentRole.department?.departamento
     );
   };
-
-  
 
   return (
     <>
@@ -397,7 +397,13 @@ const ExpenseDetail = () => {
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4">Comprobante</h3>
               {expense.comprobante ? (
-                <ExpenseImage itemId={expense.comprobante} />
+                <SharePointImage
+                  itemId={expense.comprobante}
+                  service={service}
+                  siteId={service.siteId}
+                  driveId={service.driveId}
+                  alt="Comprobante de gasto"
+                />
               ) : (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-400 bg-gray-50 rounded-lg">
                   <Image size={48} className="mb-2" />

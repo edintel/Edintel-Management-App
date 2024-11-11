@@ -1,38 +1,28 @@
 // src/modules/postVentaManagement/components/Tickets/TicketDetails.js
-import React from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { usePostVentaManagement } from '../../context/postVentaManagementContext';
-import Card from '../../../../components/common/Card';
-import Button from '../../../../components/common/Button';
+import React from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { usePostVentaManagement } from "../../context/postVentaManagementContext";
+import Card from "../../../../components/common/Card";
+import Button from "../../../../components/common/Button";
 import {
   ArrowLeft,
-  Building,
   Mail,
   Phone,
   MapPin,
-  Calendar,
   FileText,
   Download,
   FileDown,
   User,
-  Clock,
-  CheckCircle,
   LucideSquareSplitVertical,
   AlertTriangle,
-  Loader
-} from 'lucide-react';
+  Loader,
+} from "lucide-react";
 
 const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const {
-    serviceTickets,
-    getSiteDetails,
-    service,
-    loading,
-    systems
-  } = usePostVentaManagement();
+  const { serviceTickets, getSiteDetails, service, loading, systems } =
+    usePostVentaManagement();
 
   if (loading) {
     return (
@@ -44,20 +34,20 @@ const TicketDetails = () => {
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'Cerrada':
-      case 'Finalizada':
-        return 'bg-success/10 text-success';
-      case 'Trabajo iniciado':
-      case 'Confirmado por tecnico':
-        return 'bg-info/10 text-info';
-      case 'Técnico asignado':
-        return 'bg-warning/10 text-warning';
+      case "Cerrada":
+      case "Finalizada":
+        return "bg-success/10 text-success";
+      case "Trabajo iniciado":
+      case "Confirmado por tecnico":
+        return "bg-info/10 text-info";
+      case "Técnico asignado":
+        return "bg-warning/10 text-warning";
       default:
-        return 'bg-gray-200 text-gray-700';
+        return "bg-gray-200 text-gray-700";
     }
   };
 
-  const ticket = serviceTickets.find(t => t.id === id);
+  const ticket = serviceTickets.find((t) => t.id === id);
   if (!ticket) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -75,7 +65,7 @@ const TicketDetails = () => {
   }
 
   const siteDetails = getSiteDetails(ticket.siteId);
-  const system = systems.find(s => s.id === ticket.systemId);
+  const system = systems.find((s) => s.id === ticket.systemId);
 
   const handleFileDownload = async (itemId, fileName) => {
     if (!itemId) return;
@@ -88,14 +78,14 @@ const TicketDetails = () => {
       );
 
       const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) throw new Error('Error downloading file');
+      if (!response.ok) throw new Error("Error downloading file");
 
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
@@ -103,30 +93,15 @@ const TicketDetails = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
-      console.error('Error downloading file:', error);
-    }
-  };
-
-  const getStatusColor = (state) => {
-    switch (state) {
-      case 'Cerrada':
-      case 'Finalizada':
-        return 'text-success bg-success/10';
-      case 'Trabajo iniciado':
-      case 'Confirmado por tecnico':
-        return 'text-info bg-info/10';
-      case 'Técnico asignado':
-        return 'text-warning bg-warning/10';
-      default:
-        return 'text-gray-500 bg-gray-100';
+      console.error("Error downloading file:", error);
     }
   };
 
   const formatDate = (date) => {
-    if (!date) return 'No establecida';
-    return new Date(date).toLocaleString('es-CR', {
-      dateStyle: 'medium',
-      timeStyle: 'short'
+    if (!date) return "No establecida";
+    return new Date(date).toLocaleString("es-CR", {
+      dateStyle: "medium",
+      timeStyle: "short",
     });
   };
 
@@ -144,23 +119,30 @@ const TicketDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Ticket Information */}
-        <Card
-          className="lg:col-span-2 overflow-hidden"
-        >
+        <Card className="lg:col-span-2 overflow-hidden">
           <div className="p-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                    <span className="text-2xl font-bold text-gray-900">ST {ticket.stNumber}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusClass(ticket.state)}`}>
-                      {ticket.state}
-                    </span>
-                  </div>
+                  <span className="text-2xl font-bold text-gray-900">
+                    ST {ticket.stNumber}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusClass(
+                      ticket.state
+                    )}`}
+                  >
+                    {ticket.state}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <span className="inline-flex items-center gap-1.5">
-                    <LucideSquareSplitVertical size={16} className="text-gray-400" />
+                    <LucideSquareSplitVertical
+                      size={16}
+                      className="text-gray-400"
+                    />
                     {ticket.type}
                   </span>
                 </div>
@@ -177,8 +159,12 @@ const TicketDetails = () => {
                 </div>
                 {ticket.confirmationDate && (
                   <div>
-                    <p className="text-sm text-gray-500">Fecha de Confirmación</p>
-                    <p className="mt-1">{formatDate(ticket.confirmationDate)}</p>
+                    <p className="text-sm text-gray-500">
+                      Fecha de Confirmación
+                    </p>
+                    <p className="mt-1">
+                      {formatDate(ticket.confirmationDate)}
+                    </p>
                   </div>
                 )}
                 {ticket.workStartDate && (
@@ -227,7 +213,12 @@ const TicketDetails = () => {
                     variant="outline"
                     className="w-full"
                     startIcon={<FileText size={16} />}
-                    onClick={() => handleFileDownload(ticket.descriptionId, `ST_${ticket.stNumber}_descripcion.pdf`)}
+                    onClick={() =>
+                      handleFileDownload(
+                        ticket.descriptionId,
+                        `ST_${ticket.stNumber}_descripcion.pdf`
+                      )
+                    }
                   >
                     Descripción
                   </Button>
@@ -237,7 +228,12 @@ const TicketDetails = () => {
                     variant="outline"
                     className="w-full"
                     startIcon={<Download size={16} />}
-                    onClick={() => handleFileDownload(ticket.serviceTicketId, `ST_${ticket.stNumber}_boleta.pdf`)}
+                    onClick={() =>
+                      handleFileDownload(
+                        ticket.serviceTicketId,
+                        `ST_${ticket.stNumber}_boleta.pdf`
+                      )
+                    }
                   >
                     Boleta de Servicio
                   </Button>
@@ -247,7 +243,12 @@ const TicketDetails = () => {
                     variant="outline"
                     className="w-full"
                     startIcon={<FileDown size={16} />}
-                    onClick={() => handleFileDownload(ticket.reportId, `ST_${ticket.stNumber}_informe.pdf`)}
+                    onClick={() =>
+                      handleFileDownload(
+                        ticket.reportId,
+                        `ST_${ticket.stNumber}_informe.pdf`
+                      )
+                    }
                   >
                     Informe
                   </Button>
@@ -263,15 +264,19 @@ const TicketDetails = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-500">Empresa</p>
-                <p className="font-small">{siteDetails?.company?.name || 'N/A'}</p>
+                <p className="font-small">
+                  {siteDetails?.company?.name || "N/A"}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Edificio</p>
-                <p className="font-small">{siteDetails?.building?.name || 'N/A'}</p>
+                <p className="font-small">
+                  {siteDetails?.building?.name || "N/A"}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Sitio</p>
-                <p className="font-small">{siteDetails?.site?.name || 'N/A'}</p>
+                <p className="font-small">{siteDetails?.site?.name || "N/A"}</p>
               </div>
               {system && (
                 <div>
@@ -298,7 +303,9 @@ const TicketDetails = () => {
                   <Mail size={20} className="text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-500">Correo electrónico</p>
-                    <p className="font-small">{siteDetails.site.contactEmail}</p>
+                    <p className="font-small">
+                      {siteDetails.site.contactEmail}
+                    </p>
                   </div>
                 </div>
               )}
@@ -307,7 +314,9 @@ const TicketDetails = () => {
                   <Phone size={20} className="text-gray-400" />
                   <div>
                     <p className="text-sm text-gray-500">Teléfono</p>
-                    <p className="font-small">{siteDetails.site.contactPhone}</p>
+                    <p className="font-small">
+                      {siteDetails.site.contactPhone}
+                    </p>
                   </div>
                 </div>
               )}

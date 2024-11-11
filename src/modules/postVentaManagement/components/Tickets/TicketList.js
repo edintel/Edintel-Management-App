@@ -1,37 +1,23 @@
 // src/modules/postVentaManagement/components/Tickets/TicketList.js
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { usePostVentaManagement } from '../../context/postVentaManagementContext';
-import Card from '../../../../components/common/Card';
-import Table from '../../../../components/common/Table';
-import Button from '../../../../components/common/Button';
-import DateRangePicker from '../../../../components/common/DateRangePicker';
-import {
-  Search,
-  Filter,
-  Download,
-  FileDown,
-  Building,
-  FileText,
-  AlertTriangle
-} from 'lucide-react';
-import { POST_VENTA_ROUTES } from '../../routes';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { usePostVentaManagement } from "../../context/postVentaManagementContext";
+import Card from "../../../../components/common/Card";
+import Table from "../../../../components/common/Table";
+import DateRangePicker from "../../../../components/common/DateRangePicker";
+import { Search, Filter, AlertTriangle } from "lucide-react";
+import { POST_VENTA_ROUTES } from "../../routes";
 
 const TicketList = () => {
   const navigate = useNavigate();
-  const {
-    serviceTickets,
-    getSiteDetails,
-    service,
-    loading,
-    systems
-  } = usePostVentaManagement();
+  const { serviceTickets, getSiteDetails, service, loading, systems } =
+    usePostVentaManagement();
 
   // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedState, setSelectedState] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedState, setSelectedState] = useState("");
 
   const handleFileDownload = async (itemId, fileName) => {
     if (!itemId) return;
@@ -44,14 +30,14 @@ const TicketList = () => {
       );
 
       const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) throw new Error('Error downloading file');
+      if (!response.ok) throw new Error("Error downloading file");
 
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
@@ -59,92 +45,102 @@ const TicketList = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.error("Error downloading file:", error);
     }
   };
 
   const columns = [
     {
-      key: 'stNumber',
-      header: 'ST',
-      render: (value) => value || 'N/A'
+      key: "stNumber",
+      header: "ST",
+      render: (value) => value || "N/A",
     },
     {
-      key: 'siteId',
-      header: 'Sitio',
+      key: "siteId",
+      header: "Sitio",
       render: (value) => {
         const siteDetails = getSiteDetails(value);
         return (
           <div className="space-y-1">
             <div className="text-sm text-gray-500">
-              {siteDetails?.company?.name || 'N/A'}
+              {siteDetails?.company?.name || "N/A"}
             </div>
             <div className="text-sm text-gray-900">
-              {siteDetails?.building?.name || 'N/A'}
+              {siteDetails?.building?.name || "N/A"}
             </div>
-            <div className="font-medium">{siteDetails?.site?.name || 'N/A'}</div>
+            <div className="font-medium">
+              {siteDetails?.site?.name || "N/A"}
+            </div>
           </div>
         );
-      }
+      },
     },
     {
-      key: 'systemId',
-      header: 'Sistema',
+      key: "systemId",
+      header: "Sistema",
       render: (value) => {
-        const system = systems.find(s => s.id === value);
+        const system = systems.find((s) => s.id === value);
         return (
           <div className="max-w-[150px] break-words">
-            {system?.name || 'N/A'}
+            {system?.name || "N/A"}
           </div>
         );
-      } 
+      },
     },
     {
-      key: 'type',
-      header: 'Tipo',
-      render: (value) => value || 'N/A'
+      key: "type",
+      header: "Tipo",
+      render: (value) => value || "N/A",
     },
     {
-      key: 'state',
-      header: 'Estado',
+      key: "state",
+      header: "Estado",
       render: (value) => {
         const getStatusClass = (status) => {
           switch (status) {
-            case 'Cerrada':
-            case 'Finalizada':
-              return 'bg-success/10 text-success';
-            case 'Trabajo iniciado':
-            case 'Confirmado por tecnico':
-              return 'bg-info/10 text-info';
-            case 'Técnico asignado':
-              return 'bg-warning/10 text-warning';
+            case "Cerrada":
+            case "Finalizada":
+              return "bg-success/10 text-success";
+            case "Trabajo iniciado":
+            case "Confirmado por tecnico":
+              return "bg-info/10 text-info";
+            case "Técnico asignado":
+              return "bg-warning/10 text-warning";
             default:
-              return 'bg-gray-200 text-gray-700';
+              return "bg-gray-200 text-gray-700";
           }
         };
 
         return (
-          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(value)}`}>
+          <span
+            className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(
+              value
+            )}`}
+          >
             {value}
           </span>
         );
-      }
+      },
     },
     {
-      key: 'tentativeDate',
-      header: 'Fecha Tentativa',
-      render: (value) => value ? new Date(value).toLocaleDateString('es-CR') : 'No programada'
+      key: "tentativeDate",
+      header: "Fecha Tentativa",
+      render: (value) =>
+        value ? new Date(value).toLocaleDateString("es-CR") : "No programada",
     },
     {
-      key: 'files',
-      header: 'Archivos',
+      key: "files",
+      header: "Archivos",
       render: (_, row) => (
         <div className="flex flex-col gap-1">
           {row.descriptionId && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleFileDownload(row.descriptionId, `ST_${row.stNumber}_descripcion.pdf`);
+                handleFileDownload(
+                  row.descriptionId,
+                  `ST_${row.stNumber}_descripcion.pdf`
+                );
               }}
               className="text-left text-sm text-primary hover:text-primary/80 hover:underline"
             >
@@ -155,7 +151,10 @@ const TicketList = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleFileDownload(row.serviceTicketId, `ST_${row.stNumber}_boleta.pdf`);
+                handleFileDownload(
+                  row.serviceTicketId,
+                  `ST_${row.stNumber}_boleta.pdf`
+                );
               }}
               className="text-left text-sm text-primary hover:text-primary/80 hover:underline"
             >
@@ -166,7 +165,10 @@ const TicketList = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleFileDownload(row.reportId, `ST_${row.stNumber}_informe.pdf`);
+                handleFileDownload(
+                  row.reportId,
+                  `ST_${row.stNumber}_informe.pdf`
+                );
               }}
               className="text-left text-sm text-primary hover:text-primary/80 hover:underline"
             >
@@ -175,14 +177,16 @@ const TicketList = () => {
           )}
         </div>
       ),
-    }
+    },
   ];
 
   const filterTickets = () => {
-    return serviceTickets.filter(ticket => {
+    return serviceTickets.filter((ticket) => {
       // Date range filter
       if (startDate && endDate) {
-        const ticketDate = ticket.tentativeDate ? new Date(ticket.tentativeDate).getTime() : 0;
+        const ticketDate = ticket.tentativeDate
+          ? new Date(ticket.tentativeDate).getTime()
+          : 0;
         const start = new Date(startDate).getTime();
         const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
         if (ticketDate < start || ticketDate > end) return false;
@@ -211,12 +215,12 @@ const TicketList = () => {
   const filteredTickets = filterTickets();
 
   const stateOptions = [
-    'Iniciada',
-    'Técnico asignado',
-    'Confirmado por tecnico',
-    'Trabajo iniciado',
-    'Finalizada',
-    'Cerrada'
+    "Iniciada",
+    "Técnico asignado",
+    "Confirmado por tecnico",
+    "Trabajo iniciado",
+    "Finalizada",
+    "Cerrada",
   ];
 
   const handleRowClick = (ticket) => {
@@ -226,7 +230,9 @@ const TicketList = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Tickets de Servicio</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Tickets de Servicio
+        </h1>
         <p className="text-sm text-gray-500 mt-1">
           {filteredTickets.length} tickets encontrados
         </p>

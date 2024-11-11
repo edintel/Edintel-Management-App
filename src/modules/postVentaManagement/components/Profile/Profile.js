@@ -1,17 +1,15 @@
-import React from 'react';
-import { useAuth } from '../../../../components/AuthProvider';
-import { usePostVentaManagement } from '../../context/postVentaManagementContext';
-import Card from '../../../../components/common/Card';
-import { User, Mail, Briefcase, Building, Map } from 'lucide-react';
+import React from "react";
+import { useAuth } from "../../../../components/AuthProvider";
+import { usePostVentaManagement } from "../../context/postVentaManagementContext";
+import Card from "../../../../components/common/Card";
+import { User, Mail, Briefcase } from "lucide-react";
 
 const InfoItem = ({ icon, label, value }) => (
   <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-    <div className="p-2 bg-white rounded-lg shadow-sm">
-      {icon}
-    </div>
+    <div className="p-2 bg-white rounded-lg shadow-sm">{icon}</div>
     <div className="flex flex-col">
       <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-gray-900">{value || 'No asignado'}</span>
+      <span className="text-gray-900">{value || "No asignado"}</span>
     </div>
   </div>
 );
@@ -30,7 +28,7 @@ const Profile = () => {
               <User size={48} className="text-primary" />
             </div>
             <h2 className="text-2xl font-semibold text-gray-900">
-              {userRole?.employee?.LookupValue || user?.name || 'Usuario'}
+              {userRole?.employee?.LookupValue || user?.name || "Usuario"}
             </h2>
           </div>
 

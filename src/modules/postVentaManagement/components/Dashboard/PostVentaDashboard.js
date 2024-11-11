@@ -1,80 +1,34 @@
 // src/modules/postVentaManagement/components/Dashboard/PostVentaDashboard.js
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { usePostVentaManagement } from '../../context/postVentaManagementContext';
-import Card from '../../../../components/common/Card';
-import Table from '../../../../components/common/Table';
-import { Calendar, CheckSquare, Clock, AlertTriangle } from 'lucide-react';
-import { POST_VENTA_ROUTES } from '../../routes';
+import React from "react";
+import { usePostVentaManagement } from "../../context/postVentaManagementContext";
+import Card from "../../../../components/common/Card";
+import { Calendar, CheckSquare, Clock } from "lucide-react";
+import LoadingScreen from "../../../../components/LoadingScreen";
 
 const PostVentaDashboard = () => {
-  const navigate = useNavigate();
-  const { 
-    getTicketsAssignedToMe, 
-    getSiteDetails, 
-    loading,
-  } = usePostVentaManagement();
+  const { getTicketsAssignedToMe, loading } = usePostVentaManagement();
 
   const assignedTickets = getTicketsAssignedToMe();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   // Calculate summary statistics
   const stats = {
     total: assignedTickets.length,
-    pending: assignedTickets.filter(ticket => ticket.state === 'Técnico asignado').length,
-    confirmed: assignedTickets.filter(ticket => ticket.state === 'Confirmado por tecnico').length,
-    inProgress: assignedTickets.filter(ticket => ticket.state === 'Trabajo iniciado').length,
-    completed: assignedTickets.filter(ticket => 
-      ['Finalizada', 'Cerrada'].includes(ticket.state)
-    ).length
-  };
-
-  const getStatusClass = (state) => {
-    switch (state) {
-      case 'Cerrada':
-      case 'Finalizada':
-        return 'text-success bg-success/10';
-      case 'Trabajo iniciado':
-      case 'Confirmado por tecnico':
-        return 'text-info bg-info/10';
-      case 'Técnico asignado':
-        return 'text-warning bg-warning/10';
-      default:
-        return 'text-gray-500 bg-gray-100';
-    }
-  };
-
-  const columns = [
-    {
-      key: "stNumber",
-      header: "ST",
-      render: value => value || 'N/A'
-    },
-    {
-      key: "siteId",
-      header: "Sitio",
-      render: value => {
-        const site = getSiteDetails(value);
-        return site?.site?.name || 'N/A';
-      }
-    },
-    {
-      key: "tentativeDate",
-      header: "Fecha",
-      render: value => value ? new Date(value).toLocaleDateString() : 'No programada'
-    },
-    {
-      key: "state",
-      header: "Estado",
-      render: value => (
-        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(value)}`}>
-          {value}
-        </span>
-      )
-    }
-  ];
-
-  const handleRowClick = (ticket) => {
-    navigate(POST_VENTA_ROUTES.TICKETS.DETAIL(ticket.id));
+    pending: assignedTickets.filter(
+      (ticket) => ticket.state === "Técnico asignado"
+    ).length,
+    confirmed: assignedTickets.filter(
+      (ticket) => ticket.state === "Confirmado por tecnico"
+    ).length,
+    inProgress: assignedTickets.filter(
+      (ticket) => ticket.state === "Trabajo iniciado"
+    ).length,
+    completed: assignedTickets.filter((ticket) =>
+      ["Finalizada", "Cerrada"].includes(ticket.state)
+    ).length,
   };
 
   const statCards = [
@@ -82,40 +36,44 @@ const PostVentaDashboard = () => {
       title: "Total Tickets",
       value: stats.total,
       icon: <CheckSquare className="w-6 h-6 text-primary" />,
-      bgColor: "bg-primary/10"
+      bgColor: "bg-primary/10",
     },
     {
       title: "Pendientes confirmación",
       value: stats.pending,
       icon: <Clock className="w-6 h-6 text-warning" />,
-      bgColor: "bg-warning/10"
+      bgColor: "bg-warning/10",
     },
     {
       title: "Espera a iniciar",
       value: stats.confirmed,
       icon: <Clock className="w-6 h-6 text-success" />,
-      bgColor: "bg-success/10"
+      bgColor: "bg-success/10",
     },
     {
       title: "En Progreso",
       value: stats.inProgress,
       icon: <Calendar className="w-6 h-6 text-info" />,
-      bgColor: "bg-info/10"
+      bgColor: "bg-info/10",
     },
     {
       title: "Completados",
       value: stats.completed,
       icon: <CheckSquare className="w-6 h-6 text-success" />,
-      bgColor: "bg-success/10"
-    }
+      bgColor: "bg-success/10",
+    },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Post Venta</h1>
-          <p className="text-sm text-gray-500 mt-1">Resumen de tickets asignados</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Dashboard Post Venta
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Resumen de mis tickets asignados
+          </p>
         </div>
       </div>
 

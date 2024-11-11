@@ -3,20 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
-import { Upload, Save, X, Loader } from "lucide-react";
+import { Save, Loader } from "lucide-react";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
-import {
-  optimizeImage,
-  validateImage,
-  getFileSizeMB,
-} from "../../../../utils/imageUtils";
+import CameraUpload from "../../../../components/common/CameraUpload";
 
 const ExpenseForm = () => {
   const navigate = useNavigate();
   const { service, setExpenseReports } = useExpenseAudit();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [imageInfo, setImageInfo] = useState(null);
   const [formData, setFormData] = useState({
     rubro: "",
     monto: "",
@@ -28,7 +23,6 @@ const ExpenseForm = () => {
     facturaDividida: false,
     integrantes: "",
   });
-  const [preview, setPreview] = useState(null);
 
   const dateLimits = useMemo(() => {
     const today = new Date();
@@ -74,40 +68,6 @@ const ExpenseForm = () => {
     }));
   };
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      validateImage(file);
-
-      setLoading(true);
-      setError(null);
-
-      const originalSize = getFileSizeMB(file);
-
-      const optimizedFile = await optimizeImage(file);
-      const optimizedSize = getFileSizeMB(optimizedFile);
-
-      setFormData((prev) => ({ ...prev, comprobante: optimizedFile }));
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-        setImageInfo({
-          originalSize,
-          optimizedSize,
-          name: file.name,
-        });
-      };
-      reader.readAsDataURL(optimizedFile);
-    } catch (err) {
-      setError(err.message || "Error al procesar la imagen");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -141,6 +101,7 @@ const ExpenseForm = () => {
         ...formData,
       };
 
+      // The file is already optimized by CameraUpload
       const newExpense = await service.createExpenseReport(
         expenseData,
         formData.comprobante
@@ -364,67 +325,16 @@ const ExpenseForm = () => {
             <label className="block text-sm font-medium text-gray-700">
               Comprobante/Factura *
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary transition-colors">
-              {preview ? (
-                <div className="space-y-4">
-                  <div className="relative inline-block">
-                    <img
-                      src={preview}
-                      alt="Preview"
-                      className="max-w-xs rounded-lg mx-auto"
-                    />
-                    <button
-                      type="button"
-                      className="absolute -top-2 -right-2 bg-error text-white rounded-full p-1 shadow-lg hover:bg-error/90 transition-colors"
-                      onClick={() => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          comprobante: null,
-                        }));
-                        setPreview(null);
-                        setImageInfo(null);
-                      }}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  {imageInfo && (
-                    <div className="text-sm text-gray-500">
-                      <p>Archivo: {imageInfo.name}</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="flex flex-col items-center">
-                    {loading ? (
-                      <Loader
-                        size={24}
-                        className="text-gray-400 mb-2 animate-spin"
-                      />
-                    ) : (
-                      <Upload size={24} className="text-gray-400 mb-2" />
-                    )}
-                    <span className="text-sm text-gray-500">
-                      {loading
-                        ? "Procesando imagen..."
-                        : "Click para subir o arrastrar archivo"}
-                    </span>
-                  </div>
-                  <input
-                    type="file"
-                    name="comprobante"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    disabled={loading}
-                    required
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                    aria-label="Upload comprobante"
-                  />
-                </div>
-              )}
-            </div>
+            <CameraUpload
+              onImageCapture={(file) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  comprobante: file,
+                }));
+              }}
+              onError={(errorMessage) => setError(errorMessage)}
+              loading={loading}
+            />
           </div>
 
           <div className="flex justify-end gap-4">
