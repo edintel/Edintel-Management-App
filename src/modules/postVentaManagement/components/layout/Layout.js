@@ -1,4 +1,3 @@
-// src/modules/postVentaManagement/components/layout/Layout.js
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
@@ -12,6 +11,7 @@ const Layout = ({ children }) => {
   const navigation = [
     { name: "Dashboard", path: POST_VENTA_ROUTES.DASHBOARD },
     { name: "Tickets", path: POST_VENTA_ROUTES.TICKETS.LIST },
+    { name: "Ubicaciones", path: POST_VENTA_ROUTES.LOCATIONS },
     { name: "Menu principal", path: "/" },
   ];
 

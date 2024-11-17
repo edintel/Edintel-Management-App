@@ -3,7 +3,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import Card from "./common/Card";
-import { FileText } from "lucide-react";
+import { FileText, } from "lucide-react";
 
 const MainMenu = () => {
   const navigate = useNavigate();

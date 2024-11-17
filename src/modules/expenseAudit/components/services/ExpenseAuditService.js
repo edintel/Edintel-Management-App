@@ -90,19 +90,6 @@ class ExpenseAuditService extends BaseGraphService {
     return response;
   }
 
-  async deleteImage(itemId) {
-    if (!itemId) return;
-
-    await this.initializeGraphClient();
-    try {
-      await this.client
-        .api(`/sites/${this.siteId}/drives/${this.driveId}/items/${itemId}`)
-        .delete();
-    } catch (error) {
-      console.error("Error deleting image:", error);
-    }
-  }
-
   async deleteExpenseReport(id) {
     await this.initializeGraphClient();
 
@@ -115,7 +102,7 @@ class ExpenseAuditService extends BaseGraphService {
         .get();
 
       if (expense.fields.Comprobante) {
-        await this.deleteImage(expense.fields.Comprobante);
+        await this.deleteFile(expense.fields.Comprobante);
       }
 
       await this.client
@@ -139,7 +126,7 @@ class ExpenseAuditService extends BaseGraphService {
     // Case 1: New image is being uploaded
     if (newImageFile) {
       if (comprobanteId) {
-        await this.deleteImage(comprobanteId);
+        await this.deleteFile(comprobanteId);
       }
 
       const accounts = this.msalInstance.getAllAccounts();
@@ -155,7 +142,7 @@ class ExpenseAuditService extends BaseGraphService {
     // Case 2: Image is explicitly being removed (user clicked remove button)
     else if (newImageFile === null) {
       if (comprobanteId) {
-        await this.deleteImage(comprobanteId);
+        await this.deleteFile(comprobanteId);
       }
       comprobanteId = null;
     }
