@@ -1,21 +1,21 @@
-import { useState, useCallback } from 'react';
-import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
+import { useState, useCallback } from "react";
+import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
 
 export const MODAL_TYPES = {
-  ADD_COMPANY: 'add-company',
-  EDIT_COMPANY: 'edit-company',
-  DELETE_COMPANY: 'delete-company',
-  ADD_BUILDING: 'add-building',
-  EDIT_BUILDING: 'edit-building',
-  DELETE_BUILDING: 'delete-building',
-  ADD_SITE: 'add-site',
-  EDIT_SITE: 'edit-site',
-  DELETE_SITE: 'delete-site'
+  ADD_COMPANY: "add-company",
+  EDIT_COMPANY: "edit-company",
+  DELETE_COMPANY: "delete-company",
+  ADD_BUILDING: "add-building",
+  EDIT_BUILDING: "edit-building",
+  DELETE_BUILDING: "delete-building",
+  ADD_SITE: "add-site",
+  EDIT_SITE: "edit-site",
+  DELETE_SITE: "delete-site",
 };
 
 export const useHierarchyActions = () => {
-  const { service, loadPostVentaData  } = usePostVentaManagement();
-  
+  const { service, loadPostVentaData } = usePostVentaManagement();
+
   // Modal state
   const [currentModal, setCurrentModal] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -37,34 +37,40 @@ export const useHierarchyActions = () => {
   }, []);
 
   // Company actions
-  const handleAddCompany = useCallback(async (data) => {
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.createCompany(data);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, closeModal]);
+  const handleAddCompany = useCallback(
+    async (data) => {
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.createCompany(data);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, closeModal, loadPostVentaData]
+  );
 
-  const handleEditCompany = useCallback(async (data) => {
-    if (!selectedItem?.id) return;
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.updateCompany(selectedItem.id, data);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, selectedItem, closeModal]);
+  const handleEditCompany = useCallback(
+    async (data) => {
+      if (!selectedItem?.id) return;
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.updateCompany(selectedItem.id, data);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, selectedItem, closeModal, loadPostVentaData]
+  );
 
   const handleDeleteCompany = useCallback(async () => {
     if (!selectedItem?.id) return;
@@ -79,37 +85,43 @@ export const useHierarchyActions = () => {
     } finally {
       setProcessing(false);
     }
-  }, [service, selectedItem, closeModal]);
+  }, [service, selectedItem, closeModal, loadPostVentaData]);
 
   // Building actions
-  const handleAddBuilding = useCallback(async (data) => {
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.createBuilding(data);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, closeModal]);
+  const handleAddBuilding = useCallback(
+    async (data) => {
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.createBuilding(data);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, closeModal, loadPostVentaData]
+  );
 
-  const handleEditBuilding = useCallback(async (data) => {
-    if (!selectedItem?.id) return;
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.updateBuilding(selectedItem.id, data);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, selectedItem, closeModal]);
+  const handleEditBuilding = useCallback(
+    async (data) => {
+      if (!selectedItem?.id) return;
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.updateBuilding(selectedItem.id, data);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, selectedItem, closeModal, loadPostVentaData]
+  );
 
   const handleDeleteBuilding = useCallback(async () => {
     if (!selectedItem?.id) return;
@@ -124,37 +136,43 @@ export const useHierarchyActions = () => {
     } finally {
       setProcessing(false);
     }
-  }, [service, selectedItem, closeModal]);
+  }, [service, selectedItem, closeModal, loadPostVentaData]);
 
   // Site actions
-  const handleAddSite = useCallback(async (data) => {
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.createSite(data);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, closeModal]);
+  const handleAddSite = useCallback(
+    async (data) => {
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.createSite(data);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, closeModal, loadPostVentaData]
+  );
 
-  const handleEditSite = useCallback(async (data) => {
-    if (!selectedItem?.id) return;
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.updateSite(selectedItem.id, data);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, selectedItem, closeModal]);
+  const handleEditSite = useCallback(
+    async (data) => {
+      if (!selectedItem?.id) return;
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.updateSite(selectedItem.id, data);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, selectedItem, closeModal, loadPostVentaData]
+  );
 
   const handleDeleteSite = useCallback(async () => {
     if (!selectedItem?.id) return;
@@ -169,7 +187,7 @@ export const useHierarchyActions = () => {
     } finally {
       setProcessing(false);
     }
-  }, [service, selectedItem, closeModal]);
+  }, [service, selectedItem, closeModal, loadPostVentaData]);
 
   return {
     // Modal state
@@ -177,21 +195,21 @@ export const useHierarchyActions = () => {
     selectedItem,
     processing,
     error,
-    
+
     // Modal handlers
     openModal,
     closeModal,
-    
+
     // Company actions
     handleAddCompany,
     handleEditCompany,
     handleDeleteCompany,
-    
+
     // Building actions
     handleAddBuilding,
     handleEditBuilding,
     handleDeleteBuilding,
-    
+
     // Site actions
     handleAddSite,
     handleEditSite,

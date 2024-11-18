@@ -1,18 +1,18 @@
 // src/modules/postVentaManagement/components/Tickets/components/TicketList/components/ListTable.js
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
-import Card from '../../../../../../../components/common/Card';
-import Table from '../../../../../../../components/common/Table';
-import TicketStatusBadge from '../../common/TicketStatusBadge';
-import TicketActionsMenu from './TicketActionsMenu';
-import { POST_VENTA_ROUTES } from '../../../../../routes';
-import { MODAL_TYPES } from '../../../modals';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { AlertTriangle } from "lucide-react";
+import Card from "../../../../../../../components/common/Card";
+import Table from "../../../../../../../components/common/Table";
+import TicketStatusBadge from "../../common/TicketStatusBadge";
+import TicketActionsMenu from "./TicketActionsMenu";
+import { POST_VENTA_ROUTES } from "../../../../../routes";
+import { MODAL_TYPES } from "../../../modals";
 
 const ListTable = ({
   tickets = [],
   getSiteDetails,
-  onOpenModal,  // Single handler for all modal actions
+  onOpenModal,
   systems = [],
   loading = false,
 }) => {
@@ -54,7 +54,7 @@ const ListTable = ({
             </div>
           )}
         </div>
-      )
+      ),
     },
     {
       key: "siteId",
@@ -116,6 +116,7 @@ const ListTable = ({
           onScheduleTicket={() => handleAction(MODAL_TYPES.SCHEDULE_DATE, row)}
           onEdit={() => handleAction(MODAL_TYPES.EDIT_TICKET, row)}
           onDelete={() => handleAction(MODAL_TYPES.DELETE_TICKET, row)}
+          openModal={onOpenModal}
         />
       ),
     },

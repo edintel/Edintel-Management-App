@@ -1,11 +1,11 @@
 // src/modules/postVentaManagement/components/Tickets/hooks/useTicketActions.js
-import { useState, useCallback } from 'react';
-import { usePostVentaManagement } from '../../../context/postVentaManagementContext';
-import { MODAL_TYPES } from '../modals';
+import { useState, useCallback } from "react";
+import { usePostVentaManagement } from "../../../context/postVentaManagementContext";
+import { MODAL_TYPES } from "../modals";
 
 export const useTicketActions = () => {
   const { service, loadPostVentaData } = usePostVentaManagement();
-  
+
   // Modal state
   const [currentModal, setCurrentModal] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -25,71 +25,103 @@ export const useTicketActions = () => {
     setProcessing(false);
   }, []);
 
-  const handleAssignTechnicians = useCallback(async (ticketId, technicians) => {
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.assignTechnicians(ticketId, technicians);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, closeModal, loadPostVentaData]);
+  const handleAssignTechnicians = useCallback(
+    async (ticketId, technicians) => {
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.assignTechnicians(ticketId, technicians);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, closeModal, loadPostVentaData]
+  );
 
-  const handleUpdateStatus = useCallback(async (ticketId, newStatus) => {
-    if (!ticketId || !newStatus) return;
-    
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.updateTicketStatus(ticketId, newStatus);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, closeModal, loadPostVentaData]);
+  const handleUpdateStatus = useCallback(
+    async (ticketId, newStatus, files = null) => {
+      if (!ticketId || !newStatus) return;
 
-  const handleConfirmDate = useCallback(async (ticketId, newDate) => {
-    if (!ticketId || !newDate) return;
-    
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.updateSTDate(ticketId, newDate, selectedTicket?.calendarEventId);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, closeModal, loadPostVentaData, selectedTicket]);
+      setProcessing(true);
+      setError(null);
 
-  const handleEditTicket = useCallback(async (ticketId, data) => {
-    if (!ticketId) return;
-    
-    setProcessing(true);
-    setError(null);
-    try {
-      await service.updateTicket(ticketId, data);
-      await loadPostVentaData();
-      closeModal();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  }, [service, closeModal, loadPostVentaData]);
+      try {
+        // If we're finalizing the ticket and have files
+        if (newStatus === "Finalizada" && files) {
+          // Upload service ticket
+          if (files.serviceTicket) {
+            await service.uploadServiceTicket(ticketId, files.serviceTicket);
+
+            // If this is a preventive ticket, upload report
+            if (selectedTicket?.type === "Preventiva" && files.report) {
+              await service.uploadServiceReport(ticketId, files.report);
+            }
+          }
+        }
+
+        // Update ticket status
+        await service.updateTicketStatus(ticketId, newStatus);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        console.error("Error updating ticket:", err);
+        setError(err.message || "Error al actualizar el ticket");
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, closeModal, loadPostVentaData, selectedTicket]
+  );
+
+  const handleConfirmDate = useCallback(
+    async (ticketId, newDate) => {
+      if (!ticketId || !newDate) return;
+
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.updateSTDate(
+          ticketId,
+          newDate,
+          selectedTicket?.calendarEventId
+        );
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, closeModal, loadPostVentaData, selectedTicket]
+  );
+
+  const handleEditTicket = useCallback(
+    async (ticketId, data) => {
+      if (!ticketId) return;
+
+      setProcessing(true);
+      setError(null);
+      try {
+        await service.updateTicket(ticketId, data);
+        await loadPostVentaData();
+        closeModal();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, closeModal, loadPostVentaData]
+  );
 
   const handleDeleteTicket = useCallback(async () => {
     if (!selectedTicket?.id) return;
-    
+
     setProcessing(true);
     setError(null);
     try {
@@ -103,46 +135,53 @@ export const useTicketActions = () => {
     }
   }, [service, selectedTicket, closeModal, loadPostVentaData]);
 
-  const handleFileDownload = useCallback(async (itemId, fileName) => {
-    if (!itemId) return;
+  const handleFileDownload = useCallback(
+    async (itemId, fileName) => {
+      if (!itemId) return;
 
-    try {
-      const fileMetadata = await service.client
-        .api(`/sites/${service.siteId}/drives/${service.driveId}/items/${itemId}`)
-        .get();
+      try {
+        const fileMetadata = await service.client
+          .api(
+            `/sites/${service.siteId}/drives/${service.driveId}/items/${itemId}`
+          )
+          .get();
 
-      const { url, token } = await service.getImageContent(
-        service.siteId,
-        service.driveId,
-        itemId
-      );
+        const { url, token } = await service.getImageContent(
+          service.siteId,
+          service.driveId,
+          itemId
+        );
 
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (!response.ok) throw new Error("Error downloading file");
+        if (!response.ok) throw new Error("Error downloading file");
 
-      const fileExtension = fileMetadata.name.split('.').pop();
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `${fileName}.${fileExtension}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error("Error downloading file:", error);
-      setError('Error downloading file');
-    }
-  }, [service]);
+        const fileExtension = fileMetadata.name.split(".").pop();
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = `${fileName}.${fileExtension}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+        console.error("Error downloading file:", error);
+        setError("Error downloading file");
+      }
+    },
+    [service]
+  );
 
   // Helper functions for determining modal state
   const isStatusOrScheduleModal = useCallback(() => {
-    return currentModal?.type === MODAL_TYPES.UPDATE_STATUS || 
-           currentModal?.type === MODAL_TYPES.SCHEDULE_DATE;
+    return (
+      currentModal?.type === MODAL_TYPES.UPDATE_STATUS ||
+      currentModal?.type === MODAL_TYPES.SCHEDULE_DATE
+    );
   }, [currentModal]);
 
   return {
@@ -151,19 +190,19 @@ export const useTicketActions = () => {
     selectedTicket,
     processing,
     error,
-    
+
     // Modal handlers
     openModal,
     closeModal,
     isStatusOrScheduleModal,
-    
+
     // Action handlers
     handleAssignTechnicians,
     handleUpdateStatus,
     handleConfirmDate,
     handleEditTicket,
     handleDeleteTicket,
-    handleFileDownload
+    handleFileDownload,
   };
 };
 

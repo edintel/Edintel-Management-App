@@ -1,8 +1,9 @@
-import { MODAL_TYPES } from "..";
+import React from "react";
 import { X, AlertCircle } from "lucide-react";
-import Button from "../../../../../../components/common/Button"
-import DateAssignmentForm from "./DateAssignmentForm"
-import StatusUpdateForm from "./StatusUpdateForm"
+import Button from "../../../../../../components/common/Button";
+import { MODAL_TYPES } from "..";
+import DateAssignmentForm from "./DateAssignmentForm";
+import StatusUpdateForm from "./StatusUpdateForm";
 
 const TicketActionsModal = ({
   isOpen,
@@ -10,7 +11,7 @@ const TicketActionsModal = ({
   onUpdateStatus,
   onConfirmDate,
   ticket,
-  modalType, // 'UPDATE_STATUS' or 'SCHEDULE_DATE'
+  modalType,
   processing = false,
   error = null,
 }) => {
@@ -19,12 +20,16 @@ const TicketActionsModal = ({
   const getModalTitle = () => {
     switch (modalType) {
       case MODAL_TYPES.UPDATE_STATUS:
-        return 'Actualizar Estado';
+        return "Actualizar Estado";
       case MODAL_TYPES.SCHEDULE_DATE:
-        return 'Programar Fecha';
+        return "Programar Fecha";
       default:
-        return 'Actualizar ST';
+        return "Actualizar ST";
     }
+  };
+
+  const handleStatusUpdate = (ticketId, newStatus, files = null) => {
+    onUpdateStatus(ticketId, newStatus, files);
   };
 
   return (
@@ -51,31 +56,31 @@ const TicketActionsModal = ({
           </div>
         )}
 
-        {/* Render appropriate form based on modalType */}
-        {modalType === MODAL_TYPES.UPDATE_STATUS ? (
-          <StatusUpdateForm
-            ticket={ticket}
-            onSubmit={onUpdateStatus}
-            processing={processing}
-          />
-        ) : (
-          <DateAssignmentForm
-            ticket={ticket}
-            onSubmit={onConfirmDate}
-            processing={processing}
-          />
-        )}
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3 mt-6">
-          <Button
-            variant="ghost"
-            onClick={onClose}
-            disabled={processing}
-          >
-            Cancelar
-          </Button>
+        {/* Form content */}
+        <div className="mb-6">
+          {modalType === MODAL_TYPES.UPDATE_STATUS ? (
+            <StatusUpdateForm
+              ticket={ticket}
+              onSubmit={handleStatusUpdate}
+              processing={processing}
+            />
+          ) : modalType === MODAL_TYPES.SCHEDULE_DATE ? (
+            <DateAssignmentForm
+              ticket={ticket}
+              onSubmit={onConfirmDate}
+              processing={processing}
+            />
+          ) : null}
         </div>
+
+        {/* Footer */}
+        {modalType !== MODAL_TYPES.UPDATE_STATUS && (
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={onClose} disabled={processing}>
+              Cancelar
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

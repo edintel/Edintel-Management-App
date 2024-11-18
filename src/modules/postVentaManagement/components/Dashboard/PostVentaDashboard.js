@@ -21,7 +21,7 @@ const PostVentaDashboard = () => {
       (ticket) => ticket.state === "Técnico asignado"
     ).length,
     confirmed: assignedTickets.filter(
-      (ticket) => ticket.state === "Confirmado por tecnico"
+      (ticket) => ticket.state === "Confirmado por técnico"
     ).length,
     inProgress: assignedTickets.filter(
       (ticket) => ticket.state === "Trabajo iniciado"

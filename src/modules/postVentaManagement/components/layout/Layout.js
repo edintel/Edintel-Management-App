@@ -3,15 +3,19 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import ProfileMenu from "../Profile/ProfileMenu";
 import { POST_VENTA_ROUTES } from "../../routes";
+import { usePostVentaManagement } from "../../context/postVentaManagementContext";
 
 const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const { userRole } = usePostVentaManagement();
 
   const navigation = [
     { name: "Dashboard", path: POST_VENTA_ROUTES.DASHBOARD },
     { name: "Tickets", path: POST_VENTA_ROUTES.TICKETS.LIST },
-    { name: "Ubicaciones", path: POST_VENTA_ROUTES.LOCATIONS },
+    ...(userRole?.role !== "Técnico"
+      ? [{ name: "Ubicaciones", path: POST_VENTA_ROUTES.LOCATIONS }]
+      : []),
     { name: "Menu principal", path: "/" },
   ];
 

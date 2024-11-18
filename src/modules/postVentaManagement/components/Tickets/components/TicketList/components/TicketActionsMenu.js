@@ -1,5 +1,5 @@
 // src/modules/postVentaManagement/components/Tickets/components/TicketList/components/TicketActionsMenu.js
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   MoreVertical,
   UserPlus,
@@ -9,11 +9,14 @@ import {
   Trash2,
   Play,
   Lock,
-  FileCheck
-} from 'lucide-react';
-import { usePostVentaManagement } from '../../../../../context/postVentaManagementContext';
-import { TICKET_ACTIONS, getAvailableActions } from '../../../permissions/ticketActionPermissions';
-import { MODAL_TYPES } from '../../../modals';
+  FileCheck,
+} from "lucide-react";
+import { usePostVentaManagement } from "../../../../../context/postVentaManagementContext";
+import {
+  TICKET_ACTIONS,
+  getAvailableActions,
+} from "../../../permissions/ticketActionPermissions";
+import { MODAL_TYPES } from "../../../modals";
 
 const TicketActionsMenu = ({
   ticket,
@@ -21,40 +24,39 @@ const TicketActionsMenu = ({
   onUpdateStatus,
   onScheduleTicket,
   onEdit,
-  onDelete
+  onDelete,
 }) => {
   const { userRole } = usePostVentaManagement();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
-  // Helper functions for status-specific UI elements
   const getUpdateStatusLabel = (currentState) => {
     switch (currentState) {
-      case 'Iniciada':
-      case 'Técnico asignado':
-        return 'Confirmar Asignación';
-      case 'Confirmado por tecnico':
-        return 'Iniciar Trabajo';
-      case 'Trabajo iniciado':
-        return 'Finalizar Trabajo';
-      case 'Finalizada':
-        return 'Cerrar Ticket';
+      case "Iniciada":
+      case "Técnico asignado":
+        return "Confirmar Asignación";
+      case "Confirmado por tecnico":
+        return "Iniciar Trabajo";
+      case "Trabajo iniciado":
+        return "Finalizar Trabajo";
+      case "Finalizada":
+        return "Cerrar Ticket";
       default:
-        return 'Actualizar Estado';
+        return "Actualizar Estado";
     }
   };
 
   const getUpdateStatusIcon = (currentState) => {
     switch (currentState) {
-      case 'Iniciada':
-      case 'Técnico asignado':
+      case "Iniciada":
+      case "Técnico asignado":
         return CheckCircle;
-      case 'Confirmado por tecnico':
+      case "Confirmado por técnico":
         return Play;
-      case 'Trabajo iniciado':
+      case "Trabajo iniciado":
         return FileCheck;
-      case 'Finalizada':
+      case "Finalizada":
         return Lock;
       default:
         return CheckCircle;
@@ -63,10 +65,16 @@ const TicketActionsMenu = ({
 
   const getUpdateStatusClassName = (currentState) => {
     switch (currentState) {
-      case 'Finalizada':
-        return 'text-success hover:bg-success/10';
+      case "Iniciada":
+      case "Técnico asignado":
+        return "text-warning hover:bg-warning/10";
+      case "Confirmado por técnico":
+      case "Trabajo iniciado":
+        return "text-info hover:bg-info/10";
+      case "Finalizada":
+        return "text-success hover:bg-success/10";
       default:
-        return 'text-gray-700 hover:bg-gray-50';
+        return "text-gray-700 hover:bg-gray-50";
     }
   };
 
@@ -86,13 +94,13 @@ const TicketActionsMenu = ({
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('scroll', handleScroll, true);
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("scroll", handleScroll, true);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('scroll', handleScroll, true);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("scroll", handleScroll, true);
     };
   }, [isOpen]);
 
@@ -105,40 +113,40 @@ const TicketActionsMenu = ({
   // Configuration for each action type
   const actionConfig = {
     [TICKET_ACTIONS.ASSIGN_TECH]: {
-      label: 'Asignar técnico',
+      label: "Asignar técnico",
       icon: UserPlus,
       onClick: () => onAssignTech(ticket),
-      className: 'text-gray-700 hover:bg-gray-50',
-      modalType: MODAL_TYPES.ASSIGN_TECH
+      className: "text-gray-700 hover:bg-gray-50",
+      modalType: MODAL_TYPES.ASSIGN_TECH,
     },
     [TICKET_ACTIONS.UPDATE_STATUS]: {
       label: getUpdateStatusLabel(ticket.state),
       icon: getUpdateStatusIcon(ticket.state),
       onClick: () => onUpdateStatus(ticket),
       className: getUpdateStatusClassName(ticket.state),
-      modalType: MODAL_TYPES.UPDATE_STATUS
+      modalType: MODAL_TYPES.UPDATE_STATUS,
     },
     [TICKET_ACTIONS.SCHEDULE_DATE]: {
-      label: 'Programar fecha',
+      label: "Programar fecha",
       icon: Calendar,
       onClick: () => onScheduleTicket(ticket),
-      className: 'text-gray-700 hover:bg-gray-50',
-      modalType: MODAL_TYPES.SCHEDULE_DATE
+      className: "text-gray-700 hover:bg-gray-50",
+      modalType: MODAL_TYPES.SCHEDULE_DATE,
     },
     [TICKET_ACTIONS.EDIT]: {
-      label: 'Editar',
+      label: "Editar",
       icon: Pencil,
       onClick: () => onEdit(ticket),
-      className: 'text-gray-700 hover:bg-gray-50',
-      modalType: MODAL_TYPES.EDIT_TICKET
+      className: "text-gray-700 hover:bg-gray-50",
+      modalType: MODAL_TYPES.EDIT_TICKET,
     },
     [TICKET_ACTIONS.DELETE]: {
-      label: 'Eliminar',
+      label: "Eliminar",
       icon: Trash2,
       onClick: () => onDelete(ticket),
-      className: 'text-error hover:bg-error/10',
-      modalType: MODAL_TYPES.DELETE_TICKET
-    }
+      className: "text-error hover:bg-error/10",
+      modalType: MODAL_TYPES.DELETE_TICKET,
+    },
   };
 
   const availableActions = getAvailableActions(ticket, userRole);
@@ -166,9 +174,9 @@ const TicketActionsMenu = ({
             top: buttonRef.current.getBoundingClientRect().bottom + 4,
             left: buttonRef.current.getBoundingClientRect().left - 180,
           }}
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
-          {availableActions.map(action => {
+          {availableActions.map((action) => {
             const config = actionConfig[action];
             if (!config) return null;
 

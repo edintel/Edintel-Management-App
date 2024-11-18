@@ -3,7 +3,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import Card from "./common/Card";
-import { FileText } from "lucide-react";
+import { FileText, Ticket } from "lucide-react";
 
 const MainMenu = () => {
   const navigate = useNavigate();
@@ -18,14 +18,14 @@ const MainMenu = () => {
       path: "/expense-audit/dashboard",
       roles: ["*"], // * means all roles have access
     },
-    /*{
-      id: 'post-venta',
-      name: 'Control Post Venta',
-      description: 'Sistema de gestión de STs',
+    {
+      id: "post-venta",
+      name: "Control Post Venta",
+      description: "Sistema de gestión de STs",
       icon: Ticket,
-      path: '/post-venta/dashboard',
-      roles: ['*']
-    }*/
+      path: "/post-venta/dashboard",
+      roles: ["*"],
+    },
   ];
 
   const hasAccess = (moduleRoles) => {
