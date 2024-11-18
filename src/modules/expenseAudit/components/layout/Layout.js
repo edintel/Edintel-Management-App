@@ -10,9 +10,9 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const { userDepartmentRole, loading } = useExpenseAudit();
 
-  const canApprove = userDepartmentRole?.role === "Jefe" || 
-                     userDepartmentRole?.role === "Asistente" || 
-                     (userDepartmentRole?.department?.departamento || "").toLowerCase().includes("contabilidad");
+  // Simple role-based check - any Jefe or Asistente can access
+  const canAccess = userDepartmentRole && 
+    (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente");
 
   const getNavigationItems = () => {
     const baseItems = [
@@ -20,7 +20,7 @@ const Layout = ({ children }) => {
       { name: "Gastos", path: EXPENSE_AUDIT_ROUTES.EXPENSES.LIST },
     ];
 
-    if (!loading && canApprove) {
+    if (!loading && canAccess) {
       baseItems.push(
         { name: "Aprobaciones", path: EXPENSE_AUDIT_ROUTES.APPROVALS },
         { name: "Reportes", path: EXPENSE_AUDIT_ROUTES.REPORTS }

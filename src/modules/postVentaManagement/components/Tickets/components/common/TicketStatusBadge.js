@@ -18,7 +18,7 @@ const STATUS_CONFIG = {
     color: "bg-warning/10 text-warning",
     icon: UserCheck,
   },
-  "Confirmado por tecnico": {
+  "Confirmado por técnico": {
     color: "bg-info/10 text-info",
     icon: CheckCircle,
   },

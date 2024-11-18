@@ -20,7 +20,7 @@ const isAssignedToTicket = (ticket, userRole) => {
 const SUPERVISOR_EDITABLE_STATES = [
   "Iniciada",
   "Técnico asignado",
-  "Confirmado por tecnico",
+  "Confirmado por técnico",
   "Trabajo iniciado",
   "Finalizada",
 ];
@@ -71,7 +71,7 @@ const statePermissions = {
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) =>
       canEditDelete(ticket, userRole),
   },
-  "Confirmado por tecnico": {
+  "Confirmado por técnico": {
     [TICKET_ACTIONS.ASSIGN_TECH]: (ticket, userRole) =>
       isAdmin(userRole) || isSupervisor(userRole),
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
@@ -138,8 +138,8 @@ export const isActionAllowed = (action, ticket, userRole) => {
 export const getNextAvailableStatus = (currentState) => {
   const statusFlow = {
     Iniciada: ["Técnico asignado"],
-    "Técnico asignado": ["Confirmado por tecnico"],
-    "Confirmado por tecnico": ["Trabajo iniciado"],
+    "Técnico asignado": ["Confirmado por técnico"],
+    "Confirmado por técnico": ["Trabajo iniciado"],
     "Trabajo iniciado": ["Finalizada"],
     Finalizada: ["Cerrada"],
     Cerrada: [],

@@ -12,6 +12,7 @@ class PostVentaManagementService extends BaseGraphService {
         "Sites.ReadWrite.All",
         "Files.ReadWrite.All",
         "Calendars.ReadWrite",
+        "Group.ReadWrite.All",
       ],
     };
   }
@@ -19,7 +20,7 @@ class PostVentaManagementService extends BaseGraphService {
   async initialize() {
     this.siteId = await this.getSiteId(this.config.siteName);
     this.driveId = this.config.driveId;
-    this.calendarId = this.config.calendarId;
+    this.groupId = this.config.groupId;
   }
 
   // Companies methods
@@ -83,17 +84,6 @@ class PostVentaManagementService extends BaseGraphService {
       employee: item.fields.Empleado?.[0] || null,
       role: item.fields.Rol,
     }));
-  }
-
-  // Service Ticket (ST) methods
-  getSTState(fields) {
-    if (fields.Fechacierre) return "Cerrada";
-    if (fields.Fechatrabajofinalizado) return "Finalizada";
-    if (fields.Fechatrabajoiniciado) return "Trabajo iniciado";
-    if (fields.Fechaconfirmaci_x00f3_n) return "Confirmado por técnico";
-    if (fields.Tecnicoasignado && fields.Tecnicoasignado.length > 0)
-      return "Técnico asignado";
-    return "Iniciada";
   }
 
   async getServiceTickets() {
@@ -184,15 +174,6 @@ class PostVentaManagementService extends BaseGraphService {
   async updateSTDate(stId, newDate, calendarEventId) {
     await this.initializeGraphClient();
 
-    // Update calendar event if exists
-    if (calendarEventId) {
-      await this.updateCalendarEventDate(
-        this.calendarId,
-        calendarEventId,
-        newDate
-      );
-    }
-
     // Update ST
     const response = await this.client
       .api(
@@ -201,8 +182,18 @@ class PostVentaManagementService extends BaseGraphService {
       .patch({
         fields: {
           Fecha: newDate,
+          calendarEvent: calendarEventId,
         },
       });
+
+    // Update calendar event if exists
+    if (calendarEventId) {
+      await this.updateCalendarEventDate(
+        this.groupId,
+        calendarEventId,
+        newDate
+      );
+    }
 
     return response;
   }
@@ -667,7 +658,7 @@ class PostVentaManagementService extends BaseGraphService {
       if (ticket.fields.calendarEvent) {
         try {
           this.deleteCalendarEvent(
-            this.calendarId,
+            this.groupId,
             ticket.fields.calendarEvent
           );
         } catch (error) {

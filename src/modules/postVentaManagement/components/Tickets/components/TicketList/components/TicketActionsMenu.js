@@ -36,7 +36,7 @@ const TicketActionsMenu = ({
       case "Iniciada":
       case "Técnico asignado":
         return "Confirmar Asignación";
-      case "Confirmado por tecnico":
+      case "Confirmado por técnico":
         return "Iniciar Trabajo";
       case "Trabajo iniciado":
         return "Finalizar Trabajo";

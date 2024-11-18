@@ -18,6 +18,7 @@ const MainMenu = () => {
       path: "/expense-audit/dashboard",
       roles: ["*"], // * means all roles have access
     },
+    /*
     {
       id: "post-venta",
       name: "Control Post Venta",
@@ -25,7 +26,7 @@ const MainMenu = () => {
       icon: Ticket,
       path: "/post-venta/dashboard",
       roles: ["*"],
-    },
+    },*/
   ];
 
   const hasAccess = (moduleRoles) => {

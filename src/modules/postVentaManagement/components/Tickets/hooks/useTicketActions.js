@@ -4,7 +4,7 @@ import { usePostVentaManagement } from "../../../context/postVentaManagementCont
 import { MODAL_TYPES } from "../modals";
 
 export const useTicketActions = () => {
-  const { service, loadPostVentaData } = usePostVentaManagement();
+  const { service, loadPostVentaData, roles } = usePostVentaManagement();
 
   // Modal state
   const [currentModal, setCurrentModal] = useState(null);
@@ -30,7 +30,33 @@ export const useTicketActions = () => {
       setProcessing(true);
       setError(null);
       try {
+        // First, assign technicians to the ticket
         await service.assignTechnicians(ticketId, technicians);
+  
+        // If the ticket has a calendar event, update its attendees
+        if (selectedTicket?.calendarEventId && selectedTicket?.tentativeDate) {
+          // Get technician details for all assigned techs
+          const techDetails = await Promise.all(
+            technicians.map(async (techId) => {
+              const techRole = roles.find(
+                role => role.employee?.LookupId.toString() === techId.toString()
+              );
+              return {
+                email: techRole?.employee?.Email,
+                name: techRole?.employee?.LookupValue
+              };
+            })
+          );
+  
+          // Filter out any undefined entries and update calendar event
+          const validAttendees = techDetails.filter(tech => tech.email && tech.name);
+          await service.updateCalendarEventAttendees(
+            service.groupId,
+            selectedTicket.calendarEventId,
+            validAttendees
+          );
+        }
+  
         await loadPostVentaData();
         closeModal();
       } catch (err) {
@@ -39,7 +65,7 @@ export const useTicketActions = () => {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData]
+    [service, selectedTicket, roles, closeModal, loadPostVentaData]
   );
 
   const handleUpdateStatus = useCallback(
@@ -77,28 +103,90 @@ export const useTicketActions = () => {
     [service, closeModal, loadPostVentaData, selectedTicket]
   );
 
+  const createCalendarEvent = async (ticket, newDate, technicians) => {
+    // Get site details for event content
+    const siteDetails = await service.client
+      .api(`/sites/${service.siteId}/lists/${service.config.lists.sites}/items/${ticket.siteId}`)
+      .expand('fields')
+      .get();
+
+    // Get building details
+    const buildingDetails = await service.client
+      .api(`/sites/${service.siteId}/lists/${service.config.lists.buildings}/items/${siteDetails.fields.EdificioIDLookupId}`)
+      .expand('fields')
+      .get();
+
+    // Get company details
+    const companyDetails = await service.client
+      .api(`/sites/${service.siteId}/lists/${service.config.lists.companies}/items/${buildingDetails.fields.EmpresaIDLookupId}`)
+      .expand('fields')
+      .get();
+
+    // Create attendees list from technicians
+    const attendees = technicians.map(tech => ({
+      email: tech.Email,
+      name: tech.LookupValue
+    }));
+
+    // Create event content
+    const eventTitle = `ST ${ticket.stNumber} - ${companyDetails.fields.Title} / ${buildingDetails.fields.Title}`;
+    const eventBody = `
+      <h3>Detalles del Servicio</h3>
+      <p><strong>ST:</strong> ${ticket.stNumber}</p>
+      <p><strong>Tipo:</strong> ${ticket.type}</p>
+      <p><strong>Empresa:</strong> ${companyDetails.fields.Title}</p>
+      <p><strong>Edificio:</strong> ${buildingDetails.fields.Title}</p>
+      <p><strong>Sitio:</strong> ${siteDetails.fields.Title}</p>
+      ${siteDetails.fields.Ubicaci_x00f3_n ? `<p><strong>Ubicación:</strong> ${siteDetails.fields.Ubicaci_x00f3_n}</p>` : ''}
+    `;
+    // Create calendar event
+    return await service.createCalendarEvent(
+      service.groupId,
+      eventTitle,
+      newDate,
+      attendees,
+      eventBody
+    );
+  };
+
   const handleConfirmDate = useCallback(
     async (ticketId, newDate) => {
       if (!ticketId || !newDate) return;
 
       setProcessing(true);
       setError(null);
+
       try {
-        await service.updateSTDate(
-          ticketId,
-          newDate,
-          selectedTicket?.calendarEventId
-        );
+        const ticket = selectedTicket;
+        let eventId = ticket.calendarEventId;
+
+        // If there's an existing event, update it
+        if (eventId) {
+          await service.updateCalendarEventDate(
+            service.groupId,
+            eventId,
+            newDate
+          );
+        } 
+        // If no existing event and ticket has technicians, create new event
+        else if (ticket.technicians?.length > -1) {
+          eventId = await createCalendarEvent(ticket, newDate, ticket.technicians);
+        }
+
+        // Update ticket with new date and event ID
+        await service.updateSTDate(ticketId, newDate, eventId);
         await loadPostVentaData();
         closeModal();
       } catch (err) {
-        setError(err.message);
+        console.error("Error updating date:", err);
+        setError(err.message || "Error al actualizar la fecha");
       } finally {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData, selectedTicket]
+    [service, selectedTicket, closeModal, loadPostVentaData]
   );
+
 
   const handleEditTicket = useCallback(
     async (ticketId, data) => {
@@ -134,6 +222,7 @@ export const useTicketActions = () => {
       setProcessing(false);
     }
   }, [service, selectedTicket, closeModal, loadPostVentaData]);
+  
 
   const handleFileDownload = useCallback(
     async (itemId, fileName) => {
@@ -206,4 +295,3 @@ export const useTicketActions = () => {
   };
 };
 
-export default useTicketActions;

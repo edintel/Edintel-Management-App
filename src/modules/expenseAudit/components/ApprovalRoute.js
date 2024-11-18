@@ -12,12 +12,11 @@ export const ApprovalRoute = ({ children }) => {
     return <LoadingScreen />;
   }
 
-  const canApprove = userDepartmentRole && (
-    userDepartmentRole.role === "Jefe" || 
-    userDepartmentRole.role === "Asistente"
-  );
+  // Simple role-based check - any Jefe or Asistente can access
+  const canAccess = userDepartmentRole && 
+    (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente");
 
-  if (!canApprove) {
+  if (!canAccess) {
     return <Navigate to={EXPENSE_AUDIT_ROUTES.DASHBOARD} replace state={{ from: location }} />;
   }
 

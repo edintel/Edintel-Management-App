@@ -16,8 +16,8 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
       case "Iniciada":
         return "Técnico asignado";
       case "Técnico asignado":
-        return "Confirmado por tecnico";
-      case "Confirmado por tecnico":
+        return "Confirmado por técnico";
+      case "Confirmado por técnico":
         return "Trabajo iniciado";
       case "Trabajo iniciado":
         return "Finalizada";
