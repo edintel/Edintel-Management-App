@@ -103,52 +103,6 @@ export const useTicketActions = () => {
     [service, closeModal, loadPostVentaData, selectedTicket]
   );
 
-  const createCalendarEvent = async (ticket, newDate, technicians) => {
-    // Get site details for event content
-    const siteDetails = await service.client
-      .api(`/sites/${service.siteId}/lists/${service.config.lists.sites}/items/${ticket.siteId}`)
-      .expand('fields')
-      .get();
-
-    // Get building details
-    const buildingDetails = await service.client
-      .api(`/sites/${service.siteId}/lists/${service.config.lists.buildings}/items/${siteDetails.fields.EdificioIDLookupId}`)
-      .expand('fields')
-      .get();
-
-    // Get company details
-    const companyDetails = await service.client
-      .api(`/sites/${service.siteId}/lists/${service.config.lists.companies}/items/${buildingDetails.fields.EmpresaIDLookupId}`)
-      .expand('fields')
-      .get();
-
-    // Create attendees list from technicians
-    const attendees = technicians.map(tech => ({
-      email: tech.Email,
-      name: tech.LookupValue
-    }));
-
-    // Create event content
-    const eventTitle = `ST ${ticket.stNumber} - ${companyDetails.fields.Title} / ${buildingDetails.fields.Title}`;
-    const eventBody = `
-      <h3>Detalles del Servicio</h3>
-      <p><strong>ST:</strong> ${ticket.stNumber}</p>
-      <p><strong>Tipo:</strong> ${ticket.type}</p>
-      <p><strong>Empresa:</strong> ${companyDetails.fields.Title}</p>
-      <p><strong>Edificio:</strong> ${buildingDetails.fields.Title}</p>
-      <p><strong>Sitio:</strong> ${siteDetails.fields.Title}</p>
-      ${siteDetails.fields.Ubicaci_x00f3_n ? `<p><strong>Ubicación:</strong> ${siteDetails.fields.Ubicaci_x00f3_n}</p>` : ''}
-    `;
-    // Create calendar event
-    return await service.createCalendarEvent(
-      service.groupId,
-      eventTitle,
-      newDate,
-      attendees,
-      eventBody
-    );
-  };
-
   const handleConfirmDate = useCallback(
     async (ticketId, newDate) => {
       if (!ticketId || !newDate) return;
@@ -160,6 +114,51 @@ export const useTicketActions = () => {
         const ticket = selectedTicket;
         let eventId = ticket.calendarEventId;
 
+        const createCalendarEvent = async (ticket, newDate, technicians) => {
+          const siteDetails = await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.sites}/items/${ticket.siteId}`)
+            .expand('fields')
+            .get();
+
+          // Get building details
+          const buildingDetails = await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.buildings}/items/${siteDetails.fields.EdificioIDLookupId}`)
+            .expand('fields')
+            .get();
+
+          // Get company details
+          const companyDetails = await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.companies}/items/${buildingDetails.fields.EmpresaIDLookupId}`)
+            .expand('fields')
+            .get();
+
+          // Create attendees list from technicians
+          const attendees = technicians.map(tech => ({
+            email: tech.Email,
+            name: tech.LookupValue
+          }));
+
+          // Create event content
+          const eventTitle = `ST ${ticket.stNumber} - ${companyDetails.fields.Title} / ${buildingDetails.fields.Title}`;
+          const eventBody = `
+            <h3>Detalles del Servicio</h3>
+            <p><strong>ST:</strong> ${ticket.stNumber}</p>
+            <p><strong>Tipo:</strong> ${ticket.type}</p>
+            <p><strong>Empresa:</strong> ${companyDetails.fields.Title}</p>
+            <p><strong>Edificio:</strong> ${buildingDetails.fields.Title}</p>
+            <p><strong>Sitio:</strong> ${siteDetails.fields.Title}</p>
+            ${siteDetails.fields.Ubicaci_x00f3_n ? `<p><strong>Ubicación:</strong> ${siteDetails.fields.Ubicaci_x00f3_n}</p>` : ''}
+          `;
+
+          return await service.createCalendarEvent(
+            service.groupId,
+            eventTitle,
+            newDate,
+            attendees,
+            eventBody
+          );
+        };
+
         // If there's an existing event, update it
         if (eventId) {
           await service.updateCalendarEventDate(
@@ -169,7 +168,7 @@ export const useTicketActions = () => {
           );
         } 
         // If no existing event and ticket has technicians, create new event
-        else if (ticket.technicians?.length > -1) {
+        else if (ticket.technicians?.length > 0) {
           eventId = await createCalendarEvent(ticket, newDate, ticket.technicians);
         }
 
@@ -184,8 +183,8 @@ export const useTicketActions = () => {
         setProcessing(false);
       }
     },
-    [service, selectedTicket, closeModal, loadPostVentaData, createCalendarEvent]
-  );
+    [service, selectedTicket, closeModal, loadPostVentaData]
+);
 
 
   const handleEditTicket = useCallback(
