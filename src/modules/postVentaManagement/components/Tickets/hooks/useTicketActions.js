@@ -184,7 +184,7 @@ export const useTicketActions = () => {
         setProcessing(false);
       }
     },
-    [service, selectedTicket, closeModal, loadPostVentaData]
+    [service, selectedTicket, closeModal, loadPostVentaData, createCalendarEvent]
   );
 
 
