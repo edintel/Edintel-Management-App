@@ -102,7 +102,7 @@ const SiteForm = ({
   const handleSupervisorChange = (supervisorId) => {
     setFormData(prev => ({
       ...prev,
-      supervisorId
+      supervisorId: supervisorId.toString()
     }));
     if (errors.supervisorId) {
       setErrors(prev => ({

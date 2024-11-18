@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, X, Check } from 'lucide-react';
-import Card from '../../../../../../../components/common/Card';
-import Button from '../../../../../../../components/common/Button';
-import DateRangePicker from '../../../../../../../components/common/DateRangePicker';
+import React, { useState, useRef, useEffect } from "react";
+import { Search, Filter, X, Check } from "lucide-react";
+import Card from "../../../../../../../components/common/Card";
+import Button from "../../../../../../../components/common/Button";
+import DateRangePicker from "../../../../../../../components/common/DateRangePicker";
 
 const ListFilters = ({
   searchTerm,
@@ -23,7 +23,7 @@ const ListFilters = ({
   const stateOptions = [
     "Iniciada",
     "Técnico asignado",
-    "Confirmado por tecnico",
+    "Confirmado por técnico",
     "Trabajo iniciado",
     "Finalizada",
     "Cerrada",
@@ -32,16 +32,16 @@ const ListFilters = ({
   const userDropdownRef = useRef(null);
 
   const users = roles
-    .filter(role => role.employee)
-    .map(role => ({
+    .filter((role) => role.employee)
+    .map((role) => ({
       id: role.employee.LookupId,
       name: role.employee.LookupValue,
-      role: role.role
+      role: role.role,
     }));
 
   const handleUserToggle = (userId) => {
     const newSelection = selectedUsers.includes(userId)
-      ? selectedUsers.filter(id => id !== userId)
+      ? selectedUsers.filter((id) => id !== userId)
       : [...selectedUsers, userId];
     onUsersChange(newSelection);
   };
@@ -49,7 +49,7 @@ const ListFilters = ({
   const getSelectedUsersDisplay = () => {
     if (selectedUsers.length === 0) return "Todos los usuarios";
     if (selectedUsers.length === 1) {
-      const user = users.find(u => u.id === selectedUsers[0]);
+      const user = users.find((u) => u.id === selectedUsers[0]);
       return user ? user.name : "1 usuario seleccionado";
     }
     return `${selectedUsers.length} usuarios seleccionados`;
@@ -57,17 +57,20 @@ const ListFilters = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+      if (
+        userDropdownRef.current &&
+        !userDropdownRef.current.contains(event.target)
+      ) {
         setIsUsersOpen(false);
       }
     };
-  
+
     if (isUsersOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-  
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isUsersOpen]);
 
@@ -128,8 +131,9 @@ const ListFilters = ({
                 </div>
                 <X
                   size={16}
-                  className={`transform transition-transform ${isUsersOpen ? "rotate-45" : "rotate-0"
-                    }`}
+                  className={`transform transition-transform ${
+                    isUsersOpen ? "rotate-45" : "rotate-0"
+                  }`}
                 />
               </div>
 

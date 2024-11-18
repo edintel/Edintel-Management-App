@@ -72,14 +72,26 @@ const ExpenseDetail = () => {
   };
 
   const canDelete = () => {
-    if (!userDepartmentRole || !expense) return false;
+    if (!userDepartmentRole || !expense || !user) return false;
 
     if (
-      userDepartmentRole.username === expense.createdBy.email &&
+      expense.createdBy.email === user.username &&
       !expense.bloqueoEdicion
     ) {
       return true;
     }
+    if (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente"
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const canEdit = () => {
+    if (!userDepartmentRole || !expense || !user) return false;
 
     if (
       userDepartmentRole.role === "Jefe" ||
@@ -88,17 +100,10 @@ const ExpenseDetail = () => {
       return true;
     }
 
-    if (
-      userDepartmentRole.department &&
-      userDepartmentRole.department.departamento &&
-      userDepartmentRole.department.departamento
-        .toLowerCase()
-        .includes("contabilidad")
-    ) {
-      return true;
-    }
-
-    return false;
+    return (
+      user.username === expense.createdBy.email &&
+      !expense.bloqueoEdicion
+    );
   };
 
   const handleDelete = () => {
@@ -121,21 +126,7 @@ const ExpenseDetail = () => {
     }
   };
 
-  const canEdit = () => {
-    if (!userDepartmentRole || !expense) return false;
-
-    if (
-      userDepartmentRole.role === "Jefe" ||
-      userDepartmentRole.role === "Asistente"
-    ) {
-      return true;
-    }
-
-    return (
-      userDepartmentRole.username === expense.createdBy.email &&
-      !expense.bloqueoEdicion
-    );
-  };
+  
 
   if (loading || reportsLoading) {
     return (

@@ -194,7 +194,7 @@ class BaseGraphService {
     }
   }
 
-  async createCalendarEvent(calendarId, title, startTime, attendees = [], body) {
+  async createCalendarEvent(groupId, title, startTime, attendees = [], body) {
     await this.initializeGraphClient();
 
     const event = {
@@ -221,21 +221,21 @@ class BaseGraphService {
     };
 
     const response = await this.client
-      .api(`/me/calendars/${calendarId}/events`)
+      .api(`/groups/${groupId}/calendar/events`)
       .post(event);
 
     return response.id;
   }
 
-  async updateCalendarEvent(calendarId, eventId, updates) {
+  async updateCalendarEvent(groupId, eventId, updates) {
     await this.initializeGraphClient();
 
     await this.client
-      .api(`/me/calendars/${calendarId}/events/${eventId}`)
+      .api(`/groups/${groupId}/calendar/events/${eventId}`)
       .patch(updates);
   }
 
-  async updateCalendarEventAttendees(calendarId, eventId, attendees) {
+  async updateCalendarEventAttendees(groupId, eventId, attendees) {
     const updates = {
       attendees: attendees.map(attendee => ({
         emailAddress: {
@@ -246,10 +246,10 @@ class BaseGraphService {
       }))
     };
 
-    await this.updateCalendarEvent(calendarId, eventId, updates);
+    await this.updateCalendarEvent(groupId, eventId, updates);
   }
 
-  async updateCalendarEventDate(calendarId, eventId, newStartTime) {
+  async updateCalendarEventDate(groupId, eventId, newStartTime) {
     const updates = {
       start: {
         dateTime: newStartTime,
@@ -261,12 +261,12 @@ class BaseGraphService {
       }
     };
 
-    await this.updateCalendarEvent(calendarId, eventId, updates);
+    await this.updateCalendarEvent(groupId, eventId, updates);
   }
 
-  async deleteCalendarEvent(calendarId, eventId) {
+  async deleteCalendarEvent(groupId, eventId) {
     await this.client
-      .api(`/me/calendars/${calendarId}/events/${eventId}`)
+      .api(`/groups/${groupId}/calendar/events/${eventId}`)
       .delete();
 
   }

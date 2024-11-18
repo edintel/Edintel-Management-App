@@ -12,6 +12,7 @@ class PostVentaManagementService extends BaseGraphService {
         "Sites.ReadWrite.All",
         "Files.ReadWrite.All",
         "Calendars.ReadWrite",
+        "Group.ReadWrite.All",
       ],
     };
   }
@@ -19,7 +20,7 @@ class PostVentaManagementService extends BaseGraphService {
   async initialize() {
     this.siteId = await this.getSiteId(this.config.siteName);
     this.driveId = this.config.driveId;
-    this.calendarId = this.config.calendarId;
+    this.groupId = this.config.groupId;
   }
 
   // Companies methods
@@ -28,9 +29,9 @@ class PostVentaManagementService extends BaseGraphService {
       this.siteId,
       this.config.lists.companies
     );
-    return items.map(item => ({
+    return items.map((item) => ({
       id: item.id,
-      name: item.fields.Title
+      name: item.fields.Title,
     }));
   }
 
@@ -40,10 +41,10 @@ class PostVentaManagementService extends BaseGraphService {
       this.siteId,
       this.config.lists.buildings
     );
-    return items.map(item => ({
+    return items.map((item) => ({
       id: item.id,
       name: item.fields.Title,
-      companyId: item.fields.EmpresaIDLookupId
+      companyId: item.fields.EmpresaIDLookupId,
     }));
   }
 
@@ -53,19 +54,16 @@ class PostVentaManagementService extends BaseGraphService {
       this.siteId,
       this.config.lists.systems
     );
-    return items.map(item => ({
+    return items.map((item) => ({
       id: item.id,
-      name: item.fields.Title
+      name: item.fields.Title,
     }));
   }
 
   // Sites methods
   async getSites() {
-    const items = await this.getListItems(
-      this.siteId,
-      this.config.lists.sites
-    );
-    return items.map(item => ({
+    const items = await this.getListItems(this.siteId, this.config.lists.sites);
+    return items.map((item) => ({
       id: item.id,
       name: item.fields.Title,
       buildingId: item.fields.EdificioIDLookupId,
@@ -74,33 +72,19 @@ class PostVentaManagementService extends BaseGraphService {
       contactName: item.fields.Nombrecontacto,
       contactEmail: item.fields.Correoelectr_x00f3_nico,
       contactPhone: item.fields.N_x00fa_merotelefonico,
-      systems: item.fields.SistemasID_x003a__x0020_Title || []
+      systems: item.fields.SistemasID_x003a__x0020_Title || [],
     }));
   }
 
   // Roles methods
   async getRoles() {
-    const items = await this.getListItems(
-      this.siteId,
-      this.config.lists.roles
-    );
-    return items.map(item => ({
+    const items = await this.getListItems(this.siteId, this.config.lists.roles);
+    return items.map((item) => ({
       id: item.id,
       employee: item.fields.Empleado?.[0] || null,
-      role: item.fields.Rol
+      role: item.fields.Rol,
     }));
   }
-
-  // Service Ticket (ST) methods
-  getSTState(fields) {
-    if (fields.Fechacierre) return "Cerrada";
-    if (fields.Fechatrabajofinalizado) return "Finalizada";
-    if (fields.Fechatrabajoiniciado) return "Trabajo iniciado";
-    if (fields.Fechaconfirmaci_x00f3_n) return "Confirmado por tecnico";
-    if (fields.Tecnicoasignado && fields.Tecnicoasignado.length > 0) return "Técnico asignado";
-    return "Iniciada";
-  }
-
 
   async getServiceTickets() {
     const items = await this.getListItems(
@@ -108,7 +92,7 @@ class PostVentaManagementService extends BaseGraphService {
       this.config.lists.controlPV
     );
 
-    return items.map(item => ({
+    return items.map((item) => ({
       id: item.id,
       stNumber: item.fields.Title,
       type: item.fields.Tipo,
@@ -127,15 +111,15 @@ class PostVentaManagementService extends BaseGraphService {
       systemId: item.fields.SistemaIDLookupId,
       calendarEventId: item.fields.calendarEvent,
       createdBy: item.createdBy,
-      created: item.createdDateTime
+      created: item.createdDateTime,
     }));
   }
 
   /**
- * Filters service tickets by assigned technician
- * @param {string} technicianId - The ID of the technician to filter by
- * @returns {Promise<Array>} Array of service tickets assigned to the technician
- */
+   * Filters service tickets by assigned technician
+   * @param {string} technicianId - The ID of the technician to filter by
+   * @returns {Promise<Array>} Array of service tickets assigned to the technician
+   */
   /**
    * Creates a new Service Ticket with description file
    * @param {Object} stData - Service Ticket data
@@ -166,19 +150,23 @@ class PostVentaManagementService extends BaseGraphService {
         SistemaIDLookupId: stData.systemId,
         Descripci_x00f3_n: fileId,
         Estado: "Iniciada",
-        Tipo: stData.type
+        Tipo: stData.type,
       };
 
       const response = await this.client
-        .api(encodeURIComponent(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items`))
+        .api(
+          encodeURIComponent(
+            `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items`
+          )
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .post({
-          fields: fields
+          fields: fields,
         });
 
       return response;
     } catch (error) {
-      console.error('Error creating service ticket:', error);
+      console.error("Error creating service ticket:", error);
       throw new Error(`Error creating service ticket: ${error.message}`);
     }
   }
@@ -186,19 +174,26 @@ class PostVentaManagementService extends BaseGraphService {
   async updateSTDate(stId, newDate, calendarEventId) {
     await this.initializeGraphClient();
 
-    // Update calendar event if exists
-    if (calendarEventId) {
-      await this.updateCalendarEventDate(this.calendarId, calendarEventId, newDate);
-    }
-
     // Update ST
     const response = await this.client
-      .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${stId}`)
+      .api(
+        `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${stId}`
+      )
       .patch({
         fields: {
-          Fecha: newDate
-        }
+          Fecha: newDate,
+          calendarEvent: calendarEventId,
+        },
       });
+
+    // Update calendar event if exists
+    if (calendarEventId) {
+      await this.updateCalendarEventDate(
+        this.groupId,
+        calendarEventId,
+        newDate
+      );
+    }
 
     return response;
   }
@@ -212,14 +207,14 @@ class PostVentaManagementService extends BaseGraphService {
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .post({
           fields: {
-            Title: systemData.name
-          }
+            Title: systemData.name,
+          },
         });
 
       return response;
     } catch (error) {
-      console.error('Error creating system:', error);
-      throw new Error('Error al crear el sistema');
+      console.error("Error creating system:", error);
+      throw new Error("Error al crear el sistema");
     }
   }
 
@@ -228,18 +223,20 @@ class PostVentaManagementService extends BaseGraphService {
 
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.systems}/items/${systemId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.systems}/items/${systemId}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({
           fields: {
-            Title: systemData.name
-          }
+            Title: systemData.name,
+          },
         });
 
       return response;
     } catch (error) {
-      console.error('Error updating system:', error);
-      throw new Error('Error al actualizar el sistema');
+      console.error("Error updating system:", error);
+      throw new Error("Error al actualizar el sistema");
     }
   }
 
@@ -248,13 +245,15 @@ class PostVentaManagementService extends BaseGraphService {
 
     try {
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.systems}/items/${systemId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.systems}/items/${systemId}`
+        )
         .delete();
 
       return true;
     } catch (error) {
-      console.error('Error deleting system:', error);
-      throw new Error('Error al eliminar el sistema');
+      console.error("Error deleting system:", error);
+      throw new Error("Error al eliminar el sistema");
     }
   }
 
@@ -267,14 +266,14 @@ class PostVentaManagementService extends BaseGraphService {
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .post({
           fields: {
-            Title: companyData.name
-          }
+            Title: companyData.name,
+          },
         });
 
       return response;
     } catch (error) {
-      console.error('Error creating company:', error);
-      throw new Error('Error al crear la empresa');
+      console.error("Error creating company:", error);
+      throw new Error("Error al crear la empresa");
     }
   }
 
@@ -283,18 +282,20 @@ class PostVentaManagementService extends BaseGraphService {
 
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${companyId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${companyId}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({
           fields: {
-            Title: companyData.name
-          }
+            Title: companyData.name,
+          },
         });
 
       return response;
     } catch (error) {
-      console.error('Error updating company:', error);
-      throw new Error('Error al actualizar la empresa');
+      console.error("Error updating company:", error);
+      throw new Error("Error al actualizar la empresa");
     }
   }
 
@@ -303,13 +304,15 @@ class PostVentaManagementService extends BaseGraphService {
 
     try {
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${companyId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${companyId}`
+        )
         .delete();
 
       return true;
     } catch (error) {
-      console.error('Error deleting company:', error);
-      throw new Error('Error al eliminar la empresa');
+      console.error("Error deleting company:", error);
+      throw new Error("Error al eliminar la empresa");
     }
   }
 
@@ -324,14 +327,14 @@ class PostVentaManagementService extends BaseGraphService {
         .post({
           fields: {
             Title: buildingData.name,
-            EmpresaIDLookupId: parseInt(buildingData.companyId)
-          }
+            EmpresaIDLookupId: parseInt(buildingData.companyId),
+          },
         });
 
       return response;
     } catch (error) {
-      console.error('Error creating building:', error);
-      throw new Error('Error al crear el edificio');
+      console.error("Error creating building:", error);
+      throw new Error("Error al crear el edificio");
     }
   }
 
@@ -340,19 +343,21 @@ class PostVentaManagementService extends BaseGraphService {
 
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${buildingId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${buildingId}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({
           fields: {
             Title: buildingData.name,
-            EmpresaIDLookupId: parseInt(buildingData.companyId)
-          }
+            EmpresaIDLookupId: parseInt(buildingData.companyId),
+          },
         });
 
       return response;
     } catch (error) {
-      console.error('Error updating building:', error);
-      throw new Error('Error al actualizar el edificio');
+      console.error("Error updating building:", error);
+      throw new Error("Error al actualizar el edificio");
     }
   }
 
@@ -361,33 +366,37 @@ class PostVentaManagementService extends BaseGraphService {
 
     try {
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${buildingId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${buildingId}`
+        )
         .delete();
 
       return true;
     } catch (error) {
-      console.error('Error deleting building:', error);
-      throw new Error('Error al eliminar el edificio');
+      console.error("Error deleting building:", error);
+      throw new Error("Error al eliminar el edificio");
     }
   }
 
   // Site CRUD operations
   async createSite(siteData) {
     await this.initializeGraphClient();
-    
+
     try {
       const systemsList = await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.systems}/items`)
-        .expand('fields')
+        .expand("fields")
         .get();
-  
+
       const systemsMap = {};
-      systemsList.value.forEach(system => {
+      systemsList.value.forEach((system) => {
         systemsMap[system.fields.Title] = system.id;
       });
 
-      const systemLookups = siteData.systems.map(systemName => parseInt(systemsMap[systemName]))
-  
+      const systemLookups = siteData.systems.map((systemName) =>
+        parseInt(systemsMap[systemName])
+      );
+
       const response = await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.sites}/items`)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
@@ -399,38 +408,41 @@ class PostVentaManagementService extends BaseGraphService {
             Nombrecontacto: siteData.contactName,
             Correoelectr_x00f3_nico: siteData.contactEmail,
             N_x00fa_merotelefonico: siteData.contactPhone,
-            'SistemasIDLookupId@odata.type': 'Collection(Edm.Int32)',
-            SistemasIDLookupId:systemLookups,
-            SupervisorLookupId: siteData.supervisorId
-          }
+            "SistemasIDLookupId@odata.type": "Collection(Edm.Int32)",
+            SistemasIDLookupId: systemLookups,
+            SupervisorLookupId: siteData.supervisorId,
+          },
         });
-      
+
       return response;
     } catch (error) {
-      console.error('Error creating site:', error);
-      throw new Error('Error al crear el sitio');
+      console.error("Error creating site:", error);
+      throw new Error("Error al crear el sitio");
     }
   }
 
-
   async updateSite(siteId, siteData) {
     await this.initializeGraphClient();
-    
+
     try {
       const systemsList = await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.systems}/items`)
-        .expand('fields')
+        .expand("fields")
         .get();
-      
+
       const systemsMap = {};
-      systemsList.value.forEach(system => {
+      systemsList.value.forEach((system) => {
         systemsMap[system.fields.Title] = system.id;
       });
-  
-      const systemLookups = siteData.systems.map(systemName => parseInt(systemsMap[systemName]))
+
+      const systemLookups = siteData.systems.map((systemName) =>
+        parseInt(systemsMap[systemName])
+      );
 
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${siteId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${siteId}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({
           fields: {
@@ -440,16 +452,16 @@ class PostVentaManagementService extends BaseGraphService {
             Nombrecontacto: siteData.contactName,
             Correoelectr_x00f3_nico: siteData.contactEmail,
             N_x00fa_merotelefonico: siteData.contactPhone,
-            'SistemasIDLookupId@odata.type': 'Collection(Edm.Int32)',
-            SistemasIDLookupId:systemLookups,
-            SupervisorLookupId: siteData.supervisorId
-          }
+            "SistemasIDLookupId@odata.type": "Collection(Edm.Int32)",
+            SistemasIDLookupId: systemLookups,
+            SupervisorLookupId: siteData.supervisorId,
+          },
         });
-      
+
       return response;
     } catch (error) {
-      console.error('Error updating site:', error);
-      throw new Error('Error al actualizar el sitio');
+      console.error("Error updating site:", error);
+      throw new Error("Error al actualizar el sitio");
     }
   }
 
@@ -458,120 +470,133 @@ class PostVentaManagementService extends BaseGraphService {
 
     try {
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${siteId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${siteId}`
+        )
         .delete();
 
       return true;
     } catch (error) {
-      console.error('Error deleting site:', error);
-      throw new Error('Error al eliminar el sitio');
+      console.error("Error deleting site:", error);
+      throw new Error("Error al eliminar el sitio");
     }
   }
 
   async updateTicketStatus(ticketId, newStatus) {
     await this.initializeGraphClient();
-  
+
     try {
       const fields = {};
       const now = new Date().toISOString();
-  
+
       // Set appropriate date field based on status
       switch (newStatus) {
-        case 'Técnico asignado':
+        case "Técnico asignado":
           fields.FechaTecnicoAsignado = now;
           break;
-        case 'Confirmado por tecnico':
+        case "Confirmado por técnico":
           fields.Fechaconfirmaci_x00f3_n = now;
           break;
-        case 'Trabajo iniciado':
+        case "Trabajo iniciado":
           fields.Fechatrabajoiniciado = now;
           break;
-        case 'Finalizada':
+        case "Finalizada":
           fields.Fechatrabajofinalizado = now;
           break;
-        case 'Cerrada':
+        case "Cerrada":
           fields.Fechacierre = now;
           break;
         default:
           break;
       }
-  
+
       fields.Estado = newStatus;
-  
+
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .patch({
-          fields: fields
+          fields: fields,
         });
-  
+
       return response;
     } catch (error) {
-      console.error('Error updating ticket status:', error);
-      throw new Error('Error al actualizar el estado del ticket');
+      console.error("Error updating ticket status:", error);
+      throw new Error("Error al actualizar el estado del ticket");
     }
   }
 
   async assignTechnicians(ticketId, technicianIds) {
     await this.initializeGraphClient();
-  
+
     try {
-      
-      const technicianLookups = technicianIds.map(id => id.toString());
-  
+      const technicianLookups = technicianIds.map((id) => id.toString());
+
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .patch({
           fields: {
-            'TecnicoasignadoLookupId@odata.type': 'Collection(Edm.String)',
-            TecnicoasignadoLookupId: technicianLookups
-          }
+            "TecnicoasignadoLookupId@odata.type": "Collection(Edm.String)",
+            TecnicoasignadoLookupId: technicianLookups,
+          },
         });
-      
+
       await this.updateTicketStatus(ticketId, "Técnico asignado");
-  
+
       return response;
     } catch (error) {
-      console.error('Error assigning technicians:', error);
-      throw new Error('Error al asignar técnicos');
+      console.error("Error assigning technicians:", error);
+      throw new Error("Error al asignar técnicos");
     }
   }
-  
+
   async updateTicket(ticketId, data) {
     await this.initializeGraphClient();
-  
+
     try {
       // Prepare update fields
       const fields = {
         Title: data.st,
         SitioIDLookupId: parseInt(data.siteId),
         SistemaIDLookupId: parseInt(data.systemId),
-        Tipo: data.type
+        Tipo: data.type,
       };
-  
+
       // If new description file is provided, upload it
       if (data.description) {
         // Get ticket details to determine folder structure
         const ticket = await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
-          .expand('fields')
+          .api(
+            `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+          )
+          .expand("fields")
           .get();
-  
+
         // Get site and building details
         const site = await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${data.siteId}`)
-          .expand('fields')
+          .api(
+            `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${data.siteId}`
+          )
+          .expand("fields")
           .get();
-  
+
         const building = await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`)
-          .expand('fields')
+          .api(
+            `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`
+          )
+          .expand("fields")
           .get();
-  
+
         const company = await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`)
-          .expand('fields')
+          .api(
+            `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`
+          )
+          .expand("fields")
           .get();
-  
+
         // Upload new description file
         const folderPath = `/Boletas ST/${company.fields.Title}/${building.fields.Title}/${site.fields.Title}/${data.st}`;
         const fileId = await this.uploadFile(
@@ -581,99 +606,116 @@ class PostVentaManagementService extends BaseGraphService {
           folderPath,
           "Descripción"
         );
-  
+
         // Delete old description file if exists
         if (ticket.fields.Descripci_x00f3_n) {
           await this.deleteFile(ticket.fields.Descripci_x00f3_n);
         }
-  
+
         fields.Descripci_x00f3_n = fileId;
       }
-  
+
       // Update ticket
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .patch({
-          fields: fields
+          fields: fields,
         });
-  
+
       return response;
     } catch (error) {
-      console.error('Error updating ticket:', error);
-      throw new Error('Error al actualizar el ticket');
+      console.error("Error updating ticket:", error);
+      throw new Error("Error al actualizar el ticket");
     }
   }
-  
+
   async deleteTicket(ticketId) {
     await this.initializeGraphClient();
-  
+
     try {
       // Get ticket details first
       const ticket = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
+        .expand("fields")
         .get();
-  
+
       // Delete all associated files
       const filesToDelete = [
         ticket.fields.Descripci_x00f3_n,
         ticket.fields.Boleta,
-        ticket.fields.Informe
+        ticket.fields.Informe,
       ].filter(Boolean);
-  
+
       for (const fileId of filesToDelete) {
         await this.deleteFile(fileId);
       }
-  
+
       // Delete calendar event if exists
       if (ticket.fields.calendarEvent) {
         try {
-          this.deleteCalendarEvent(this.calendarId, ticket.fields.calendarEvent)
+          this.deleteCalendarEvent(
+            this.groupId,
+            ticket.fields.calendarEvent
+          );
         } catch (error) {
-          console.error('Error deleting calendar event:', error);
+          console.error("Error deleting calendar event:", error);
           // Continue with ticket deletion even if calendar event deletion fails
         }
       }
-  
+
       // Finally delete the ticket
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .delete();
-  
+
       return true;
     } catch (error) {
-      console.error('Error deleting ticket:', error);
-      throw new Error('Error al eliminar el ticket');
+      console.error("Error deleting ticket:", error);
+      throw new Error("Error al eliminar el ticket");
     }
   }
-  
+
   // Additional helper methods
   async uploadServiceTicket(ticketId, file) {
     await this.initializeGraphClient();
-  
+
     try {
       // Get ticket details
       const ticket = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
+        .expand("fields")
         .get();
-  
+
       // Get location details
       const site = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${ticket.fields.SitioIDLookupId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${ticket.fields.SitioIDLookupId}`
+        )
+        .expand("fields")
         .get();
-  
+
       const building = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`
+        )
+        .expand("fields")
         .get();
-  
+
       const company = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`
+        )
+        .expand("fields")
         .get();
-  
+
       // Upload file
       const folderPath = `/Boletas ST/${company.fields.Title}/${building.fields.Title}/${site.fields.Title}/${ticket.fields.Title}`;
       const fileId = await this.uploadFile(
@@ -683,49 +725,59 @@ class PostVentaManagementService extends BaseGraphService {
         folderPath,
         "Boleta"
       );
-  
+
       // Update ticket with file reference
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .patch({
           fields: {
-            Boleta: fileId
-          }
+            Boleta: fileId,
+          },
         });
-  
+
       return fileId;
     } catch (error) {
-      console.error('Error uploading service ticket:', error);
-      throw new Error('Error al subir la boleta de servicio');
+      console.error("Error uploading service ticket:", error);
+      throw new Error("Error al subir la boleta de servicio");
     }
   }
-  
+
   async uploadServiceReport(ticketId, file) {
     await this.initializeGraphClient();
-  
+
     try {
       // Get ticket details
       const ticket = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
+        .expand("fields")
         .get();
-  
+
       // Get location details
       const site = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${ticket.fields.SitioIDLookupId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${ticket.fields.SitioIDLookupId}`
+        )
+        .expand("fields")
         .get();
-  
+
       const building = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`
+        )
+        .expand("fields")
         .get();
-  
+
       const company = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`
+        )
+        .expand("fields")
         .get();
-  
+
       // Upload file
       const folderPath = `/Boletas ST/${company.fields.Title}/${building.fields.Title}/${site.fields.Title}/${ticket.fields.Title}`;
       const fileId = await this.uploadFile(
@@ -735,20 +787,22 @@ class PostVentaManagementService extends BaseGraphService {
         folderPath,
         "Informe"
       );
-  
+
       // Update ticket with file reference
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .patch({
           fields: {
-            Informe: fileId
-          }
+            Informe: fileId,
+          },
         });
-  
+
       return fileId;
     } catch (error) {
-      console.error('Error uploading service report:', error);
-      throw new Error('Error al subir el informe de servicio');
+      console.error("Error uploading service report:", error);
+      throw new Error("Error al subir el informe de servicio");
     }
   }
 }

@@ -1,37 +1,41 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
-import { useTicketActions } from '../../hooks/useTicketActions';
-import { useTicketData } from '../../hooks/useTicketData';
-import { MODAL_TYPES } from '../../modals';
-import { Loader } from 'lucide-react';
-import { POST_VENTA_ROUTES } from '../../../../routes';
+import React from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
+import { useTicketActions } from "../../hooks/useTicketActions";
+import { useTicketData } from "../../hooks/useTicketData";
+import { MODAL_TYPES } from "../../modals";
+import { Loader } from "lucide-react";
+import { POST_VENTA_ROUTES } from "../../../../routes";
+import {
+  isActionAllowed,
+  TICKET_ACTIONS,
+} from "../../permissions/ticketActionPermissions";
 
 // Components
-import DetailHeader from './components/DetailHeader';
-import LocationInfo from './components/LocationInfo';
-import TimelineSection from './components/TimelineSection';
-import FilesSection from './components/FilesSection';
-import ActionsPanel from './components/ActionsPanel';
+import DetailHeader from "./components/DetailHeader";
+import LocationInfo from "./components/LocationInfo";
+import TimelineSection from "./components/TimelineSection";
+import FilesSection from "./components/FilesSection";
+import ActionsPanel from "./components/ActionsPanel";
 
 // Modals
 import {
   AssignTechnicianModal,
   TicketActionsModal,
   TicketEditModal,
-  DeleteTicketModal
-} from '../../modals';
+  DeleteTicketModal,
+} from "../../modals";
 
 const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { 
-    serviceTickets, 
-    getSiteDetails, 
+  const {
+    serviceTickets,
+    getSiteDetails,
     systems,
     userRole,
     roles,
-    loading: contextLoading 
+    loading: contextLoading,
   } = usePostVentaManagement();
 
   const {
@@ -46,7 +50,7 @@ const TicketDetails = () => {
     handleConfirmDate,
     handleEditTicket,
     handleDeleteTicket,
-    handleFileDownload
+    handleFileDownload,
   } = useTicketActions();
 
   const { technicians } = useTicketData();
@@ -59,27 +63,36 @@ const TicketDetails = () => {
     );
   }
 
-  const ticket = serviceTickets.find(t => t.id === id);
+  const ticket = serviceTickets.find((t) => t.id === id);
   if (!ticket) {
     navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     return null;
   }
 
   const siteDetails = getSiteDetails(ticket.siteId);
-  const system = systems.find(s => s.id === ticket.systemId);
+  const system = systems.find((s) => s.id === ticket.systemId);
 
   const handleBack = () => {
     navigate(POST_VENTA_ROUTES.TICKETS.LIST);
   };
+
+  // Check permissions for edit and delete actions
+  const canEdit = isActionAllowed(TICKET_ACTIONS.EDIT, ticket, userRole);
+  const canDelete = isActionAllowed(TICKET_ACTIONS.DELETE, ticket, userRole);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <DetailHeader
         ticket={ticket}
         onBack={handleBack}
-        onEdit={() => openModal(MODAL_TYPES.EDIT_TICKET, ticket)}
-        onDelete={() => openModal(MODAL_TYPES.DELETE_TICKET, ticket)}
+        onEdit={
+          canEdit ? () => openModal(MODAL_TYPES.EDIT_TICKET, ticket) : null
+        }
+        onDelete={
+          canDelete ? () => openModal(MODAL_TYPES.DELETE_TICKET, ticket) : null
+        }
         className="mb-6"
+        showEditDelete={canEdit || canDelete}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -96,11 +109,15 @@ const TicketDetails = () => {
           <ActionsPanel
             ticket={ticket}
             onAssignTech={() => openModal(MODAL_TYPES.ASSIGN_TECH, ticket)}
-            onUpdateStatus={(ticketId, newStatus) => openModal(MODAL_TYPES.UPDATE_STATUS, { ...ticket, newStatus })}
-            onScheduleTicket={() => openModal(MODAL_TYPES.SCHEDULE_DATE, ticket)}
+            onUpdateStatus={(ticketId, newStatus) =>
+              openModal(MODAL_TYPES.UPDATE_STATUS, { ...ticket, newStatus })
+            }
+            onScheduleTicket={() =>
+              openModal(MODAL_TYPES.SCHEDULE_DATE, ticket)
+            }
             userRole={userRole}
           />
-          <LocationInfo 
+          <LocationInfo
             siteDetails={siteDetails}
             system={system}
             roles={roles}
@@ -112,7 +129,9 @@ const TicketDetails = () => {
       <AssignTechnicianModal
         isOpen={currentModal?.type === MODAL_TYPES.ASSIGN_TECH}
         onClose={closeModal}
-        onSubmit={(techIds) => handleAssignTechnicians(selectedTicket?.id, techIds)}
+        onSubmit={(techIds) =>
+          handleAssignTechnicians(selectedTicket?.id, techIds)
+        }
         ticket={selectedTicket}
         technicians={technicians}
         processing={processing}
@@ -120,11 +139,15 @@ const TicketDetails = () => {
       />
 
       <TicketActionsModal
-        isOpen={currentModal?.type === MODAL_TYPES.UPDATE_STATUS || currentModal?.type === MODAL_TYPES.SCHEDULE_DATE}
+        isOpen={
+          currentModal?.type === MODAL_TYPES.UPDATE_STATUS ||
+          currentModal?.type === MODAL_TYPES.SCHEDULE_DATE
+        }
         onClose={closeModal}
         onUpdateStatus={handleUpdateStatus}
         onConfirmDate={handleConfirmDate}
-        ticket={selectedTicket}
+        ticket={selectedTicket || ticket}
+        modalType={currentModal?.type}
         processing={processing}
         error={error}
       />

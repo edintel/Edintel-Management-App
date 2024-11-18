@@ -1,24 +1,18 @@
 // src/modules/postVentaManagement/components/Tickets/components/TicketList/components/QuickActions.js
-import React from 'react';
-import { 
-  UserPlus, 
-  Check, 
-  Edit2, 
-  Trash2, 
-  Calendar,
-  FileText,
-  FileDown,
-  Download
-} from 'lucide-react';
-import { MODAL_TYPES } from '../../../modals';
-import { TICKET_ACTIONS, isActionAllowed } from '../../../permissions/ticketActionPermissions';
-import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
+import React from "react";
+import { UserPlus, Check, Calendar, FileText } from "lucide-react";
+import { MODAL_TYPES } from "../../../modals";
+import {
+  TICKET_ACTIONS,
+  isActionAllowed,
+} from "../../../permissions/ticketActionPermissions";
+import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
 
 const QuickActions = ({
   ticket,
   onOpenModal,
   onDownloadFile,
-  className = ''
+  className = "",
 }) => {
   const { userRole } = usePostVentaManagement();
 
@@ -37,11 +31,13 @@ const QuickActions = ({
       {/* File Downloads */}
       {ticket.descriptionId && (
         <button
-          onClick={(e) => handleFileDownload(
-            e,
-            ticket.descriptionId,
-            `ST_${ticket.stNumber}_descripcion`
-          )}
+          onClick={(e) =>
+            handleFileDownload(
+              e,
+              ticket.descriptionId,
+              `ST_${ticket.stNumber}_descripcion`
+            )
+          }
           className="p-1.5 text-gray-500 hover:text-primary rounded-lg hover:bg-gray-100 transition-colors"
           title="Descargar descripción"
         >

@@ -1,14 +1,15 @@
-import React from 'react';
-import { ArrowLeft, Edit2, Trash2 } from 'lucide-react';
-import Button from '../../../../../../../components/common/Button';
-import TicketStatusBadge from '../../common/TicketStatusBadge';
+import React from "react";
+import { ArrowLeft, Edit2, Trash2 } from "lucide-react";
+import Button from "../../../../../../../components/common/Button";
+import TicketStatusBadge from "../../common/TicketStatusBadge";
 
 const DetailHeader = ({
   ticket,
   onBack,
   onEdit,
   onDelete,
-  className = ''
+  showEditDelete = false,
+  className = "",
 }) => {
   if (!ticket) return null;
 
@@ -22,22 +23,29 @@ const DetailHeader = ({
         >
           Volver
         </Button>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            startIcon={<Edit2 className="h-4 w-4" />}
-            onClick={() => onEdit(ticket)}
-          >
-            Editar
-          </Button>
-          <Button
-            variant="error"
-            startIcon={<Trash2 className="h-4 w-4" />}
-            onClick={() => onDelete(ticket)}
-          >
-            Eliminar
-          </Button>
-        </div>
+
+        {showEditDelete && (
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <Button
+                variant="outline"
+                startIcon={<Edit2 className="h-4 w-4" />}
+                onClick={() => onEdit(ticket)}
+              >
+                Editar
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="error"
+                startIcon={<Trash2 className="h-4 w-4" />}
+                onClick={() => onDelete(ticket)}
+              >
+                Eliminar
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center gap-4">

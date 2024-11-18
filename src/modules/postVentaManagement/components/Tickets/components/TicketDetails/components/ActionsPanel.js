@@ -1,45 +1,48 @@
-import React from 'react';
-import { 
-  Calendar, 
-  CheckCircle, 
-  UserPlus, 
+import React from "react";
+import {
+  Calendar,
+  CheckCircle,
+  UserPlus,
   Play,
   AlertTriangle,
   Lock,
-  FileCheck
-} from 'lucide-react';
-import Card from '../../../../../../../components/common/Card';
-import Button from '../../../../../../../components/common/Button';
-import { usePostVentaManagement } from '../../../../../context/postVentaManagementContext';
-import { TICKET_ACTIONS, getAvailableActions } from '../../../permissions/ticketActionPermissions';
+  FileCheck,
+} from "lucide-react";
+import Card from "../../../../../../../components/common/Card";
+import Button from "../../../../../../../components/common/Button";
+import { usePostVentaManagement } from "../../../../../context/postVentaManagementContext";
+import {
+  TICKET_ACTIONS,
+  getAvailableActions,
+} from "../../../permissions/ticketActionPermissions";
 
 // Helper functions for status-specific UI elements
 const getUpdateStatusLabel = (currentState) => {
   switch (currentState) {
-    case 'Iniciada':
-    case 'Técnico asignado':
-      return 'Confirmar Asignación';
-    case 'Confirmado por tecnico':
-      return 'Iniciar Trabajo';
-    case 'Trabajo iniciado':
-      return 'Finalizar Trabajo';
-    case 'Finalizada':
-      return 'Cerrar Ticket';
+    case "Iniciada":
+    case "Técnico asignado":
+      return "Confirmar Asignación";
+    case "Confirmado por técnico":
+      return "Iniciar Trabajo";
+    case "Trabajo iniciado":
+      return "Finalizar Trabajo";
+    case "Finalizada":
+      return "Cerrar Ticket";
     default:
-      return 'Actualizar Estado';
+      return "Actualizar Estado";
   }
 };
 
 const getUpdateStatusIcon = (currentState) => {
   switch (currentState) {
-    case 'Iniciada':
-    case 'Técnico asignado':
+    case "Iniciada":
+    case "Técnico asignado":
       return CheckCircle;
-    case 'Confirmado por tecnico':
+    case "Confirmado por técnico":
       return Play;
-    case 'Trabajo iniciado':
+    case "Trabajo iniciado":
       return FileCheck;
-    case 'Finalizada':
+    case "Finalizada":
       return Lock;
     default:
       return CheckCircle;
@@ -48,24 +51,30 @@ const getUpdateStatusIcon = (currentState) => {
 
 const getUpdateStatusVariant = (currentState) => {
   switch (currentState) {
-    case 'Finalizada':
-      return 'success';
+    case "Iniciada":
+    case "Técnico asignado":
+      return "warning"; // Yellow for initial states
+    case "Confirmado por técnico":
+    case "Trabajo iniciado":
+      return "info"; // Blue for in-progress states
+    case "Finalizada":
+      return "success"; // Green for completion
     default:
-      return 'primary';
+      return "primary";
   }
 };
 
 const getNextStatus = (currentState) => {
   switch (currentState) {
-    case 'Iniciada':
-    case 'Técnico asignado':
-      return 'Confirmado por tecnico';
-    case 'Confirmado por tecnico':
-      return 'Trabajo iniciado';
-    case 'Trabajo iniciado':
-      return 'Finalizada';
-    case 'Finalizada':
-      return 'Cerrada';
+    case "Iniciada":
+    case "Técnico asignado":
+      return "Confirmado por técnico";
+    case "Confirmado por técnico":
+      return "Trabajo iniciado";
+    case "Trabajo iniciado":
+      return "Finalizada";
+    case "Finalizada":
+      return "Cerrada";
     default:
       return currentState;
   }
@@ -76,7 +85,7 @@ const ActionsPanel = ({
   onAssignTech,
   onUpdateStatus,
   onScheduleTicket,
-  className = ''
+  className = "",
 }) => {
   const { userRole } = usePostVentaManagement();
 
@@ -87,23 +96,23 @@ const ActionsPanel = ({
   // Configuration for each action type
   const actionConfig = {
     [TICKET_ACTIONS.ASSIGN_TECH]: {
-      label: 'Asignar Técnico',
+      label: "Asignar Técnico",
       icon: UserPlus,
       onClick: () => onAssignTech(ticket),
-      variant: 'primary'
+      variant: "secondary", // Purple for tech assignment
     },
     [TICKET_ACTIONS.UPDATE_STATUS]: {
       label: getUpdateStatusLabel(ticket.state),
       icon: getUpdateStatusIcon(ticket.state),
       onClick: () => onUpdateStatus(ticket.id, getNextStatus(ticket.state)),
-      variant: getUpdateStatusVariant(ticket.state)
+      variant: getUpdateStatusVariant(ticket.state),
     },
     [TICKET_ACTIONS.SCHEDULE_DATE]: {
-      label: 'Programar Fecha',
+      label: "Programar Fecha",
       icon: Calendar,
       onClick: () => onScheduleTicket(ticket),
-      variant: 'secondary'
-    }
+      variant: "primary", // Default blue for scheduling
+    },
   };
 
   if (availableActions.length === 0) {
@@ -120,7 +129,7 @@ const ActionsPanel = ({
   return (
     <Card className={className}>
       <div className="grid gap-3">
-        {availableActions.map(action => {
+        {availableActions.map((action) => {
           const config = actionConfig[action];
           if (!config) return null;
 

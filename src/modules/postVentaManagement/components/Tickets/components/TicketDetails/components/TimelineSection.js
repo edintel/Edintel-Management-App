@@ -1,6 +1,6 @@
-import React from 'react';
-import Card from '../../../../../../../components/common/Card';
-import TicketTimeline from '../../common/TicketTimeline';
+import React from "react";
+import Card from "../../../../../../../components/common/Card";
+import TicketTimeline from "../../common/TicketTimeline";
 
 const TimelineSection = ({ ticket }) => {
   if (!ticket) return null;
@@ -10,61 +10,63 @@ const TimelineSection = ({ ticket }) => {
 
     // Initial creation
     events.push({
-      type: 'Iniciada',
+      type: "Iniciada",
       date: ticket.created,
       details: {
-        'Creado por': ticket.createdBy?.user?.displayName || 'Sistema'
-      }
+        "Creado por": ticket.createdBy?.user?.displayName || "Sistema",
+      },
     });
 
     // Tentative date
     if (ticket.tentativeDate) {
       events.push({
-        type: 'Fecha programada',
-        date: ticket.tentativeDate
+        type: "Fecha programada",
+        date: ticket.tentativeDate,
       });
     }
 
     // Tech assignment
     if (ticket.technicians?.length > 0) {
       events.push({
-        type: 'Técnico asignado',
+        type: "Técnico asignado",
         date: ticket.technicianAssignedDate,
         details: {
-          'Técnicos': ticket.technicians.map(tech => tech.LookupValue).join(', ')
-        }
+          Técnicos: ticket.technicians
+            .map((tech) => tech.LookupValue)
+            .join(", "),
+        },
       });
     }
 
     // Tech confirmation
     if (ticket.confirmationDate) {
       events.push({
-        type: 'Confirmado por tecnico',
-        date: ticket.confirmationDate
+        type: "Confirmado por técnico",
+        date: ticket.confirmationDate,
       });
     }
 
     // Work started
     if (ticket.workStartDate) {
       events.push({
-        type: 'Trabajo iniciado',
-        date: ticket.workStartDate
+        type: "Trabajo iniciado",
+        date: ticket.workStartDate,
       });
     }
 
     // Work finished
     if (ticket.workEndDate) {
       events.push({
-        type: 'Finalizada',
-        date: ticket.workEndDate
+        type: "Finalizada",
+        date: ticket.workEndDate,
       });
     }
 
     // Ticket closed
     if (ticket.closeDate) {
       events.push({
-        type: 'Cerrada',
-        date: ticket.closeDate
+        type: "Cerrada",
+        date: ticket.closeDate,
       });
     }
 

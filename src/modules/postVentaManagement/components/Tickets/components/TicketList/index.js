@@ -1,22 +1,22 @@
-import React from 'react';
-import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
-import { useTicketData } from '../../hooks/useTicketData';
-import { useTicketState } from '../../hooks/useTicketState';
-import { useTicketActions } from '../../hooks/useTicketActions';
-import { MODAL_TYPES } from '../../modals';
+import React, { useEffect } from "react";
+import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
+import { useTicketData } from "../../hooks/useTicketData";
+import { useTicketState } from "../../hooks/useTicketState";
+import { useTicketActions } from "../../hooks/useTicketActions";
+import { MODAL_TYPES } from "../../modals";
 
 // Components
-import ListHeader from './components/ListHeader';
-import ListFilters from './components/ListFilters';
-import ListTable from './components/ListTable';
+import ListHeader from "./components/ListHeader";
+import ListFilters from "./components/ListFilters";
+import ListTable from "./components/ListTable";
 
 // Modals
 import {
   AssignTechnicianModal,
   TicketActionsModal,
   TicketEditModal,
-  DeleteTicketModal
-} from '../../modals';
+  DeleteTicketModal,
+} from "../../modals";
 
 const TicketList = () => {
   const { systems, roles, loading: contextLoading } = usePostVentaManagement();
@@ -33,23 +33,23 @@ const TicketList = () => {
     selectedUsers,
     setSelectedUsers,
     resetFilters,
-    hasActiveFilters
+    hasActiveFilters,
   } = useTicketState();
 
   const {
     filteredTickets,
     getSiteDetails,
-    loading: dataLoading
+    loading: dataLoading,
   } = useTicketData({
     searchTerm,
     startDate,
     endDate,
     selectedState,
-    selectedUsers
+    selectedUsers,
   });
 
   const {
-    currentModal,
+    currentModal = null,
     selectedTicket,
     processing,
     error,
@@ -60,10 +60,14 @@ const TicketList = () => {
     handleConfirmDate,
     handleEditTicket,
     handleDeleteTicket,
-    handleFileDownload
+    handleFileDownload,
   } = useTicketActions();
 
   const loading = contextLoading || dataLoading;
+
+  useEffect(() => {
+    closeModal();
+  }, [closeModal]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -93,9 +97,15 @@ const TicketList = () => {
         getSiteDetails={getSiteDetails}
         onDownloadFile={handleFileDownload}
         onEditTicket={(ticket) => openModal(MODAL_TYPES.EDIT_TICKET, ticket)}
-        onDeleteTicket={(ticket) => openModal(MODAL_TYPES.DELETE_TICKET, ticket)}
-        onAssignTechnician={(ticket) => openModal(MODAL_TYPES.ASSIGN_TECH, ticket)}
-        onUpdateStatus={(ticket) => openModal(MODAL_TYPES.UPDATE_STATUS, ticket)}
+        onDeleteTicket={(ticket) =>
+          openModal(MODAL_TYPES.DELETE_TICKET, ticket)
+        }
+        onAssignTechnician={(ticket) =>
+          openModal(MODAL_TYPES.ASSIGN_TECH, ticket)
+        }
+        onUpdateStatus={(ticket) =>
+          openModal(MODAL_TYPES.UPDATE_STATUS, ticket)
+        }
         onOpenModal={openModal}
         systems={systems}
         loading={loading}
@@ -105,7 +115,9 @@ const TicketList = () => {
       <AssignTechnicianModal
         isOpen={currentModal?.type === MODAL_TYPES.ASSIGN_TECH}
         onClose={closeModal}
-        onSubmit={(techIds) => handleAssignTechnicians(selectedTicket?.id, techIds)}
+        onSubmit={(techIds) =>
+          handleAssignTechnicians(selectedTicket?.id, techIds)
+        }
         ticket={selectedTicket}
         roles={roles}
         processing={processing}
@@ -113,11 +125,15 @@ const TicketList = () => {
       />
 
       <TicketActionsModal
-        isOpen={currentModal?.type === MODAL_TYPES.UPDATE_STATUS || currentModal?.type === MODAL_TYPES.SCHEDULE_DATE}
+        isOpen={
+          currentModal?.type === MODAL_TYPES.UPDATE_STATUS ||
+          currentModal?.type === MODAL_TYPES.SCHEDULE_DATE
+        }
         onClose={closeModal}
         onUpdateStatus={handleUpdateStatus}
         onConfirmDate={handleConfirmDate}
         ticket={selectedTicket}
+        modalType={currentModal?.type}
         processing={processing}
         error={error}
       />
