@@ -20,16 +20,37 @@ jobs:
           submodules: true
           lfs: false
 
-      # Add debug logging
-      - name: Debug Info
+      # Create staticwebapp.config.json if it doesn't exist
+      - name: Create Static Web App Config
         run: |
-          echo "Node version:"
-          node --version
-          echo "NPM version:"
-          npm --version
-          echo "Directory contents:"
+          echo '{
+            "navigationFallback": {
+              "rewrite": "/index.html",
+              "exclude": ["/images/*", "/static/*", "/*.{png,jpg,gif,svg,ico,json,css,js}"]
+            },
+            "routes": [
+              {
+                "route": "/*",
+                "serve": "/index.html",
+                "statusCode": 200
+              }
+            ],
+            "responseOverrides": {
+              "404": {
+                "rewrite": "/index.html",
+                "statusCode": 200
+              }
+            }
+          }' > staticwebapp.config.json
+
+      # Debug info BEFORE build
+      - name: Debug Info Pre-Build
+        run: |
+          echo "Current directory contents:"
           ls -la
-          
+          echo "Config file contents:"
+          cat staticwebapp.config.json
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -41,18 +62,20 @@ jobs:
           output_location: "build"
           skip_app_build: false
           app_artifact_location: "build"
-          deployment_environment: "production" # Add this line
         env:
           REACT_APP_CLIENT_ID: ${{ secrets.REACT_APP_CLIENT_ID }}
           REACT_APP_TENANT_ID: ${{ secrets.REACT_APP_TENANT_ID }}
           CI: false
-          NODE_OPTIONS: "--max-old-space-size=4096" # Add memory allocation
 
-      # Add error handling
+      # Debug info AFTER build
       - name: Handle Deployment Error
         if: failure()
         run: |
           echo "Deployment failed. Checking build directory:"
-          ls -la build/
-          echo "Checking configuration files:"
+          cd build
+          ls -la
+          echo "Checking configuration file in build directory:"
+          cat staticwebapp.config.json
+          echo "Checking configuration file in root directory:"
+          cd ..
           cat staticwebapp.config.json
