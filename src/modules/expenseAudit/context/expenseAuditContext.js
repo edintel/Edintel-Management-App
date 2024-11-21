@@ -24,6 +24,13 @@ export function AppProviderExpenseAudit({ children }) {
     userDepartmentRole: null,
     loading: false,
     error: null,
+    approvalFilters: {
+      searchTerm: "",
+      startDate: "",
+      endDate: "",
+      selectedPerson: "",
+      viewMode: "pending"
+    }
   });
 
   const updateExpenseReports = useCallback((updaterFn) => {
@@ -132,6 +139,7 @@ export function AppProviderExpenseAudit({ children }) {
     initializeExpenseService,
     loadExpenseData,
     updateExpenseReports,
+    setExpenseState,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -153,10 +161,12 @@ export function useExpenseAudit() {
       userDepartmentRole,
       loading,
       error,
+      approvalFilters    
     },
     initialized,
     updateExpenseReports,
     loadExpenseData,
+    setExpenseState    
   } = context;
 
   return {
@@ -169,6 +179,8 @@ export function useExpenseAudit() {
     loading,
     error,
     initialized,
+    approvalFilters,
+    setApprovalFilters: (filters) => setExpenseState(prev => ({ ...prev, approvalFilters: filters })),
     setExpenseReports: updateExpenseReports,
     loadExpenseData,
   };

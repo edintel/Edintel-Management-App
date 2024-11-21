@@ -15,7 +15,9 @@ const TicketEditForm = ({
     siteId: '',
     systemId: '',
     type: '',
-    description: null
+    description: null,
+    serviceTicket: null,
+    report: null,
   });
 
   // Filter buildings based on selected company
@@ -33,7 +35,7 @@ const TicketEditForm = ({
     sites.find(site => site.id === formData.siteId)?.systems || [] : [];
 
   const filteredSystems = systems.filter(
-    system => availableSystems.some(availableSystem => 
+    system => availableSystems.some(availableSystem =>
       availableSystem.LookupValue === system.name
     )
   );
@@ -81,6 +83,26 @@ const TicketEditForm = ({
       setFormData(prev => ({
         ...prev,
         description: file
+      }));
+    }
+  };
+
+  const handleServiceTicketChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData(prev => ({
+        ...prev,
+        serviceTicket: file
+      }));
+    }
+  };
+
+  const handleReportChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData(prev => ({
+        ...prev,
+        report: file
       }));
     }
   };
@@ -247,6 +269,86 @@ const TicketEditForm = ({
           Deje vacío para mantener la descripción actual
         </p>
       </div>
+      {initialData?.serviceTicketId && (
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Nueva Boleta
+        </label>
+        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+          <div className="space-y-1 text-center">
+            <FileText size={24} className="mx-auto text-gray-400" />
+            <div className="flex text-sm text-gray-600">
+              <label
+                htmlFor="description"
+                className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none"
+              >
+                <span>Subir archivo</span>
+                <input
+                  id="ticket"
+                  name="ticket"
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
+                  className="sr-only"
+                  onChange={handleServiceTicketChange}
+                />
+              </label>
+              <p className="pl-1">o arrastrar y soltar</p>
+            </div>
+            <p className="text-xs text-gray-500">
+              PDF, DOC, DOCX hasta 10MB
+            </p>
+            {formData.description && (
+              <p className="text-sm text-gray-500">
+                Archivo seleccionado: {formData.description.name}
+              </p>
+            )}
+          </div>
+        </div>
+        <p className="text-sm text-gray-500">
+          Deje vacío para mantener la boleta actual
+        </p>
+      </div>
+      )}
+      {initialData?.reportId && (
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Nuevo Reporte
+        </label>
+        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+          <div className="space-y-1 text-center">
+            <FileText size={24} className="mx-auto text-gray-400" />
+            <div className="flex text-sm text-gray-600">
+              <label
+                htmlFor="description"
+                className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none"
+              >
+                <span>Subir archivo</span>
+                <input
+                  id="report"
+                  name="report"
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
+                  className="sr-only"
+                  onChange={handleReportChange}
+                />
+              </label>
+              <p className="pl-1">o arrastrar y soltar</p>
+            </div>
+            <p className="text-xs text-gray-500">
+              PDF, DOC, DOCX hasta 10MB
+            </p>
+            {formData.description && (
+              <p className="text-sm text-gray-500">
+                Archivo seleccionado: {formData.description.name}
+              </p>
+            )}
+          </div>
+        </div>
+        <p className="text-sm text-gray-500">
+          Deje vacío para mantener el reporte actual
+        </p>
+      </div>
+      )}
     </form>
   );
 };

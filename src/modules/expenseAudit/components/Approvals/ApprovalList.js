@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
@@ -20,6 +20,8 @@ const ApprovalList = () => {
     setExpenseReports,
     service,
     userDepartmentRole,
+    approvalFilters,
+    setApprovalFilters,
   } = useExpenseAudit();
 
   // Initialize date range for last week
@@ -35,6 +37,31 @@ const ApprovalList = () => {
   );
   const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
 
+  useEffect(() => {
+    if (location.state?.preserveFilters && approvalFilters) {
+      setSearchTerm(approvalFilters.searchTerm || "");
+      setStartDate(approvalFilters.startDate || "");
+      setEndDate(approvalFilters.endDate || "");
+      setSelectedPerson(approvalFilters.selectedPerson || "");
+      setViewMode(approvalFilters.viewMode || "pending");
+    }
+  }, [location.state?.preserveFilters, approvalFilters]); 
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setApprovalFilters({
+        searchTerm,
+        startDate,
+        endDate,
+        selectedPerson,
+        viewMode
+      });
+    }, 300); 
+  
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, startDate, endDate, selectedPerson, viewMode, setApprovalFilters]);
+  
+
   // Add state for confirmation dialog
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -46,7 +73,7 @@ const ApprovalList = () => {
 
   const canViewApprovals = () => {
     if (!userDepartmentRole) return false;
-    
+
     // Only Jefe and Asistente can view approvals
     if (userDepartmentRole.role !== "Jefe" && userDepartmentRole.role !== "Asistente") {
       return false;
@@ -57,7 +84,7 @@ const ApprovalList = () => {
 
   const getApprovalType = () => {
     if (!userDepartmentRole) return null;
-    
+
     const isAccountant = (userDepartmentRole.department?.departamento || '')
       .toLowerCase()
       .includes('contabilidad');
@@ -107,18 +134,18 @@ const ApprovalList = () => {
         prevReports.map((report) =>
           report.id === confirmDialog.expenseId
             ? {
-                ...report,
-                bloqueoEdicion: true,
-                notasRevision: notes,
-                aprobacionAsistente:
-                  type === "assistant" ? status : report.aprobacionAsistente,
-                aprobacionJefatura:
-                  type === "boss" ? status : report.aprobacionJefatura,
-                aprobacionContabilidad:
-                  type === "accounting"
-                    ? status
-                    : report.aprobacionContabilidad,
-              }
+              ...report,
+              bloqueoEdicion: true,
+              notasRevision: notes,
+              aprobacionAsistente:
+                type === "assistant" ? status : report.aprobacionAsistente,
+              aprobacionJefatura:
+                type === "boss" ? status : report.aprobacionJefatura,
+              aprobacionContabilidad:
+                type === "accounting"
+                  ? status
+                  : report.aprobacionContabilidad,
+            }
             : report
         )
       );
@@ -157,6 +184,15 @@ const ApprovalList = () => {
         }),
     },
     { key: "st", header: "ST" },
+    {
+      key: "fondosPropios", header: "F. Propios", render: (value) => {
+        if (value) {
+          return "Si";
+        } else {
+          return "No";
+        }
+      }
+    },
     {
       key: "status",
       header: "Estado",
@@ -217,25 +253,25 @@ const ApprovalList = () => {
             userDepartmentRole.role,
             userDepartmentRole.department?.departamento
           ) && viewMode === "pending" && (
-            <>
-              <Button
-                variant="ghost"
-                size="small"
-                className="text-success hover:text-success/90"
-                onClick={(e) => handleApprove(row.id, e)}
-              >
-                <Check size={16} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="small"
-                className="text-error hover:text-error/90"
-                onClick={(e) => handleReject(row.id, e)}
-              >
-                <X size={16} />
-              </Button>
-            </>
-          )}
+              <>
+                <Button
+                  variant="ghost"
+                  size="small"
+                  className="text-success hover:text-success/90"
+                  onClick={(e) => handleApprove(row.id, e)}
+                >
+                  <Check size={16} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="small"
+                  className="text-error hover:text-error/90"
+                  onClick={(e) => handleReject(row.id, e)}
+                >
+                  <X size={16} />
+                </Button>
+              </>
+            )}
         </div>
       ),
     },
@@ -247,7 +283,7 @@ const ApprovalList = () => {
     });
   };
 
-  const people = departmentWorkers.reduce((acc, dept) => {
+  const people = (departmentWorkers.reduce((acc, dept) => {
     dept.workers.forEach((worker) => {
       if (
         worker.empleado &&
@@ -257,7 +293,9 @@ const ApprovalList = () => {
       }
     });
     return acc;
-  }, []);
+  }, []).sort((a, b) => 
+    a.displayName.localeCompare(b.displayName)
+  ));
 
   const getFilteredExpenses = () => {
     if (!canViewApprovals()) return [];
@@ -272,7 +310,7 @@ const ApprovalList = () => {
       }
 
       if (selectedPerson && expense.createdBy.email !== selectedPerson) return false;
-      
+
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
         return (
@@ -332,8 +370,8 @@ const ApprovalList = () => {
             {viewMode === "pending"
               ? "pendientes de aprobación"
               : viewMode === "approved"
-              ? "aprobados"
-              : "rechazados"}
+                ? "aprobados"
+                : "rechazados"}
           </p>
         </div>
 
@@ -343,11 +381,10 @@ const ApprovalList = () => {
               {["pending", "approved", "rejected"].map((mode) => (
                 <button
                   key={mode}
-                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                    viewMode === mode
+                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${viewMode === mode
                       ? "border-primary text-primary"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
+                    }`}
                   onClick={() => setViewMode(mode)}
                 >
                   {mode === "pending" && "Pendientes"}
@@ -411,15 +448,15 @@ const ApprovalList = () => {
                   {viewMode === "pending"
                     ? "No hay gastos pendientes"
                     : viewMode === "approved"
-                    ? "No hay gastos aprobados"
-                    : "No hay gastos rechazados"}
+                      ? "No hay gastos aprobados"
+                      : "No hay gastos rechazados"}
                 </h3>
                 <p className="text-sm text-gray-500">
                   {viewMode === "pending"
                     ? "Todos los gastos han sido procesados"
                     : viewMode === "approved"
-                    ? "Aún no hay gastos aprobados"
-                    : "Aún no hay gastos rechazados"}
+                      ? "Aún no hay gastos aprobados"
+                      : "Aún no hay gastos rechazados"}
                 </p>
               </div>
             }

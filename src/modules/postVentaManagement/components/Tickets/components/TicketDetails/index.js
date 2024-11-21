@@ -51,6 +51,7 @@ const TicketDetails = () => {
     handleEditTicket,
     handleDeleteTicket,
     handleFileDownload,
+    handleCreateShareLink,
   } = useTicketActions();
 
   const { technicians } = useTicketData();
@@ -101,7 +102,9 @@ const TicketDetails = () => {
           <FilesSection
             ticket={ticket}
             onDownload={handleFileDownload}
+            onShare={handleCreateShareLink}
             loading={processing}
+            userRole={userRole}
           />
         </div>
 

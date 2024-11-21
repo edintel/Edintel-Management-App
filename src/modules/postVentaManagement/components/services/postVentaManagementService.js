@@ -1,4 +1,5 @@
 import BaseGraphService from "../../../../services/BaseGraphService";
+import { generateRandomNumber } from "../../../../utils/randomUtils";
 
 class PostVentaManagementService extends BaseGraphService {
   constructor(msalInstance, config) {
@@ -91,7 +92,6 @@ class PostVentaManagementService extends BaseGraphService {
       this.siteId,
       this.config.lists.controlPV
     );
-
     return items.map((item) => ({
       id: item.id,
       stNumber: item.fields.Title,
@@ -112,6 +112,7 @@ class PostVentaManagementService extends BaseGraphService {
       calendarEventId: item.fields.calendarEvent,
       createdBy: item.createdBy,
       created: item.createdDateTime,
+      messageId: item.fields.MessageId,
     }));
   }
 
@@ -140,7 +141,7 @@ class PostVentaManagementService extends BaseGraphService {
         this.driveId,
         descriptionFile,
         folderPath,
-        "Descripción"
+        `Descripción - ${generateRandomNumber(16).toString()}`
       );
 
       // Create the service ticket
@@ -565,15 +566,17 @@ class PostVentaManagementService extends BaseGraphService {
         Tipo: data.type,
       };
 
-      // If new description file is provided, upload it
-      if (data.description) {
-        // Get ticket details to determine folder structure
-        const ticket = await this.client
+      const ticket = await this.client
           .api(
             `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
           )
           .expand("fields")
           .get();
+
+      // If new description file is provided, upload it
+      if (data.description) {
+        // Get ticket details to determine folder structure
+        
 
         // Get site and building details
         const site = await this.client
@@ -604,8 +607,10 @@ class PostVentaManagementService extends BaseGraphService {
           this.driveId,
           data.description,
           folderPath,
-          "Descripción"
+          `Descripción - ${generateRandomNumber(16).toString()}`
         );
+
+        
 
         // Delete old description file if exists
         if (ticket.fields.Descripci_x00f3_n) {
@@ -613,6 +618,24 @@ class PostVentaManagementService extends BaseGraphService {
         }
 
         fields.Descripci_x00f3_n = fileId;
+      }
+
+      if (data.serviceTicket) {
+        // Delete old boleta if exists
+        if (ticket.fields.Boleta) {
+          await this.deleteFile(ticket.fields.Boleta);
+        }
+        const boletaId = await this.uploadServiceTicket(ticketId, data.serviceTicket);
+        fields.Boleta = boletaId;
+      }
+      
+      if (data.report) {
+        // Delete old report if exists
+        if (ticket.fields.Informe) {
+          await this.deleteFile(ticket.fields.Informe);
+        }
+        const reportId = await this.uploadServiceReport(ticketId, data.report);
+        fields.Informe = reportId;
       }
 
       // Update ticket
@@ -723,7 +746,7 @@ class PostVentaManagementService extends BaseGraphService {
         this.driveId,
         file,
         folderPath,
-        "Boleta"
+        `Boleta - ${generateRandomNumber(16).toString()}`
       );
 
       // Update ticket with file reference
@@ -785,7 +808,7 @@ class PostVentaManagementService extends BaseGraphService {
         this.driveId,
         file,
         folderPath,
-        "Informe"
+        `Informe - ${generateRandomNumber(16).toString()}`
       );
 
       // Update ticket with file reference

@@ -62,8 +62,13 @@ const ExpenseDetail = () => {
   }, [id, expenseReports, reportsLoading]);
 
   const handleBack = () => {
-    navigate(returnPath);
-  };
+  navigate(returnPath, { 
+    state: { 
+      ...location.state,
+      preserveFilters: true 
+    } 
+  });
+};
 
   const handleEdit = () => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.EDIT(id), {
