@@ -46,7 +46,6 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   };
 
   const handleStatusUpdate = () => {
-    console.log(nextStatus);
     if (nextStatus === "Finalizada") {
       setShowFinishModal(true);
       console.log(showFinishModal);

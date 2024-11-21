@@ -5,7 +5,7 @@ export const useTicketState = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedState, setSelectedState] = useState('');
+  const [selectedState, setSelectedState] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   
   // View states
@@ -21,7 +21,7 @@ export const useTicketState = () => {
     setSearchTerm('');
     setStartDate('');
     setEndDate('');
-    setSelectedState('');
+    setSelectedState([]);
     setSelectedUsers([]);
   }, []);
 

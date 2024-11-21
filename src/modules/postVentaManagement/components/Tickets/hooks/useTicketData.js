@@ -5,7 +5,7 @@ export const useTicketData = ({
   searchTerm = "",
   startDate = "",
   endDate = "",
-  selectedState = "",
+  selectedState = [],
   selectedUsers = [],
 } = {}) => {
   const {
@@ -52,7 +52,7 @@ export const useTicketData = ({
         }
 
         // Status filter
-        if (selectedState && ticket.state !== selectedState) return false;
+        if (selectedState.length > 0 && !selectedState.includes(ticket.state)) return false;
 
         // Users filter
         if (selectedUsers.length > 0) {
@@ -88,13 +88,7 @@ export const useTicketData = ({
 
         return true;
       })
-      .sort((a, b) => {
-        // Sort by date descending, then by ST number
-        if (a.tentativeDate && b.tentativeDate) {
-          return new Date(b.tentativeDate) - new Date(a.tentativeDate);
-        }
-        return b.stNumber.localeCompare(a.stNumber);
-      });
+      .sort((a, b) =>  new Date(b.created) - new Date(a.created));
   }, [
     serviceTickets,
     searchTerm,

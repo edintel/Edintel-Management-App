@@ -26,7 +26,8 @@ const MainMenu = () => {
       icon: Ticket,
       path: "/post-venta/dashboard",
       roles: ["*"],
-    },*/
+    }
+      */
   ];
 
   const hasAccess = (moduleRoles) => {

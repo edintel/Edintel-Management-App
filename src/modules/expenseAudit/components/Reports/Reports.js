@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
 import Table from "../../../../components/common/Table";
@@ -6,7 +6,7 @@ import Button from "../../../../components/common/Button";
 import DateRangePicker from "../../../../components/common/DateRangePicker";
 import ExpenseSummary from "./ExpenseSummary";
 import PrintSummary from "./PrintSummary";
-import { Filter, Search, Users, FileDown, Printer, Copy } from "lucide-react";
+import { Filter, Search, Users, FileDown, Printer, Copy, XCircle, X, Check } from "lucide-react";
 
 const Reports = () => {
   const { expenseReports, departmentWorkers, loading } = useExpenseAudit();
@@ -15,8 +15,9 @@ const Reports = () => {
     endDate: null,
   });
   const [selectedPerson, setSelectedPerson] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
 
   const columns = [
     {
@@ -45,6 +46,15 @@ const Reports = () => {
         }),
     },
     { key: "st", header: "ST" },
+    {
+      key: "fondosPropios", header: "F. Propios", render: (value) => {
+        if (value) {
+          return "Si";
+        } else {
+          return "No";
+        }
+      }
+    },
     {
       key: "status",
       header: "Estado",
@@ -96,6 +106,31 @@ const Reports = () => {
     },
   ];
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isStatusOpen && !event.target.closest('.status-dropdown')) {
+        setIsStatusOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isStatusOpen]);
+
+  const getSelectedStatusDisplay = () => {
+    if (selectedStatuses.length === 0) return "Todos los estados";
+    if (selectedStatuses.length === 1) return selectedStatuses[0];
+    return `${selectedStatuses.length} estados seleccionados`;
+  };
+
+  const handleStatusToggle = (status) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
   const getExpenseStatus = (expense) => {
     if (
       expense.aprobacionAsistente === "No aprobada" ||
@@ -136,10 +171,12 @@ const Reports = () => {
 
     if (selectedPerson && expense.createdBy.email !== selectedPerson)
       return false;
-    if (selectedStatus) {
+
+    if (selectedStatuses.length > 0) {
       const status = getExpenseStatus(expense);
-      if (status !== selectedStatus) return false;
+      if (!selectedStatuses.includes(status)) return false;
     }
+
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
@@ -151,7 +188,7 @@ const Reports = () => {
     return true;
   });
 
-  const people = departmentWorkers.reduce((acc, dept) => {
+  const people = (departmentWorkers.reduce((acc, dept) => {
     dept.workers.forEach((worker) => {
       if (
         worker.empleado &&
@@ -161,7 +198,16 @@ const Reports = () => {
       }
     });
     return acc;
-  }, []);
+  }, [])).sort((a, b) =>
+    a.displayName.localeCompare(b.displayName)
+  );;
+
+  const resetFilters = () => {
+    setDateRange({ startDate: null, endDate: null });
+    setSelectedPerson("");
+    setSelectedStatuses([]);
+    setSearchTerm("");
+  };
 
   const handleCopyTable = () => {
     const rows = filteredExpenses.map((expense) => ({
@@ -327,26 +373,58 @@ const Reports = () => {
               </select>
             </div>
 
-            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-              <Filter size={16} className="text-gray-400 mr-2" />
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full bg-transparent border-none focus:outline-none text-sm"
-              >
-                <option value="">Todos los estados</option>
-                <option value="Aprobada por Asistente">
-                  Aprobada por Asistente
-                </option>
-                <option value="Aprobada por Jefatura">
-                  Aprobada por Jefatura
-                </option>
-                <option value="Aprobada por Contabilidad">
-                  Aprobada por Contabilidad
-                </option>
-                <option value="No aprobada">No aprobada</option>
-              </select>
+            <div className="flex-1 relative status-dropdown">
+              <div className="flex-1 relative">
+                <div
+                  onClick={() => setIsStatusOpen(!isStatusOpen)}
+                  className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    <Filter size={16} className="text-gray-400 mr-2" />
+                    <span className="text-sm truncate">
+                      {getSelectedStatusDisplay()}
+                    </span>
+                  </div>
+                  <X
+                    size={16}
+                    className={`transform transition-transform ${isStatusOpen ? "rotate-45" : "rotate-0"
+                      }`}
+                  />
+                </div>
+
+                {isStatusOpen && (
+                  <div className="absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border max-h-64 overflow-y-auto">
+                    {[
+                      "Aprobada por Asistente",
+                      "Aprobada por Jefatura",
+                      "Aprobada por Contabilidad",
+                      "No aprobada"
+                    ].map((status) => (
+                      <div
+                        key={status}
+                        onClick={() => handleStatusToggle(status)}
+                        className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <span className="text-sm font-medium">{status}</span>
+                        {selectedStatuses.includes(status) && (
+                          <Check size={16} className="text-primary" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+
+            <Button
+              variant="outline"
+              size="small"
+              startIcon={<XCircle size={16} />}
+              onClick={resetFilters}
+              className="md:self-center"
+            >
+              Limpiar filtros
+            </Button>
           </div>
         </Card>
 

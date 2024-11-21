@@ -32,7 +32,7 @@ export const useTicketActions = () => {
       try {
         // First, assign technicians to the ticket
         await service.assignTechnicians(ticketId, technicians);
-  
+
         // If the ticket has a calendar event, update its attendees
         if (selectedTicket?.calendarEventId && selectedTicket?.tentativeDate) {
           // Get technician details for all assigned techs
@@ -47,7 +47,7 @@ export const useTicketActions = () => {
               };
             })
           );
-  
+
           // Filter out any undefined entries and update calendar event
           const validAttendees = techDetails.filter(tech => tech.email && tech.name);
           await service.updateCalendarEventAttendees(
@@ -56,7 +56,7 @@ export const useTicketActions = () => {
             validAttendees
           );
         }
-  
+
         await loadPostVentaData();
         closeModal();
       } catch (err) {
@@ -88,6 +88,204 @@ export const useTicketActions = () => {
             }
           }
         }
+        
+        // If we're closing the ticket, forward the original email
+        if (newStatus === "Cerrada" && selectedTicket?.messageId) {
+          // Get the original ticket details
+          const ticketDetails = await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${ticketId}`)
+            .expand('fields')
+            .get();
+
+          // Get location details
+          const siteDetails = await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.sites}/items/${ticketDetails.fields.SitioIDLookupId}`)
+            .expand('fields')
+            .get();
+
+          const buildingDetails = await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.buildings}/items/${siteDetails.fields.EdificioIDLookupId}`)
+            .expand('fields')
+            .get();
+
+          const companyDetails = await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.companies}/items/${buildingDetails.fields.EmpresaIDLookupId}`)
+            .expand('fields')
+            .get();
+
+          const systemName = (await service.client
+            .api(`/sites/${service.siteId}/lists/${service.config.lists.systems}/items/${ticketDetails.fields.SistemaIDLookupId}`)
+            .get()).fields.Title
+
+          // Build email content
+          const emailContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .header {
+            background-color: #00008B;
+            color: white;
+            padding: 20px;
+            border-radius: 6px 6px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00008B;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        .info-row {
+            display: block;
+            margin-bottom: 8px;
+        }
+        .label {
+            font-weight: bold;
+            color: #555555;
+        }
+        .value {
+            color: #333333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ST ${ticketDetails.fields.Title} - Cerrada</h1>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Información del Ticket</div>
+            <div class="info-row">
+                <span class="label">ST:</span>
+                <span class="value">${ticketDetails.fields.Title}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Tipo:</span>
+                <span class="value">${ticketDetails.fields.Tipo}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Sistema Afectado:</span>
+                <span class="value">${systemName}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Estado Final:</span>
+                <span class="value">${newStatus}</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Ubicación</div>
+            <div class="info-row">
+                <span class="label">Empresa:</span>
+                <span class="value">${companyDetails.fields.Title}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Edificio:</span>
+                <span class="value">${buildingDetails.fields.Title}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Sitio:</span>
+                <span class="value">${siteDetails.fields.Title}</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Información de Contacto</div>
+            ${siteDetails.fields.Nombrecontacto ? `
+            <div class="info-row">
+                <span class="label">Contacto:</span>
+                <span class="value">${siteDetails.fields.Nombrecontacto}</span>
+            </div>
+            ` : ''}
+            ${siteDetails.fields.Correoelectr_x00f3_nico ? `
+            <div class="info-row">
+                <span class="label">Email:</span>
+                <span class="value">${siteDetails.fields.Correoelectr_x00f3_nico}</span>
+            </div>
+            ` : ''}
+            ${siteDetails.fields.N_x00fa_merotelefonico ? `
+            <div class="info-row">
+                <span class="label">Teléfono:</span>
+                <span class="value">${siteDetails.fields.N_x00fa_merotelefonico}</span>
+            </div>
+            ` : ''}
+        </div>
+
+        <div class="section">
+            <div class="section-title">Documentos</div>
+            ${ticketDetails.fields.Descripci_x00f3_n ? `
+            <div class="info-row">
+                <span class="label">Descripción:</span>
+                <span class="value">
+                    <a href="${(await service.createShareLink(service.siteId, ticketDetails.fields.Descripci_x00f3_n, "view", "organization")).webUrl}">Ver documento</a>
+                </span>
+            </div>
+            ` : ''}
+            ${ticketDetails.fields.Boleta ? `
+            <div class="info-row">
+                <span class="label">Boleta de Servicio:</span>
+                <span class="value">
+                    <a href="${(await service.createShareLink(service.siteId, ticketDetails.fields.Boleta, "view", "organization")).webUrl}">Ver documento</a>
+                </span>
+            </div>
+            ` : ''}
+            ${ticketDetails.fields.Informe ? `
+            <div class="info-row">
+                <span class="label">Informe:</span>
+                <span class="value">
+                    <a href="${(await service.createShareLink(service.siteId, ticketDetails.fields.Informe, "view", "organization")).webUrl}">Ver documento</a>
+                </span>
+            </div>
+            ` : ''}
+        </div>
+    </div>
+</body>
+</html>`;
+
+          // Send email
+          await service.sendEmail({
+            toRecipients: ['andres.villalobos@edintel.com'],
+            subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
+            content: emailContent,
+            headers: [
+              {
+                name: 'References',
+                value: ticketDetails.fields.MessageId
+              },
+              {
+                name: 'In-Reply-To',
+                value: ticketDetails.fields.MessageId
+              }
+            ]
+          });
+        }
 
         // Update ticket status
         await service.updateTicketStatus(ticketId, newStatus);
@@ -100,8 +298,8 @@ export const useTicketActions = () => {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData, selectedTicket]
-  );
+    [service, selectedTicket, closeModal, loadPostVentaData]
+);
 
   const handleConfirmDate = useCallback(
     async (ticketId, newDate) => {
@@ -166,7 +364,7 @@ export const useTicketActions = () => {
             eventId,
             newDate
           );
-        } 
+        }
         // If no existing event and ticket has technicians, create new event
         else if (ticket.technicians?.length > 0) {
           eventId = await createCalendarEvent(ticket, newDate, ticket.technicians);
@@ -184,7 +382,7 @@ export const useTicketActions = () => {
       }
     },
     [service, selectedTicket, closeModal, loadPostVentaData]
-);
+  );
 
 
   const handleEditTicket = useCallback(
@@ -221,7 +419,7 @@ export const useTicketActions = () => {
       setProcessing(false);
     }
   }, [service, selectedTicket, closeModal, loadPostVentaData]);
-  
+
 
   const handleFileDownload = useCallback(
     async (itemId, fileName) => {
@@ -272,6 +470,19 @@ export const useTicketActions = () => {
     );
   }, [currentModal]);
 
+  const handleCreateShareLink = useCallback(async (fileId) => {
+    try {
+      const shareLink = await service.createShareLink(service.siteId, fileId, "view", "organization");
+
+      // Open link in new tab
+      window.open(shareLink.webUrl, '_blank');
+
+    } catch (err) {
+      console.error('Error creating share link:', err);
+      setError(err.message || 'Error al crear enlace compartido');
+    }
+  }, [service]);
+
   return {
     // Modal state
     currentModal,
@@ -291,6 +502,7 @@ export const useTicketActions = () => {
     handleEditTicket,
     handleDeleteTicket,
     handleFileDownload,
+    handleCreateShareLink,
   };
 };
 

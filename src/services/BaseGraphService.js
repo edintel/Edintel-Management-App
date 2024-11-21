@@ -1,4 +1,5 @@
 import { Client } from "@microsoft/microsoft-graph-client";
+import { generateUniqueMessageId } from "../utils/randomUtils";
 
 class BaseGraphService {
   constructor(msalInstance) {
@@ -269,6 +270,68 @@ class BaseGraphService {
       .api(`/groups/${groupId}/calendar/events/${eventId}`)
       .delete();
 
+  }
+
+  async createShareLink(siteId, itemId, type = "view", scope = "anonymous") {
+    await this.initializeGraphClient();
+
+    const response = await this.client
+      .api(`/sites/${siteId}/drive/items/${itemId}/createLink`)
+      .post({
+        type: type, // Can be "view", "edit", or "embed"
+        scope: scope // Can be "anonymous", "organization"
+      });
+
+    return response.link;
+  }
+
+  async sendEmail({ toRecipients, subject, content, ccRecipients = [], attachments = [] }) {
+    await this.initializeGraphClient();
+
+    const messageId = generateUniqueMessageId("MAIL").emailCompliantId;
+
+    const message = {
+      message: {
+        subject,
+        body: {
+          contentType: "HTML",
+          content
+        },
+        toRecipients: toRecipients.map(email => ({
+          emailAddress: { address: email }
+        })),
+        ccRecipients: ccRecipients.map(email => ({
+          emailAddress: { address: email }
+        })),
+        internetMessageId: messageId,
+        internetMessageHeaders: [
+          {
+            name: 'X-ST-Reference',
+            value: messageId
+          },
+          {
+            name: 'X-ST-Thread-Topic',
+            value: subject
+          }
+        ]
+      }
+    };
+
+    // Add attachments if provided
+    if (attachments.length > 0) {
+      message.message.attachments = attachments.map(attachment => ({
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: attachment.name,
+        contentType: attachment.type,
+        contentBytes: attachment.content // Base64 encoded content
+      }));
+    }
+
+    await this.client
+      .api('/me/sendMail')
+      .post(message);
+
+    return messageId;
   }
 }
 

@@ -90,6 +90,7 @@ const TicketForm = () => {
       const building = buildings.find(b => b.id === site.buildingId);
       const company = companies.find(c => c.id === building.companyId);
 
+      // Create ticket and get response which includes the description file ID
       const newTicket = await service.createServiceTicket(
         {
           st: formData.st,
@@ -103,6 +104,186 @@ const TicketForm = () => {
         formData.description
       );
 
+      // Create shareable link for the description file
+      const shareLink = await service.createShareLink(
+        service.siteId,
+        newTicket.fields.Descripci_x00f3_n,
+        "view",
+        "organization"
+      );
+
+      // Prepare email content
+      const emailContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .header {
+            background-color: #00008B;
+            color: white;
+            padding: 20px;
+            border-radius: 6px 6px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00008B;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        .info-row {
+            display: block;
+            margin-bottom: 8px;
+        }
+        .label {
+            font-weight: bold;
+            color: #555555;
+        }
+        .value {
+            color: #333333;
+        }
+        .contact-info {
+            background-color: #f0f4f8;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #00008B;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .button:hover {
+            background-color: #000066;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Nueva ST Ingresada</h1>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Información del Ticket</div>
+            <div class="info-row">
+                <span class="label">ST:</span>
+                <span class="value">${formData.st}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Tipo:</span>
+                <span class="value">${formData.type}</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Ubicación</div>
+            <div class="info-row">
+                <span class="label">Empresa:</span>
+                <span class="value">${company.name}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Edificio:</span>
+                <span class="value">${building.name}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Sitio:</span>
+                <span class="value">${site.name}</span>
+            </div>
+            ${site.location ? `
+            <div class="info-row">
+                <span class="label">Ubicación:</span>
+                <span class="value">${site.location}</span>
+            </div>
+            ` : ''}
+        </div>
+
+        <div class="section">
+            <div class="section-title">Sistema</div>
+            <div class="info-row">
+                <span class="label">Sistema Afectado:</span>
+                <span class="value">${systems.find(s => s.id === formData.systemId)?.name}</span>
+            </div>
+        </div>
+
+        ${site.contactName || site.contactEmail || site.contactPhone ? `
+        <div class="section">
+            <div class="section-title">Información de Contacto</div>
+            ${site.contactName ? `
+            <div class="info-row">
+                <span class="label">Contacto:</span>
+                <span class="value">${site.contactName}</span>
+            </div>
+            ` : ''}
+            ${site.contactEmail ? `
+            <div class="info-row">
+                <span class="label">Email:</span>
+                <span class="value">${site.contactEmail}</span>
+            </div>
+            ` : ''}
+            ${site.contactPhone ? `
+            <div class="info-row">
+                <span class="label">Teléfono:</span>
+                <span class="value">${site.contactPhone}</span>
+            </div>
+            ` : ''}
+        </div>
+        ` : ''}
+
+        <div class="section">
+            <div class="section-title">Descripción</div>
+            <a href="${shareLink.webUrl}" class="button">Ver descripción completa</a>
+        </div>
+    </div>
+</body>
+</html>
+`;
+
+      // Send notification email
+      const messageId = await service.sendEmail({
+        toRecipients: ['andres.villalobos@edintel.com'],
+        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${systems.find(s => s.id === formData.systemId)?.name}`,
+        content: emailContent
+      });
+
+      await service.client
+        .api(encodeURIComponent(`/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${newTicket.id}`))
+        .patch({
+          fields: {
+            MessageId: messageId // Assuming you have this field in your SharePoint list
+          }
+        });
+
+      // Update UI state and navigate
       setServiceTickets(prev => [
         {
           id: newTicket.id,
@@ -113,7 +294,8 @@ const TicketForm = () => {
           state: "Iniciada",
           technicians: [],
           systemId: newTicket.fields.SistemaIDLookupId,
-          createdBy: newTicket.createdBy
+          createdBy: newTicket.createdBy,
+          MessageId: messageId
         },
         ...prev
       ]);

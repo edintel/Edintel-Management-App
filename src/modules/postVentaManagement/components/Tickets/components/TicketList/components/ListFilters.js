@@ -29,21 +29,33 @@ const ListFilters = ({
     "Cerrada",
   ];
 
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const statusDropdownRef = useRef(null);
+
   const userDropdownRef = useRef(null);
 
-  const users = roles
+  const users = (roles
     .filter((role) => role.employee)
     .map((role) => ({
       id: role.employee.LookupId,
       name: role.employee.LookupValue,
       role: role.role,
-    }));
+    }))).sort((a, b) => 
+      a.name.localeCompare(b.name)
+    );
 
   const handleUserToggle = (userId) => {
     const newSelection = selectedUsers.includes(userId)
       ? selectedUsers.filter((id) => id !== userId)
       : [...selectedUsers, userId];
     onUsersChange(newSelection);
+  };
+
+  const handleStatusToggle = (status) => {
+    const newSelection = selectedState.includes(status)
+      ? selectedState.filter(s => s !== status)
+      : [...selectedState, status];
+    onStateChange(newSelection);
   };
 
   const getSelectedUsersDisplay = () => {
@@ -54,6 +66,13 @@ const ListFilters = ({
     }
     return `${selectedUsers.length} usuarios seleccionados`;
   };
+
+  const getSelectedStatusDisplay = () => {
+    if (selectedState.length === 0) return "Todos los estados";
+    if (selectedState.length === 1) return selectedState[0];
+    return `${selectedState.length} estados seleccionados`;
+  };
+
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -73,6 +92,25 @@ const ListFilters = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isUsersOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        statusDropdownRef.current &&
+        !statusDropdownRef.current.contains(event.target)
+      ) {
+        setIsStatusOpen(false);
+      }
+    };
+  
+    if (isStatusOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+  
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isStatusOpen]);
 
   return (
     <Card>
@@ -102,20 +140,40 @@ const ListFilters = ({
         {/* Status and Users Filters */}
         <div className="flex-1 relative" ref={userDropdownRef}>
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-              <Filter size={16} className="text-gray-400 mr-2" />
-              <select
-                value={selectedState}
-                onChange={(e) => onStateChange(e.target.value)}
-                className="w-full bg-transparent border-none focus:outline-none text-sm"
+            <div className="flex-1 relative" ref={statusDropdownRef}>
+              <div
+                onClick={() => setIsStatusOpen(!isStatusOpen)}
+                className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 cursor-pointer"
               >
-                <option value="">Todos los estados</option>
-                {stateOptions.map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
+                <div className="flex items-center">
+                  <Filter size={16} className="text-gray-400 mr-2" />
+                  <span className="text-sm truncate">
+                    {getSelectedStatusDisplay()}
+                  </span>
+                </div>
+                <X
+                  size={16}
+                  className={`transform transition-transform ${isStatusOpen ? "rotate-45" : "rotate-0"
+                    }`}
+                />
+              </div>
+
+              {isStatusOpen && (
+                <div className="absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border max-h-64 overflow-y-auto">
+                  {stateOptions.map((state) => (
+                    <div
+                      key={state}
+                      onClick={() => handleStatusToggle(state)}
+                      className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <span className="text-sm font-medium">{state}</span>
+                      {selectedState.includes(state) && (
+                        <Check size={16} className="text-primary" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex-1 relative">
@@ -131,9 +189,8 @@ const ListFilters = ({
                 </div>
                 <X
                   size={16}
-                  className={`transform transition-transform ${
-                    isUsersOpen ? "rotate-45" : "rotate-0"
-                  }`}
+                  className={`transform transition-transform ${isUsersOpen ? "rotate-45" : "rotate-0"
+                    }`}
                 />
               </div>
 
