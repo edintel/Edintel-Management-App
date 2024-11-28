@@ -94,6 +94,17 @@ const ListTable = ({
       render: (value) => value || "N/A",
     },
     {
+      key: "scope",
+      header: "Alcance",
+      render: (value) => {
+        return (
+          <div className="max-w-[150px] break-words">
+            {value || "N/A"}
+          </div>
+        );
+      },
+    },
+    {
       key: "state",
       header: "Estado",
       render: (value) => <TicketStatusBadge status={value} />,

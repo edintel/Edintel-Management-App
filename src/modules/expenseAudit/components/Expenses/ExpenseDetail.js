@@ -62,13 +62,13 @@ const ExpenseDetail = () => {
   }, [id, expenseReports, reportsLoading]);
 
   const handleBack = () => {
-  navigate(returnPath, { 
-    state: { 
-      ...location.state,
-      preserveFilters: true 
-    } 
-  });
-};
+    navigate(returnPath, {
+      state: {
+        ...location.state,
+        preserveFilters: true
+      }
+    });
+  };
 
   const handleEdit = () => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.EDIT(id), {
@@ -131,7 +131,7 @@ const ExpenseDetail = () => {
     }
   };
 
-  
+
 
   if (loading || reportsLoading) {
     return (
@@ -238,18 +238,18 @@ const ExpenseDetail = () => {
         prevReports.map((report) =>
           report.id === id
             ? {
-                ...report,
-                bloqueoEdicion: true,
-                notasRevision: notes,
-                aprobacionAsistente:
-                  type === "assistant" ? status : report.aprobacionAsistente,
-                aprobacionJefatura:
-                  type === "boss" ? status : report.aprobacionJefatura,
-                aprobacionContabilidad:
-                  type === "accounting"
-                    ? status
-                    : report.aprobacionContabilidad,
-              }
+              ...report,
+              bloqueoEdicion: true,
+              notasRevision: notes,
+              aprobacionAsistente:
+                type === "assistant" ? status : report.aprobacionAsistente,
+              aprobacionJefatura:
+                type === "boss" ? status : report.aprobacionJefatura,
+              aprobacionContabilidad:
+                type === "accounting"
+                  ? status
+                  : report.aprobacionContabilidad,
+            }
             : report
         )
       );
@@ -390,6 +390,12 @@ const ExpenseDetail = () => {
           </Card>
 
           <Card className="lg:col-span-2">
+            {expense.notas && (
+              <div className="p-6 border-t">
+                <h3 className="text-lg font-semibold mb-4">Notas adicionales</h3>
+                <p className="text-gray-700 whitespace-pre-wrap">{expense.notas}</p>
+              </div>
+            )}
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4">Comprobante</h3>
               {expense.comprobante ? (

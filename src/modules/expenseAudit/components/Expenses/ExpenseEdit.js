@@ -82,6 +82,7 @@ const ExpenseEdit = () => {
         comprobante: expense.comprobante,
         facturaDividida: expense.facturaDividida || false,
         integrantes: expense.integrantes || "",
+        notas: expense.notas || ""
       });
 
       if (expense.comprobante) {
@@ -143,8 +144,8 @@ const ExpenseEdit = () => {
       const fileToUpload = isNewFile
         ? formData.comprobante
         : imageRemoved
-        ? null
-        : undefined;
+          ? null
+          : undefined;
 
       const updatedExpense = await service.updateExpenseReport(
         id,
@@ -156,30 +157,31 @@ const ExpenseEdit = () => {
         prevReports.map((report) =>
           report.id === id
             ? {
-                ...report,
-                rubro: updatedExpense.fields.Rubro,
-                monto: parseFloat(updatedExpense.fields.Monto),
-                fecha: new Date(updatedExpense.fields.Fecha),
-                st: updatedExpense.fields.ST,
-                fondosPropios: Boolean(updatedExpense.fields.Fondospropios),
-                motivo: updatedExpense.fields.Title || "",
-                comprobante: updatedExpense.fields.Comprobante,
-                facturaDividida: Boolean(updatedExpense.fields.FacturaDividida),
-                integrantes: updatedExpense.fields.Integrantes || "",
-                bloqueoEdicion: Boolean(
-                  updatedExpense.fields.Bloqueoedici_x00f3_n
-                ),
-                aprobacionAsistente:
-                  updatedExpense.fields.Aprobaci_x00f3_n_x0020_Departame ||
-                  report.aprobacionAsistente,
-                aprobacionJefatura:
-                  updatedExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura ||
-                  report.aprobacionJefatura,
-                aprobacionContabilidad:
-                  updatedExpense.fields.Aprobaci_x00f3_n_x0020_Contabili ||
-                  report.aprobacionContabilidad,
-                createdBy: report.createdBy,
-              }
+              ...report,
+              rubro: updatedExpense.fields.Rubro,
+              monto: parseFloat(updatedExpense.fields.Monto),
+              fecha: new Date(updatedExpense.fields.Fecha),
+              st: updatedExpense.fields.ST,
+              fondosPropios: Boolean(updatedExpense.fields.Fondospropios),
+              motivo: updatedExpense.fields.Title || "",
+              comprobante: updatedExpense.fields.Comprobante,
+              facturaDividida: Boolean(updatedExpense.fields.FacturaDividida),
+              integrantes: updatedExpense.fields.Integrantes || "",
+              bloqueoEdicion: Boolean(
+                updatedExpense.fields.Bloqueoedici_x00f3_n
+              ),
+              aprobacionAsistente:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Departame ||
+                report.aprobacionAsistente,
+              aprobacionJefatura:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura ||
+                report.aprobacionJefatura,
+              aprobacionContabilidad:
+                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Contabili ||
+                report.aprobacionContabilidad,
+              createdBy: report.createdBy,
+              notas: updatedExpense.fields.Notas,
+            }
             : report
         )
       );
@@ -191,7 +193,7 @@ const ExpenseEdit = () => {
       console.error("Error updating expense:", err);
       setError(
         err.message ||
-          "Error al actualizar el gasto. Por favor intente nuevamente."
+        "Error al actualizar el gasto. Por favor intente nuevamente."
       );
     } finally {
       setLoading(false);
@@ -361,6 +363,24 @@ const ExpenseEdit = () => {
               />
             </div>
           )}
+
+          <div className="space-y-2">
+            <label
+              htmlFor="notas"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Notas adicionales
+            </label>
+            <textarea
+              id="notas"
+              name="notas"
+              value={formData.notas}
+              onChange={handleInputChange}
+              rows={3}
+              className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+              placeholder="Ingrese notas adicionales sobre el gasto"
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">

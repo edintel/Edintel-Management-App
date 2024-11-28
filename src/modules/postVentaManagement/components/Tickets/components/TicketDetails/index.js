@@ -12,6 +12,7 @@ import {
 } from "../../permissions/ticketActionPermissions";
 
 // Components
+import Card from "../../../../../../components/common/Card";
 import DetailHeader from "./components/DetailHeader";
 import LocationInfo from "./components/LocationInfo";
 import TimelineSection from "./components/TimelineSection";
@@ -96,8 +97,13 @@ const TicketDetails = () => {
         showEditDelete={canEdit || canDelete}
       />
 
+      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+        <Card title={"Alcance"}>
+        {ticket.scope}
+      </Card>
           <TimelineSection ticket={ticket} />
           <FilesSection
             ticket={ticket}

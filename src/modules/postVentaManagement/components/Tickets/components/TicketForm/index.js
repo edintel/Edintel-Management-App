@@ -25,6 +25,7 @@ const TicketForm = () => {
 
   const [formData, setFormData] = useState({
     st: '',
+    scope: '',
     location: {
       companyId: '',
       buildingId: '',
@@ -94,6 +95,7 @@ const TicketForm = () => {
       const newTicket = await service.createServiceTicket(
         {
           st: formData.st,
+          scope: formData.scope,
           siteId: formData.location.siteId,
           systemId: formData.systemId,
           type: formData.type,
@@ -202,6 +204,11 @@ const TicketForm = () => {
             <div class="info-row">
                 <span class="label">Tipo:</span>
                 <span class="value">${formData.type}</span>
+                
+            </div>
+            <div class="info-row">
+                <span class="label">Alcance:</span>
+                <span class="value">${formData.scope}</span>
             </div>
         </div>
 
@@ -289,6 +296,7 @@ const TicketForm = () => {
           id: newTicket.id,
           stNumber: newTicket.fields.Title,
           type: newTicket.fields.Tipo,
+          scope: newTicket.fields.alcance,
           descriptionId: newTicket.fields.Descripci_x00f3_n,
           siteId: newTicket.fields.SitioIDLookupId,
           state: "Iniciada",
@@ -342,6 +350,21 @@ const TicketForm = () => {
             />
             {errors.st && (
               <p className="text-sm text-error">{errors.st}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Alcance *
+            </label>
+            <textarea
+              value={formData.scope}
+              onChange={(e) => setFormData(prev => ({ ...prev, scope: e.target.value }))}
+              placeholder="Explique el alcance del trabajo"
+              className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary min-h-[100px] resize-y"
+            />
+            {errors.scope && (
+              <p className="text-sm text-error">{errors.scope}</p>
             )}
           </div>
 

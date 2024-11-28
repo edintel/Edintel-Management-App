@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
 import Table from "../../../../components/common/Table";
@@ -7,9 +8,10 @@ import DateRangePicker from "../../../../components/common/DateRangePicker";
 import ExpenseSummary from "./ExpenseSummary";
 import PrintSummary from "./PrintSummary";
 import { Filter, Search, Users, FileDown, Printer, Copy, XCircle, X, Check } from "lucide-react";
+import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 
 const Reports = () => {
-  const { expenseReports, departmentWorkers, loading } = useExpenseAudit();
+  const { expenseReports, departmentWorkers, loading, reportFilters, setReportFilters } = useExpenseAudit();
   const [dateRange, setDateRange] = useState({
     startDate: null,
     endDate: null,
@@ -18,6 +20,9 @@ const Reports = () => {
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isStatusOpen, setIsStatusOpen] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const columns = [
     {
@@ -121,6 +126,39 @@ const Reports = () => {
     if (selectedStatuses.length === 0) return "Todos los estados";
     if (selectedStatuses.length === 1) return selectedStatuses[0];
     return `${selectedStatuses.length} estados seleccionados`;
+  };
+
+  useEffect(() => {
+    if (location.state?.preserveFilters && Filter) {
+      setSearchTerm(reportFilters.searchTerm || "");
+      setDateRange({
+        startDate: reportFilters.startDate || null,
+        endDate: reportFilters.endDate || null
+      });
+      setSelectedPerson(reportFilters.selectedPerson || "");
+      setSelectedStatuses(reportFilters.selectedStatuses || []);
+    }
+  }, [location.state?.preserveFilters, reportFilters]);
+  
+  // Add filter saving effect:
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setReportFilters({
+          searchTerm,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          selectedPerson,
+          selectedStatuses
+      });
+    }, 300);
+  
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, dateRange, selectedPerson, selectedStatuses, setReportFilters]);
+
+  const handleRowClick = (expense) => {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
+      state: { from: location },
+    });
   };
 
   const handleStatusToggle = (status) => {
@@ -435,6 +473,7 @@ const Reports = () => {
             <Table
               columns={columns}
               data={filteredExpenses}
+              onRowClick={handleRowClick}
               isLoading={loading}
               emptyMessage={
                 <div className="flex flex-col items-center justify-center py-12">

@@ -4,7 +4,8 @@ import { generateRandomNumber } from "../../../../utils/randomUtils";
 class PostVentaManagementService extends BaseGraphService {
   constructor(msalInstance, config) {
     super(msalInstance);
-    this.config = config;
+    this.config = config.general;
+    this.admins = config.admins;
     this.loginRequest = {
       scopes: [
         "User.Read",
@@ -73,7 +74,7 @@ class PostVentaManagementService extends BaseGraphService {
       contactName: item.fields.Nombrecontacto,
       contactEmail: item.fields.Correoelectr_x00f3_nico,
       contactPhone: item.fields.N_x00fa_merotelefonico,
-      systems: item.fields.SistemasID_x003a__x0020_Title || [],
+      systems: item.fields.SistemasID_x003a__x0020_Sistema || [],
     }));
   }
 
@@ -94,6 +95,7 @@ class PostVentaManagementService extends BaseGraphService {
     );
     return items.map((item) => ({
       id: item.id,
+      scope: item.fields.alcance,
       stNumber: item.fields.Title,
       type: item.fields.Tipo,
       descriptionId: item.fields.Descripci_x00f3_n,
@@ -150,6 +152,7 @@ class PostVentaManagementService extends BaseGraphService {
         SitioIDLookupId: stData.siteId,
         SistemaIDLookupId: stData.systemId,
         Descripci_x00f3_n: fileId,
+        alcance: stData.scope,
         Estado: "Iniciada",
         Tipo: stData.type,
       };
@@ -563,6 +566,7 @@ class PostVentaManagementService extends BaseGraphService {
         Title: data.st,
         SitioIDLookupId: parseInt(data.siteId),
         SistemaIDLookupId: parseInt(data.systemId),
+        alcance: data.scope,
         Tipo: data.type,
       };
 
