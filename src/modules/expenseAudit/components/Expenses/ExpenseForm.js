@@ -22,6 +22,7 @@ const ExpenseForm = () => {
     comprobante: null,
     facturaDividida: false,
     integrantes: "",
+    notas: "",
   });
 
   const dateLimits = useMemo(() => {
@@ -127,6 +128,7 @@ const ExpenseForm = () => {
           email: newExpense.createdBy.user.email,
           id: newExpense.createdBy.user.id,
         },
+        notas: newExpense.fields.Notas,
       };
 
       setExpenseReports((prevReports) => [formattedExpense, ...prevReports]);
@@ -321,6 +323,24 @@ const ExpenseForm = () => {
               />
             </div>
           )}
+
+          <div className="space-y-2">
+            <label
+              htmlFor="notas"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Notas adicionales
+            </label>
+            <textarea
+              id="notas"
+              name="notas"
+              value={formData.notas}
+              onChange={handleInputChange}
+              rows={3}
+              className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+              placeholder="Ingrese notas adicionales sobre el gasto"
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">

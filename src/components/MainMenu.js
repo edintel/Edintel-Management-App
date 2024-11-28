@@ -39,8 +39,8 @@ const MainMenu = () => {
 
         // Check PostVenta access
         try {
-          const postVentaSiteId = await baseService.getSiteId(postVentaConfig.siteName);
-          const roles = await baseService.getListItems(postVentaSiteId, postVentaConfig.lists.roles);
+          const postVentaSiteId = await baseService.getSiteId(postVentaConfig.general.siteName);
+          const roles = await baseService.getListItems(postVentaSiteId, postVentaConfig.general.lists.roles);
           
           const userHasPostVentaRole = roles.some(role => 
             role.fields.Empleado?.[0]?.Email === user.username

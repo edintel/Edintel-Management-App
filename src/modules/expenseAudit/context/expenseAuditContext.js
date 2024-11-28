@@ -30,6 +30,18 @@ export function AppProviderExpenseAudit({ children }) {
       endDate: "",
       selectedPerson: "",
       viewMode: "pending"
+    },
+    expenseListFilters: {
+      searchTerm: "",
+      startDate: "",
+      endDate: "",
+    },
+    reportFilters: {
+      searchTerm: "",
+      startDate: "",
+      endDate: "",
+      selectedPerson: "",
+      selectedStatuses: []
     }
   });
 
@@ -161,7 +173,9 @@ export function useExpenseAudit() {
       userDepartmentRole,
       loading,
       error,
-      approvalFilters    
+      approvalFilters,
+      reportFilters,
+      expenseListFilters    
     },
     initialized,
     updateExpenseReports,
@@ -181,6 +195,11 @@ export function useExpenseAudit() {
     initialized,
     approvalFilters,
     setApprovalFilters: (filters) => setExpenseState(prev => ({ ...prev, approvalFilters: filters })),
+    expenseListFilters,
+    setExpenseListFilters: (filters) => setExpenseState(prev => ({ ...prev, expenseListFilters: filters })),
+    reportFilters,
+    setReportFilters: (filters) => setExpenseState(prev => ({ ...prev, reportFilters: filters })),
+
     setExpenseReports: updateExpenseReports,
     loadExpenseData,
   };

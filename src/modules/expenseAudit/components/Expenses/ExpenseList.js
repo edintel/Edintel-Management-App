@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useCallback, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import { useAuth } from "../../../../components/AuthProvider";
 import Card from "../../../../components/common/Card";
@@ -12,7 +12,9 @@ import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 const ExpenseList = () => {
   const today = new Date();
   const navigate = useNavigate();
-  const { expenseReports, loading } = useExpenseAudit();
+  const location = useLocation();
+
+  const { expenseReports, loading, expenseListFilters, setExpenseListFilters, } = useExpenseAudit();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -80,6 +82,26 @@ const ExpenseList = () => {
       },
     },
   ];
+
+  useEffect(() => {
+    if (location.state?.preserveFilters && expenseListFilters) {
+      setSearchTerm(expenseListFilters.searchTerm || "");
+      setStartDate(expenseListFilters.startDate || "");
+      setEndDate(expenseListFilters.endDate || "");
+    }
+  }, [location.state?.preserveFilters, expenseListFilters]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setExpenseListFilters({
+        searchTerm,
+        startDate,
+        endDate,
+      });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, startDate, endDate, setExpenseListFilters]);
 
   const filterExpenses = useCallback(() => {
     return expenseReports

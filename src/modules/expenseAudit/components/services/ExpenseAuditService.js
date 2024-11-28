@@ -47,6 +47,7 @@ class ExpenseAuditService extends BaseGraphService {
         email: item.createdBy.user.email || "",
         id: item.createdBy.user.id || "",
       },
+      notas: item.fields.Notas || "",
     }));
   }
 
@@ -76,6 +77,7 @@ class ExpenseAuditService extends BaseGraphService {
       Comprobante: comprobanteId,
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
+      Notas: expenseData.notas,
     };
 
     const response = await this.client
@@ -159,6 +161,7 @@ class ExpenseAuditService extends BaseGraphService {
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
       Comprobante: comprobanteId,
+      Notas: expenseData.notas,
     };
 
     try {
