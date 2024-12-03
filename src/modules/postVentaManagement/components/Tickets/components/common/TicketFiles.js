@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, FileDown, Download, Loader2, AlertCircle, Link } from 'lucide-react';
+import { FileText, Loader2, AlertCircle, Link } from 'lucide-react';
 import { cn } from '../../../../../../utils/cn';
 
 const FileTypes = {
@@ -15,12 +15,12 @@ const FileConfig = {
     fileNameSuffix: 'descripcion'
   },
   [FileTypes.SERVICE_TICKET]: {
-    icon: Download,
+    icon: FileText,
     label: 'Boleta de Servicio',
     fileNameSuffix: 'boleta'
   },
   [FileTypes.REPORT]: {
-    icon: FileDown,
+    icon: FileText,
     label: 'Informe',
     fileNameSuffix: 'informe'
   }

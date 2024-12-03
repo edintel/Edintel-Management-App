@@ -1,4 +1,3 @@
-// src/modules/postVentaManagement/components/Tickets/components/TicketList/components/TicketActionsMenu.js
 import React, { useState, useRef, useEffect } from "react";
 import {
   MoreVertical,
@@ -28,6 +27,7 @@ const TicketActionsMenu = ({
 }) => {
   const { userRole } = usePostVentaManagement();
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
@@ -110,6 +110,41 @@ const TicketActionsMenu = ({
     action();
   };
 
+  // Calculate menu position
+  const updateMenuPosition = () => {
+    if (!buttonRef.current || !menuRef.current) return;
+
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const menuRect = menuRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // Check if menu would overflow bottom of viewport
+    const wouldOverflowBottom = buttonRect.bottom + menuRect.height > viewportHeight;
+
+    // Position horizontally
+    const left = buttonRect.left - menuRect.width + buttonRect.width;
+
+    // Position vertically based on available space
+    const top = wouldOverflowBottom
+      ? buttonRect.top - menuRect.height // Position above button
+      : buttonRect.bottom; // Position below button
+
+    setMenuPosition({
+      top: Math.max(0, top), // Ensure menu doesn't go above viewport
+      left: Math.max(0, left), // Ensure menu doesn't go off left edge
+    });
+  };
+
+  // Update position when opening menu
+  const handleToggleMenu = (e) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      // Use setTimeout to ensure DOM is updated before calculating position
+      setTimeout(updateMenuPosition, 0);
+    }
+  };
+
   // Configuration for each action type
   const actionConfig = {
     [TICKET_ACTIONS.ASSIGN_TECH]: {
@@ -157,10 +192,7 @@ const TicketActionsMenu = ({
     <div className="relative flex items-center justify-end">
       <button
         ref={buttonRef}
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
+        onClick={handleToggleMenu}
         className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
       >
         <MoreVertical size={16} />
@@ -171,8 +203,8 @@ const TicketActionsMenu = ({
           ref={menuRef}
           className="fixed z-50 w-48 bg-white rounded-lg shadow-lg border overflow-hidden"
           style={{
-            top: buttonRef.current.getBoundingClientRect().bottom + 4,
-            left: buttonRef.current.getBoundingClientRect().left - 180,
+            top: `${menuPosition.top}px`,
+            left: `${menuPosition.left}px`,
           }}
           onClick={(e) => e.stopPropagation()}
         >
