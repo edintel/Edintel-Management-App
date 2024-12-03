@@ -1,93 +1,119 @@
-import { useState, useCallback } from 'react';
+// src/modules/postVentaManagement/components/Tickets/hooks/useTicketState.js
+import { useState, useCallback, useEffect } from "react";
+
+const STORAGE_KEY = "ticketListFilters";
 
 export const useTicketState = () => {
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedState, setSelectedState] = useState([]);
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  
-  // View states
-  const [viewMode, setViewMode] = useState('list');
-  const [selectedTickets, setSelectedTickets] = useState([]);
-  
-  // Sort states
-  const [sortField, setSortField] = useState('tentativeDate');
-  const [sortDirection, setSortDirection] = useState('desc');
+  // Initialize state from sessionStorage or defaults
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const filters = JSON.parse(stored);
+      return filters.searchTerm || "";
+    }
+    return "";
+  });
+
+  const [startDate, setStartDate] = useState(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const filters = JSON.parse(stored);
+      return filters.startDate || "";
+    }
+    return "";
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const filters = JSON.parse(stored);
+      return filters.endDate || "";
+    }
+    return "";
+  });
+
+  const [selectedState, setSelectedState] = useState(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const filters = JSON.parse(stored);
+      return filters.selectedState || [];
+    }
+    return [];
+  });
+
+  const [selectedUsers, setSelectedUsers] = useState(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const filters = JSON.parse(stored);
+      return filters.selectedUsers || [];
+    }
+    return [];
+  });
+
+  // Save to sessionStorage whenever filters change
+  useEffect(() => {
+    const filters = {
+      searchTerm,
+      startDate,
+      endDate,
+      selectedState,
+      selectedUsers,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+  }, [searchTerm, startDate, endDate, selectedState, selectedUsers]);
+
+  // Custom setters that handle both state and storage
+  const handleSetSearchTerm = useCallback((value) => {
+    setSearchTerm(value);
+  }, []);
+
+  const handleSetStartDate = useCallback((value) => {
+    setStartDate(value);
+  }, []);
+
+  const handleSetEndDate = useCallback((value) => {
+    setEndDate(value);
+  }, []);
+
+  const handleSetSelectedState = useCallback((value) => {
+    setSelectedState(value);
+  }, []);
+
+  const handleSetSelectedUsers = useCallback((value) => {
+    setSelectedUsers(value);
+  }, []);
 
   // Reset all filters
   const resetFilters = useCallback(() => {
-    setSearchTerm('');
-    setStartDate('');
-    setEndDate('');
+    setSearchTerm("");
+    setStartDate("");
+    setEndDate("");
     setSelectedState([]);
     setSelectedUsers([]);
-  }, []);
-
-  // Toggle ticket selection for batch operations
-  const toggleTicketSelection = useCallback((ticketId) => {
-    setSelectedTickets(prev => {
-      if (prev.includes(ticketId)) {
-        return prev.filter(id => id !== ticketId);
-      } else {
-        return [...prev, ticketId];
-      }
-    });
-  }, []);
-
-  // Handle sort changes
-  const handleSort = useCallback((field) => {
-    setSortField(currentField => {
-      if (currentField === field) {
-        setSortDirection(currentDirection => 
-          currentDirection === 'asc' ? 'desc' : 'asc'
-        );
-        return field;
-      }
-      setSortDirection('asc');
-      return field;
-    });
+    sessionStorage.removeItem(STORAGE_KEY);
   }, []);
 
   // Check if any filters are active
   const hasActiveFilters = Boolean(
-    searchTerm || 
-    startDate || 
-    endDate || 
-    selectedState || 
-    selectedUsers.length > 0
+    searchTerm ||
+      startDate ||
+      endDate ||
+      selectedState.length > 0 ||
+      selectedUsers.length > 0
   );
 
   return {
-    // Filter states
     searchTerm,
-    setSearchTerm,
+    setSearchTerm: handleSetSearchTerm,
     startDate,
-    setStartDate,
+    setStartDate: handleSetStartDate,
     endDate,
-    setEndDate,
+    setEndDate: handleSetEndDate,
     selectedState,
-    setSelectedState,
+    setSelectedState: handleSetSelectedState,
     selectedUsers,
-    setSelectedUsers,
-    
-    // View states
-    viewMode,
-    setViewMode,
-    selectedTickets,
-    setSelectedTickets,
-    
-    // Sort states
-    sortField,
-    sortDirection,
-    
-    // Actions
+    setSelectedUsers: handleSetSelectedUsers,
     resetFilters,
-    toggleTicketSelection,
-    handleSort,
-    
-    // Computed
-    hasActiveFilters
+    hasActiveFilters,
   };
 };
