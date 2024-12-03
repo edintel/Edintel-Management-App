@@ -69,7 +69,7 @@ const FileUpload = ({
     <div className={cn("space-y-2", className)}>
       <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
         <FileText className="w-4 h-4 text-gray-400" />
-        Descripción *
+        Descripción
       </label>
 
       <div

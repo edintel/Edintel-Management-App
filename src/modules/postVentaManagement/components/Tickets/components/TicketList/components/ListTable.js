@@ -8,6 +8,7 @@ import TicketStatusBadge from "../../common/TicketStatusBadge";
 import TicketActionsMenu from "./TicketActionsMenu";
 import { POST_VENTA_ROUTES } from "../../../../../routes";
 import { MODAL_TYPES } from "../../../modals";
+import TentativeDate from "../../common/TentativeDate";
 
 const ListTable = ({
   tickets = [],
@@ -112,8 +113,7 @@ const ListTable = ({
     {
       key: "tentativeDate",
       header: "Fecha Tentativa",
-      render: (value) =>
-        value ? new Date(value).toLocaleDateString("es-CR") : "No programada",
+      render: (value) => value ? <TentativeDate date={value} /> : "No programada",
     },
     {
       key: "actions",

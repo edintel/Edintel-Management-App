@@ -4,7 +4,7 @@ import { usePostVentaManagement } from '../../../../context/postVentaManagementC
 import { POST_VENTA_ROUTES } from '../../../../routes';
 import Card from '../../../../../../components/common/Card';
 import Button from '../../../../../../components/common/Button';
-import { Save, Loader2, AlertTriangle } from 'lucide-react';
+import { Save, Loader2, AlertTriangle, X, FileText } from 'lucide-react';
 
 // Form Components
 import LocationSelect from './components/LocationSelect';
@@ -20,7 +20,7 @@ const TicketForm = () => {
     systems,
     service,
     loading: contextLoading,
-    setServiceTickets
+    loadPostVentaData,
   } = usePostVentaManagement();
 
   const [formData, setFormData] = useState({
@@ -33,14 +33,14 @@ const TicketForm = () => {
     },
     systemId: '',
     type: '',
-    description: null
+    description: null,
+    adminFiles: [] // New state for administrative files
   });
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Get available systems for selected site
   const availableSystems = formData.location.siteId ?
     sites.find(site => site.id === formData.location.siteId)?.systems : [];
 
@@ -71,12 +71,24 @@ const TicketForm = () => {
       newErrors.type = 'Seleccione un tipo de servicio';
     }
 
-    if (!formData.description) {
-      newErrors.description = 'Adjunte un archivo de descripción';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // New function to handle adding admin files
+  const handleAdminFileAdd = (file, adminType) => {
+    setFormData(prev => ({
+      ...prev,
+      adminFiles: [...prev.adminFiles, { file, type: adminType }]
+    }));
+  };
+
+  // New function to remove admin files
+  const handleAdminFileRemove = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      adminFiles: prev.adminFiles.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -106,14 +118,54 @@ const TicketForm = () => {
         formData.description
       );
 
-      // Create shareable link for the description file
-      const shareLink = await service.createShareLink(
-        service.siteId,
-        newTicket.fields.Descripci_x00f3_n,
-        "view",
-        "organization"
+      // Upload admin files and collect their share links
+      const adminFileResults = await Promise.all(
+        formData.adminFiles.map(async ({ file, type }) => {
+          const fileId = await service.uploadFile(
+            service.config.admins.siteId,
+            service.config.admins.driveId,
+            file,
+            `/Boletas ST/${company.name}/${building.name}/${site.name}/${formData.st}`,
+            `${type}_${Date.now()}`
+          );
+
+          // Create list item in docsAdmins
+          await service.client
+            .api(`/sites/${service.config.admins.siteId}/lists/${service.config.admins.lists.docsAdmins}/items`)
+            .post({
+              fields: {
+                ticketId: newTicket.id,
+                fileName: type,
+                itemId: fileId,
+                documentType: 'administrative'
+              }
+            });
+
+          const shareLink = await service.createShareLink(
+            service.config.admins.siteId,
+            fileId,
+            "view",
+            "organization"
+          );
+
+          return {
+            type,
+            webUrl: shareLink.webUrl
+          };
+        })
       );
 
+      let shareLink = null;
+      if (formData.description) {
+        // Create shareable link for the description file
+        shareLink = await service.createShareLink(
+          service.siteId,
+          newTicket.fields.Descripci_x00f3_n,
+          "view",
+          "organization"
+        );
+        console.log("xd")
+      }
       // Prepare email content
       const emailContent = `
 <!DOCTYPE html>
@@ -266,10 +318,25 @@ const TicketForm = () => {
         </div>
         ` : ''}
 
+        ${shareLink?.webUrl ? `
         <div class="section">
             <div class="section-title">Descripción</div>
             <a href="${shareLink.webUrl}" class="button">Ver descripción completa</a>
         </div>
+        ` : ''}
+        ${adminFileResults.length > 0 ? `
+          <div class="section">
+              <div class="section-title">Archivos Administrativos</div>
+              ${adminFileResults.map(file => `
+                  <div class="info-row">
+                      <span class="label">${file.type}:</span>
+                      <span class="value">
+                          <a href="${file.webUrl}">Ver documento</a>
+                      </span>
+                  </div>
+              `).join('')}
+          </div>
+          ` : ''}
     </div>
 </body>
 </html>
@@ -290,24 +357,7 @@ const TicketForm = () => {
           }
         });
 
-      // Update UI state and navigate
-      setServiceTickets(prev => [
-        {
-          id: newTicket.id,
-          stNumber: newTicket.fields.Title,
-          type: newTicket.fields.Tipo,
-          scope: newTicket.fields.alcance,
-          descriptionId: newTicket.fields.Descripci_x00f3_n,
-          siteId: newTicket.fields.SitioIDLookupId,
-          state: "Iniciada",
-          technicians: [],
-          systemId: newTicket.fields.SistemaIDLookupId,
-          createdBy: newTicket.createdBy,
-          MessageId: messageId
-        },
-        ...prev
-      ]);
-
+      await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {
       console.error('Error creating ticket:', err);
@@ -412,6 +462,66 @@ const TicketForm = () => {
             onChange={(file) => setFormData(prev => ({ ...prev, description: file }))}
             error={errors.description}
           />
+
+<div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Archivos Administrativos
+            </label>
+            <div className="space-y-4">
+              {formData.adminFiles.map((file, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm">{file.type}: {file.file.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAdminFileRemove(index)}
+                    className="p-1 text-gray-500 hover:text-error"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                <div className="space-y-1 text-center">
+                  <FileText size={24} className="mx-auto text-gray-400" />
+                  <div className="flex text-sm text-gray-600">
+                    <label className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none">
+                      <span>Subir archivo administrativo</span>
+                      <select 
+                        onChange={(e) => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = '.pdf,.doc,.docx,.xlsx,.xlsm,.xlsb';
+                          input.onchange = (event) => {
+                            const file = event.target.files[0];
+                            if (file) {
+                              handleAdminFileAdd(file, e.target.value);
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="sr-only"
+                      >
+                        <option value="">Seleccionar tipo</option>
+                        <option value="Cotización">Cotización</option>
+                        <option value="Orden de Compra">Orden de Compra</option>
+                        <option value="Contrato">Contrato</option>
+                        <option value="Factura">Factura</option>
+                        <option value="Garantía">Garantía</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PDF, DOC, DOCX, XLSX, XLSB, XLSM hasta 10MB
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-4">

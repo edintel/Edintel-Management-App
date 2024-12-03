@@ -19,9 +19,11 @@ const TimelineSection = ({ ticket }) => {
 
     // Tentative date
     if (ticket.tentativeDate) {
+      const tentativeDate = new Date(ticket.tentativeDate);
+      tentativeDate.setHours(tentativeDate.getHours() - 2);
       events.push({
         type: "Fecha programada",
-        date: ticket.tentativeDate,
+        date: tentativeDate.toISOString(),
       });
     }
 
@@ -54,12 +56,18 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-    // Work finished
+    // Work finished with notes
     if (ticket.workEndDate) {
-      events.push({
+      const event = {
         type: "Finalizada",
-        date: ticket.workEndDate,
-      });
+        date: ticket.workEndDate
+      };
+      if (ticket.notes) {
+        event.details = {
+          "Notas": ticket.notes
+        };
+      }
+      events.push(event);
     }
 
     // Ticket closed

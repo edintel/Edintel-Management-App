@@ -28,16 +28,6 @@ export function AppProviderPostVentaManagement({ children }) {
     error: null,
   });
 
-  const updateServiceTickets = useCallback((updaterFn) => {
-    setPostVentaState((prev) => ({
-      ...prev,
-      serviceTickets:
-        typeof updaterFn === "function"
-          ? updaterFn(prev.serviceTickets)
-          : updaterFn,
-    }));
-  }, []);
-
   const initializePostVentaService = useCallback(async () => {
     if (!instance || accounts.length === 0) return null;
     if (services.postVenta.initialized) return services.postVenta.service;
@@ -138,7 +128,6 @@ export function AppProviderPostVentaManagement({ children }) {
     initialized,
     initializePostVentaService,
     loadPostVentaData,
-    updateServiceTickets,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -164,7 +153,6 @@ export function usePostVentaManagement() {
       error,
     },
     initialized,
-    updateServiceTickets,
     loadPostVentaData,
   } = context;
 
@@ -218,7 +206,6 @@ export function usePostVentaManagement() {
     loading,
     error,
     initialized,
-    setServiceTickets: updateServiceTickets,
     loadPostVentaData,
     // Additional helper functions
     getCompanyHierarchy,

@@ -197,7 +197,10 @@ class BaseGraphService {
 
   async createCalendarEvent(groupId, title, startTime, attendees = [], body) {
     await this.initializeGraphClient();
-
+    
+    const adjustedStartTime = new Date(new Date(startTime).getTime() - (6 * 60 * 60 * 1000));
+    const adjustedEndTime = new Date(adjustedStartTime.getTime() + (4 * 60 * 60 * 1000));
+  
     const event = {
       subject: title,
       body: {
@@ -205,11 +208,11 @@ class BaseGraphService {
         content: body
       },
       start: {
-        dateTime: startTime,
+        dateTime: adjustedStartTime.toISOString(),
         timeZone: "America/Costa_Rica"
       },
       end: {
-        dateTime: new Date(new Date(startTime).getTime() + (4 * 60 * 60 * 1000)).toISOString(), // 4 hour default duration
+        dateTime: adjustedEndTime.toISOString(),
         timeZone: "America/Costa_Rica"
       },
       attendees: attendees.map(attendee => ({
@@ -220,11 +223,11 @@ class BaseGraphService {
         type: "required"
       }))
     };
-
+  
     const response = await this.client
       .api(`/groups/${groupId}/calendar/events`)
       .post(event);
-
+  
     return response.id;
   }
 
@@ -251,17 +254,20 @@ class BaseGraphService {
   }
 
   async updateCalendarEventDate(groupId, eventId, newStartTime) {
+    const adjustedStartTime = new Date(new Date(newStartTime).getTime() - (6 * 60 * 60 * 1000));
+    const adjustedEndTime = new Date(adjustedStartTime.getTime() + (4 * 60 * 60 * 1000));
+  
     const updates = {
       start: {
-        dateTime: newStartTime,
+        dateTime: adjustedStartTime.toISOString(),
         timeZone: "America/Costa_Rica"
       },
       end: {
-        dateTime: new Date(new Date(newStartTime).getTime() + (4 * 60 * 60 * 1000)).toISOString(),
+        dateTime: adjustedEndTime.toISOString(),
         timeZone: "America/Costa_Rica"
       }
     };
-
+  
     await this.updateCalendarEvent(groupId, eventId, updates);
   }
 

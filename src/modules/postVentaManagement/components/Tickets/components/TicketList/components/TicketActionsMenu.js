@@ -28,6 +28,7 @@ const TicketActionsMenu = ({
   const { userRole } = usePostVentaManagement();
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
@@ -119,8 +120,7 @@ const TicketActionsMenu = ({
     const viewportHeight = window.innerHeight;
 
     // Check if menu would overflow bottom of viewport
-    const wouldOverflowBottom =
-      buttonRect.bottom + menuRect.height > viewportHeight;
+    const wouldOverflowBottom = buttonRect.bottom + menuRect.height > viewportHeight;
 
     // Position horizontally
     const left = buttonRect.left - menuRect.width + buttonRect.width;
@@ -194,6 +194,7 @@ const TicketActionsMenu = ({
       <button
         ref={buttonRef}
         onClick={handleToggleMenu}
+        onClick={handleToggleMenu}
         className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
       >
         <MoreVertical size={16} />
@@ -204,6 +205,8 @@ const TicketActionsMenu = ({
           ref={menuRef}
           className="fixed z-50 w-48 bg-white rounded-lg shadow-lg border overflow-hidden"
           style={{
+            top: `${menuPosition.top}px`,
+            left: `${menuPosition.left}px`,
             top: `${menuPosition.top}px`,
             left: `${menuPosition.left}px`,
           }}
