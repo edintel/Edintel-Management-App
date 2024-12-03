@@ -45,13 +45,53 @@ class BaseGraphService {
     return response.value[0].id;
   }
 
-  async getListItems(siteId, listId) {
+  async getListItems(siteId, listId, options = {}) {
     await this.initializeGraphClient();
-    const response = await this.client
-      .api(`/sites/${siteId}/lists/${listId}/items`)
-      .expand("fields")
-      .get();
-    return response.value;
+
+    let allItems = [];
+
+    // Build the initial query URL with options
+    let queryParams = ["expand=fields", "$top=100"];
+
+    // Add filter if provided
+    if (options.filter) {
+      queryParams.push(`$filter=${encodeURIComponent(options.filter)}`);
+    }
+
+    // Add select if provided
+    if (options.select) {
+      queryParams.push(
+        `$select=${encodeURIComponent(options.select.join(","))}`
+      );
+    }
+
+    // Add orderby if provided
+    if (options.orderBy) {
+      queryParams.push(`$orderby=${encodeURIComponent(options.orderBy)}`);
+    }
+
+    // Build initial URL
+    let nextLink = `/sites/${siteId}/lists/${listId}/items?${queryParams.join(
+      "&"
+    )}`;
+
+    while (nextLink) {
+      try {
+        const response = await this.client.api(nextLink).get();
+
+        allItems = [...allItems, ...response.value];
+
+        // Update nextLink for the next page, if it exists
+        nextLink = response["@odata.nextLink"]
+          ? response["@odata.nextLink"].split("/v1.0")[1]
+          : null;
+      } catch (error) {
+        console.error("Error fetching list items:", error);
+        throw error;
+      }
+    }
+
+    return allItems;
   }
 
   async createFolder(siteId, driveId, folderPath) {
@@ -112,7 +152,9 @@ class BaseGraphService {
 
     // Large file upload logic
     const uploadSession = await this.client
-      .api(`/sites/${siteId}/drives/${driveId}/root:${filePath}:/createUploadSession`)
+      .api(
+        `/sites/${siteId}/drives/${driveId}/root:${filePath}:/createUploadSession`
+      )
       .post({
         item: {
           "@microsoft.graph.conflictBehavior": "rename",
@@ -202,23 +244,25 @@ class BaseGraphService {
       subject: title,
       body: {
         contentType: "HTML",
-        content: body
+        content: body,
       },
       start: {
         dateTime: startTime,
-        timeZone: "America/Costa_Rica"
+        timeZone: "America/Costa_Rica",
       },
       end: {
-        dateTime: new Date(new Date(startTime).getTime() + (4 * 60 * 60 * 1000)).toISOString(), // 4 hour default duration
-        timeZone: "America/Costa_Rica"
+        dateTime: new Date(
+          new Date(startTime).getTime() + 4 * 60 * 60 * 1000
+        ).toISOString(), // 4 hour default duration
+        timeZone: "America/Costa_Rica",
       },
-      attendees: attendees.map(attendee => ({
+      attendees: attendees.map((attendee) => ({
         emailAddress: {
           address: attendee.email,
-          name: attendee.name
+          name: attendee.name,
         },
-        type: "required"
-      }))
+        type: "required",
+      })),
     };
 
     const response = await this.client
@@ -238,13 +282,13 @@ class BaseGraphService {
 
   async updateCalendarEventAttendees(groupId, eventId, attendees) {
     const updates = {
-      attendees: attendees.map(attendee => ({
+      attendees: attendees.map((attendee) => ({
         emailAddress: {
           address: attendee.email,
-          name: attendee.name
+          name: attendee.name,
         },
-        type: "required"
-      }))
+        type: "required",
+      })),
     };
 
     await this.updateCalendarEvent(groupId, eventId, updates);
@@ -254,12 +298,14 @@ class BaseGraphService {
     const updates = {
       start: {
         dateTime: newStartTime,
-        timeZone: "America/Costa_Rica"
+        timeZone: "America/Costa_Rica",
       },
       end: {
-        dateTime: new Date(new Date(newStartTime).getTime() + (4 * 60 * 60 * 1000)).toISOString(),
-        timeZone: "America/Costa_Rica"
-      }
+        dateTime: new Date(
+          new Date(newStartTime).getTime() + 4 * 60 * 60 * 1000
+        ).toISOString(),
+        timeZone: "America/Costa_Rica",
+      },
     };
 
     await this.updateCalendarEvent(groupId, eventId, updates);
@@ -269,7 +315,6 @@ class BaseGraphService {
     await this.client
       .api(`/groups/${groupId}/calendar/events/${eventId}`)
       .delete();
-
   }
 
   async createShareLink(siteId, itemId, type = "view", scope = "anonymous") {
@@ -279,13 +324,19 @@ class BaseGraphService {
       .api(`/sites/${siteId}/drive/items/${itemId}/createLink`)
       .post({
         type: type, // Can be "view", "edit", or "embed"
-        scope: scope // Can be "anonymous", "organization"
+        scope: scope, // Can be "anonymous", "organization"
       });
 
     return response.link;
   }
 
-  async sendEmail({ toRecipients, subject, content, ccRecipients = [], attachments = [] }) {
+  async sendEmail({
+    toRecipients,
+    subject,
+    content,
+    ccRecipients = [],
+    attachments = [],
+  }) {
     await this.initializeGraphClient();
 
     const messageId = generateUniqueMessageId("MAIL").emailCompliantId;
@@ -295,41 +346,39 @@ class BaseGraphService {
         subject,
         body: {
           contentType: "HTML",
-          content
+          content,
         },
-        toRecipients: toRecipients.map(email => ({
-          emailAddress: { address: email }
+        toRecipients: toRecipients.map((email) => ({
+          emailAddress: { address: email },
         })),
-        ccRecipients: ccRecipients.map(email => ({
-          emailAddress: { address: email }
+        ccRecipients: ccRecipients.map((email) => ({
+          emailAddress: { address: email },
         })),
         internetMessageId: messageId,
         internetMessageHeaders: [
           {
-            name: 'X-ST-Reference',
-            value: messageId
+            name: "X-ST-Reference",
+            value: messageId,
           },
           {
-            name: 'X-ST-Thread-Topic',
-            value: subject
-          }
-        ]
-      }
+            name: "X-ST-Thread-Topic",
+            value: subject,
+          },
+        ],
+      },
     };
 
     // Add attachments if provided
     if (attachments.length > 0) {
-      message.message.attachments = attachments.map(attachment => ({
+      message.message.attachments = attachments.map((attachment) => ({
         "@odata.type": "#microsoft.graph.fileAttachment",
         name: attachment.name,
         contentType: attachment.type,
-        contentBytes: attachment.content // Base64 encoded content
+        contentBytes: attachment.content, // Base64 encoded content
       }));
     }
 
-    await this.client
-      .api('/me/sendMail')
-      .post(message);
+    await this.client.api("/me/sendMail").post(message);
 
     return messageId;
   }
