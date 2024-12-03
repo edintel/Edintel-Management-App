@@ -45,13 +45,51 @@ class BaseGraphService {
     return response.value[0].id;
   }
 
-  async getListItems(siteId, listId) {
+  async getListItems(siteId, listId, options = {}) {
     await this.initializeGraphClient();
-    const response = await this.client
-      .api(`/sites/${siteId}/lists/${listId}/items`)
-      .expand("fields")
-      .get();
-    return response.value;
+    
+    let allItems = [];
+    
+    // Build the initial query URL with options
+    let queryParams = ['expand=fields', '$top=100'];
+    
+    // Add filter if provided
+    if (options.filter) {
+      queryParams.push(`$filter=${encodeURIComponent(options.filter)}`);
+    }
+    
+    // Add select if provided
+    if (options.select) {
+      queryParams.push(`$select=${encodeURIComponent(options.select.join(','))}`);
+    }
+    
+    // Add orderby if provided
+    if (options.orderBy) {
+      queryParams.push(`$orderby=${encodeURIComponent(options.orderBy)}`);
+    }
+    
+    // Build initial URL
+    let nextLink = `/sites/${siteId}/lists/${listId}/items?${queryParams.join('&')}`;
+  
+    while (nextLink) {
+      try {
+        const response = await this.client
+          .api(nextLink)
+          .get();
+  
+        allItems = [...allItems, ...response.value];
+        
+        // Update nextLink for the next page, if it exists
+        nextLink = response["@odata.nextLink"] ? 
+          response["@odata.nextLink"].split('/v1.0')[1] : 
+          null;
+      } catch (error) {
+        console.error("Error fetching list items:", error);
+        throw error;
+      }
+    }
+  
+    return allItems;
   }
 
   async createFolder(siteId, driveId, folderPath) {
