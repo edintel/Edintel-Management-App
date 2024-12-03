@@ -1,555 +1,584 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
 import { POST_VENTA_ROUTES } from '../../../../routes';
+import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
+import { Loader2, AlertCircle } from 'lucide-react';
+
 import Card from '../../../../../../components/common/Card';
 import Button from '../../../../../../components/common/Button';
-import { Save, Loader2, AlertTriangle, X, FileText } from 'lucide-react';
-
-// Form Components
-import LocationSelect from './components/LocationSelect';
-import SystemSelect from './components/SystemSelect';
-import FileUpload from './components/FileUpload';
+import MultiFileUpload from '../../../../../../components/common/MultiFileUpload';
+import { useFileManagement } from '../../hooks/useFileManagement';
 
 const TicketForm = () => {
   const navigate = useNavigate();
-  const {
-    companies,
-    buildings,
-    sites,
-    systems,
-    service,
-    loading: contextLoading,
-    loadPostVentaData,
-  } = usePostVentaManagement();
+  const { companies, buildings, sites, systems, service, loadPostVentaData } = usePostVentaManagement();
 
   const [formData, setFormData] = useState({
     st: '',
     scope: '',
-    location: {
-      companyId: '',
-      buildingId: '',
-      siteId: '',
-    },
+    companyId: '',
+    buildingId: '',
+    siteId: '',
     systemId: '',
-    type: '',
-    description: null,
-    adminFiles: [] // New state for administrative files
+    type: ''
   });
 
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-  const availableSystems = formData.location.siteId ?
-    sites.find(site => site.id === formData.location.siteId)?.systems : [];
+  // File management hooks
+  const {
+    files: adminDocs,
+    addFiles: addAdminDocs,
+    removeFile: removeAdminDoc,
+    updateDisplayName: updateAdminDocName,
+    error: adminDocsError,
+    clearFiles: clearAdminDocs
+  } = useFileManagement({
+    maxFiles: 5,
+    maxSize: 10 * 1024 * 1024, // 10MB
+    allowedTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    generateNames: true,
+    namePrefix: 'admin_'
+  });
+
+  const {
+    files: descriptionFile,
+    addFiles: addDescription,
+    removeFile: removeDescription,
+    error: descriptionError,
+    clearFiles: clearDescription
+  } = useFileManagement({
+    maxFiles: 1,
+    maxSize: 10 * 1024 * 1024,
+    allowedTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+  });
+
+  // Filter buildings based on selected company
+  const filteredBuildings = buildings.filter(
+    building => building.companyId === formData.companyId
+  );
+
+  // Filter sites based on selected building
+  const filteredSites = sites.filter(
+    site => site.buildingId === formData.buildingId
+  );
+
+  // Get available systems for selected site
+  const availableSystems = formData.siteId
+    ? sites.find(site => site.id === formData.siteId)?.systems || []
+    : [];
+
+  const filteredSystems = systems.filter(system =>
+    availableSystems.some(availableSystem =>
+      availableSystem.LookupValue === system.name
+    )
+  );
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+
+      // Reset dependent fields when parent selection changes
+      if (name === 'companyId') {
+        newData.buildingId = '';
+        newData.siteId = '';
+        newData.systemId = '';
+      } else if (name === 'buildingId') {
+        newData.siteId = '';
+        newData.systemId = '';
+      } else if (name === 'siteId') {
+        newData.systemId = '';
+      }
+
+      return newData;
+    });
+  };
 
   const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.st.trim()) {
-      newErrors.st = 'El número de ST es requerido';
-    }
-
-    if (!formData.location.companyId) {
-      newErrors.location = { ...newErrors.location, companyId: 'Seleccione una empresa' };
-    }
-
-    if (!formData.location.buildingId) {
-      newErrors.location = { ...newErrors.location, buildingId: 'Seleccione un edificio' };
-    }
-
-    if (!formData.location.siteId) {
-      newErrors.location = { ...newErrors.location, siteId: 'Seleccione un sitio' };
-    }
-
-    if (!formData.systemId) {
-      newErrors.systemId = 'Seleccione un sistema';
-    }
-
-    if (!formData.type) {
-      newErrors.type = 'Seleccione un tipo de servicio';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // New function to handle adding admin files
-  const handleAdminFileAdd = (file, adminType) => {
-    setFormData(prev => ({
-      ...prev,
-      adminFiles: [...prev.adminFiles, { file, type: adminType }]
-    }));
-  };
-
-  // New function to remove admin files
-  const handleAdminFileRemove = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      adminFiles: prev.adminFiles.filter((_, i) => i !== index)
-    }));
+    if (!formData.st.trim()) return 'El número de ST es requerido';
+    if (!formData.scope.trim()) return 'El alcance es requerido';
+    if (!formData.companyId) return 'Seleccione una empresa';
+    if (!formData.buildingId) return 'Seleccione un edificio';
+    if (!formData.siteId) return 'Seleccione un sitio';
+    if (!formData.systemId) return 'Seleccione un sistema';
+    if (!formData.type) return 'Seleccione un tipo de servicio';
+    if (!descriptionFile.length) return 'La descripción es requerida';
+    return null;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
-    setLoading(true);
+    setProcessing(true);
     setError(null);
 
     try {
-      const site = sites.find(s => s.id === formData.location.siteId);
+      const site = sites.find(s => s.id === formData.siteId);
       const building = buildings.find(b => b.id === site.buildingId);
       const company = companies.find(c => c.id === building.companyId);
 
-      // Create ticket and get response which includes the description file ID
-      const newTicket = await service.createServiceTicket(
+      // Upload description file
+      const descriptionFileId = await service.uploadTicketDocument(
         {
-          st: formData.st,
-          scope: formData.scope,
-          siteId: formData.location.siteId,
-          systemId: formData.systemId,
-          type: formData.type,
-          siteName: site.name,
-          companyName: company.name,
-          buildingName: building.name,
+          ticketId: formData.st,
+          documentType: 'description'
         },
-        formData.description
+        descriptionFile[0].file,
+        false
       );
 
-      // Upload admin files and collect their share links
-      const adminFileResults = await Promise.all(
-        formData.adminFiles.map(async ({ file, type }) => {
-          const fileId = await service.uploadFile(
-            service.config.admins.siteId,
-            service.config.admins.driveId,
-            file,
-            `/Boletas ST/${company.name}/${building.name}/${site.name}/${formData.st}`,
-            `${type}_${Date.now()}`
+      // Upload admin docs and create share links
+      const adminFileLinks = await Promise.all(
+        adminDocs.map(async doc => {
+          const fileId = await service.uploadTicketDocument(
+            {
+              ticketId: formData.st,
+              documentType: 'administrative',
+              displayName: doc.displayName || doc.name
+            },
+            doc.file,
+            true
           );
 
-          // Create list item in docsAdmins
-          await service.client
-            .api(`/sites/${service.config.admins.siteId}/lists/${service.config.admins.lists.docsAdmins}/items`)
-            .post({
-              fields: {
-                ticketId: newTicket.id,
-                fileName: type,
-                itemId: fileId,
-                documentType: 'administrative'
-              }
-            });
-
           const shareLink = await service.createShareLink(
-            service.config.admins.siteId,
+            service.admins.siteId,
             fileId,
             "view",
             "organization"
           );
 
           return {
-            type,
-            webUrl: shareLink.webUrl
+            name: doc.displayName || doc.name,
+            link: shareLink.webUrl,
+            id: fileId
           };
         })
       );
 
-      let shareLink = null;
-      if (formData.description) {
-        // Create shareable link for the description file
-        shareLink = await service.createShareLink(
-          service.siteId,
-          newTicket.fields.Descripci_x00f3_n,
-          "view",
-          "organization"
-        );
-        console.log("xd")
-      }
-      // Prepare email content
-      const emailContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333333;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-        }
-        .header {
-            background-color: #00008B;
-            color: white;
-            padding: 20px;
-            border-radius: 6px 6px 0 0;
-            margin: -20px -20px 20px -20px;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-        .section {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 6px;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #00008B;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 5px;
-        }
-        .info-row {
-            display: block;
-            margin-bottom: 8px;
-        }
-        .label {
-            font-weight: bold;
-            color: #555555;
-        }
-        .value {
-            color: #333333;
-        }
-        .contact-info {
-            background-color: #f0f4f8;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 20px;
-        }
-        .button {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #00008B;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-        .button:hover {
-            background-color: #000066;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Nueva ST Ingresada</h1>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">Información del Ticket</div>
-            <div class="info-row">
-                <span class="label">ST:</span>
-                <span class="value">${formData.st}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Tipo:</span>
-                <span class="value">${formData.type}</span>
-                
-            </div>
-            <div class="info-row">
-                <span class="label">Alcance:</span>
-                <span class="value">${formData.scope}</span>
-            </div>
-        </div>
+      // Create email content with admin docs
+      const emailContent = generateEmailContent({
+        st: formData.st,
+        type: formData.type,
+        scope: formData.scope,
+        system: systems.find(s => s.id === formData.systemId)?.name,
+        company: company.name,
+        building: building.name,
+        site: site.name,
+        siteDetails: {
+          location: site.location,
+          contactName: site.contactName,
+          contactEmail: site.contactEmail,
+          contactPhone: site.contactPhone
+        },
+        adminDocs: adminFileLinks
+      });
 
-        <div class="section">
-            <div class="section-title">Ubicación</div>
-            <div class="info-row">
-                <span class="label">Empresa:</span>
-                <span class="value">${company.name}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Edificio:</span>
-                <span class="value">${building.name}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Sitio:</span>
-                <span class="value">${site.name}</span>
-            </div>
-            ${site.location ? `
-            <div class="info-row">
-                <span class="label">Ubicación:</span>
-                <span class="value">${site.location}</span>
-            </div>
-            ` : ''}
-        </div>
+      // Create ticket with all references
+      await service.createServiceTicket({
+        ...formData,
+        descriptionId: descriptionFileId,
+        adminDocs: adminDocs.map(doc => ({
+          itemId: doc.id,
+          displayName: doc.displayName || doc.name
+        }))
+      });
 
-        <div class="section">
-            <div class="section-title">Sistema</div>
-            <div class="info-row">
-                <span class="label">Sistema Afectado:</span>
-                <span class="value">${systems.find(s => s.id === formData.systemId)?.name}</span>
-            </div>
-        </div>
-
-        ${site.contactName || site.contactEmail || site.contactPhone ? `
-        <div class="section">
-            <div class="section-title">Información de Contacto</div>
-            ${site.contactName ? `
-            <div class="info-row">
-                <span class="label">Contacto:</span>
-                <span class="value">${site.contactName}</span>
-            </div>
-            ` : ''}
-            ${site.contactEmail ? `
-            <div class="info-row">
-                <span class="label">Email:</span>
-                <span class="value">${site.contactEmail}</span>
-            </div>
-            ` : ''}
-            ${site.contactPhone ? `
-            <div class="info-row">
-                <span class="label">Teléfono:</span>
-                <span class="value">${site.contactPhone}</span>
-            </div>
-            ` : ''}
-        </div>
-        ` : ''}
-
-        ${shareLink?.webUrl ? `
-        <div class="section">
-            <div class="section-title">Descripción</div>
-            <a href="${shareLink.webUrl}" class="button">Ver descripción completa</a>
-        </div>
-        ` : ''}
-        ${adminFileResults.length > 0 ? `
-          <div class="section">
-              <div class="section-title">Archivos Administrativos</div>
-              ${adminFileResults.map(file => `
-                  <div class="info-row">
-                      <span class="label">${file.type}:</span>
-                      <span class="value">
-                          <a href="${file.webUrl}">Ver documento</a>
-                      </span>
-                  </div>
-              `).join('')}
-          </div>
-          ` : ''}
-    </div>
-</body>
-</html>
-`;
-
-      // Send notification email
-      const messageId = await service.sendEmail({
+      // Send email with links
+      await service.sendEmail({
         toRecipients: ['andres.villalobos@edintel.com'],
         subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${systems.find(s => s.id === formData.systemId)?.name}`,
         content: emailContent
       });
 
-      await service.client
-        .api(encodeURIComponent(`/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${newTicket.id}`))
-        .patch({
-          fields: {
-            MessageId: messageId // Assuming you have this field in your SharePoint list
-          }
-        });
-
       await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
+
     } catch (err) {
       console.error('Error creating ticket:', err);
       setError(err.message || 'Error al crear el ticket');
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
-
-  if (contextLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 size={48} className="animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <Card title="Nuevo Ticket de Servicio">
         {error && (
           <div className="mb-6 p-4 bg-error/10 text-error rounded-lg flex items-center gap-2">
-            <AlertTriangle size={20} />
-            <p>{error}</p>
+            <AlertCircle className="h-5 w-5" />
+            <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ST Number */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              ST *
-            </label>
-            <input
-              type="text"
-              value={formData.st}
-              onChange={(e) => setFormData(prev => ({ ...prev, st: e.target.value }))}
-              placeholder="Inserte la ST + nombre"
-              className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-            />
-            {errors.st && (
-              <p className="text-sm text-error">{errors.st}</p>
-            )}
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                ST *
+              </label>
+              <input
+                type="text"
+                name="st"
+                value={formData.st}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                placeholder="Número de ST"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Tipo de Servicio *
+              </label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                required
+              >
+                <option value="">Seleccione un tipo</option>
+                <option value="Correctiva">Correctiva</option>
+                <option value="Preventiva">Preventiva</option>
+              </select>
+            </div>
           </div>
 
+          {/* Scope */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
               Alcance *
             </label>
             <textarea
+              name="scope"
               value={formData.scope}
-              onChange={(e) => setFormData(prev => ({ ...prev, scope: e.target.value }))}
-              placeholder="Explique el alcance del trabajo"
-              className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary min-h-[100px] resize-y"
+              onChange={handleInputChange}
+              className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+              rows={4}
+              placeholder="Describa el alcance del trabajo"
+              required
             />
-            {errors.scope && (
-              <p className="text-sm text-error">{errors.scope}</p>
-            )}
           </div>
 
           {/* Location Selection */}
-          <LocationSelect
-            companies={companies}
-            buildings={buildings}
-            sites={sites}
-            value={formData.location}
-            onChange={(location) => setFormData(prev => ({ ...prev, location }))}
-            error={errors.location}
-          />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Empresa *
+              </label>
+              <select
+                name="companyId"
+                value={formData.companyId}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                required
+              >
+                <option value="">Seleccione una empresa</option>
+                {companies.map(company => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* System Selection */}
-          <SystemSelect
-            systems={systems}
-            availableSystems={availableSystems}
-            value={formData.systemId}
-            onChange={(systemId) => setFormData(prev => ({ ...prev, systemId }))}
-            error={errors.systemId}
-          />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Edificio *
+              </label>
+              <select
+                name="buildingId"
+                value={formData.buildingId}
+                onChange={handleInputChange}
+                disabled={!formData.companyId}
+                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+                required
+              >
+                <option value="">Seleccione un edificio</option>
+                {filteredBuildings.map(building => (
+                  <option key={building.id} value={building.id}>
+                    {building.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Service Type */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Tipo de Servicio *
-            </label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-              className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-            >
-              <option value="">Seleccione un tipo</option>
-              <option value="Correctiva">Correctiva</option>
-              <option value="Preventiva">Preventiva</option>
-            </select>
-            {errors.type && (
-              <p className="text-sm text-error">{errors.type}</p>
-            )}
-          </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Sitio *
+              </label>
+              <select
+                name="siteId"
+                value={formData.siteId}
+                onChange={handleInputChange}
+                disabled={!formData.buildingId}
+                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+                required
+              >
+                <option value="">Seleccione un sitio</option>
+                {filteredSites.map(site => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* File Upload */}
-          <FileUpload
-            value={formData.description}
-            onChange={(file) => setFormData(prev => ({ ...prev, description: file }))}
-            error={errors.description}
-          />
-
-<div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Archivos Administrativos
-            </label>
-            <div className="space-y-4">
-              {formData.adminFiles.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm">{file.type}: {file.file.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleAdminFileRemove(index)}
-                    className="p-1 text-gray-500 hover:text-error"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-                <div className="space-y-1 text-center">
-                  <FileText size={24} className="mx-auto text-gray-400" />
-                  <div className="flex text-sm text-gray-600">
-                    <label className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none">
-                      <span>Subir archivo administrativo</span>
-                      <select 
-                        onChange={(e) => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = '.pdf,.doc,.docx,.xlsx,.xlsm,.xlsb';
-                          input.onchange = (event) => {
-                            const file = event.target.files[0];
-                            if (file) {
-                              handleAdminFileAdd(file, e.target.value);
-                            }
-                          };
-                          input.click();
-                        }}
-                        className="sr-only"
-                      >
-                        <option value="">Seleccionar tipo</option>
-                        <option value="Cotización">Cotización</option>
-                        <option value="Orden de Compra">Orden de Compra</option>
-                        <option value="Contrato">Contrato</option>
-                        <option value="Factura">Factura</option>
-                        <option value="Garantía">Garantía</option>
-                        <option value="Otro">Otro</option>
-                      </select>
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    PDF, DOC, DOCX, XLSX, XLSB, XLSM hasta 10MB
-                  </p>
-                </div>
-              </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Sistema *
+              </label>
+              <select
+                name="systemId"
+                value={formData.systemId}
+                onChange={handleInputChange}
+                disabled={!formData.siteId}
+                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+                required
+              >
+                <option value="">Seleccione un sistema</option>
+                {filteredSystems.map(system => (
+                  <option key={system.id} value={system.id}>
+                    {system.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Description File */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Descripción *
+            </label>
+            <MultiFileUpload
+              files={descriptionFile}
+              onFilesChange={addDescription}
+              onRemove={removeDescription}
+              maxFiles={1}
+              error={descriptionError}
+              disabled={processing}
+            />
+          </div>
+
+          {/* Administrative Documents */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Documentos Administrativos
+            </label>
+            <MultiFileUpload
+              files={adminDocs}
+              onFilesChange={addAdminDocs}
+              onRemove={removeAdminDoc}
+              onDisplayNameChange={updateAdminDocName}
+              showDisplayName={true}
+              maxFiles={5}
+              error={adminDocsError}
+              disabled={processing}
+            />
+          </div>
+
+          {/* Form Actions */}
           <div className="flex justify-end gap-4">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => navigate(POST_VENTA_ROUTES.TICKETS.LIST)}
-              disabled={loading}
+              disabled={processing}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               variant="primary"
-              disabled={loading}
-              startIcon={loading ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <Save size={16} />
-              )}
+              disabled={processing}
             >
-              {loading ? "Guardando..." : "Guardar"}
+              {processing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creando ticket...
+                </>
+              ) : (
+                'Crear Ticket'
+              )}
             </Button>
           </div>
         </form>
       </Card>
     </div>
   );
+};
+
+const generateEmailContent = ({
+  st,
+  type,
+  scope,
+  system,
+  company,
+  building,
+  site,
+  siteDetails,
+  adminDocs
+}) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333333;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #ffffff;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+            .header {
+                background-color: #00008B;
+                color: white;
+                padding: 20px;
+                border-radius: 6px 6px 0 0;
+                margin: -20px -20px 20px -20px;
+            }
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+            .section {
+                margin-bottom: 20px;
+                padding: 15px;
+                background-color: #f8f9fa;
+                border-radius: 6px;
+            }
+            .section-title {
+                font-size: 18px;
+                font-weight: bold;
+                color: #00008B;
+                margin-bottom: 15px;
+                border-bottom: 2px solid #e0e0e0;
+                padding-bottom: 5px;
+            }
+            .info-row {
+                display: block;
+                margin-bottom: 8px;
+            }
+            .label {
+                font-weight: bold;
+                color: #555555;
+            }
+            .value {
+                color: #333333;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Nueva ST Ingresada</h1>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Información del Ticket</div>
+                <div class="info-row">
+                    <span class="label">ST:</span>
+                    <span class="value">${st}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Tipo:</span>
+                    <span class="value">${type}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Alcance:</span>
+                    <span class="value">${scope}</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Ubicación</div>
+                <div class="info-row">
+                    <span class="label">Empresa:</span>
+                    <span class="value">${company}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Edificio:</span>
+                    <span class="value">${building}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Sitio:</span>
+                    <span class="value">${site}</span>
+                </div>
+                ${siteDetails.location ? `
+                <div class="info-row">
+                    <span class="label">Ubicación:</span>
+                    <span class="value">${siteDetails.location}</span>
+                </div>
+                ` : ''}
+            </div>
+
+            <div class="section">
+                <div class="section-title">Sistema</div>
+                <div class="info-row">
+                    <span class="label">Sistema Afectado:</span>
+                    <span class="value">${system}</span>
+                </div>
+            </div>
+
+            ${siteDetails.contactName || siteDetails.contactEmail || siteDetails.contactPhone ? `
+            <div class="section">
+                <div class="section-title">Información de Contacto</div>
+                ${siteDetails.contactName ? `
+                <div class="info-row">
+                    <span class="label">Contacto:</span>
+                    <span class="value">${siteDetails.contactName}</span>
+                </div>
+                ` : ''}
+                ${siteDetails.contactEmail ? `
+                <div class="info-row">
+                    <span class="label">Email:</span>
+                    <span class="value">${siteDetails.contactEmail}</span>
+                </div>
+                ` : ''}
+                ${siteDetails.contactPhone ? `
+                <div class="info-row">
+                    <span class="label">Teléfono:</span>
+                    <span class="value">${siteDetails.contactPhone}</span>
+                </div>
+                ` : ''}
+            </div>
+            ` : ''}
+
+            ${adminDocs.length > 0 ? `
+            <div class="section">
+                <div class="section-title">Documentos Administrativos</div>
+                ${adminDocs.map(doc => `
+                <div class="info-row">
+                    <span class="label">${doc.name}:</span>
+                    <span class="value">
+                        <a href="${doc.link}">Ver documento</a>
+                    </span>
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+        </div>
+    </body>
+    </html>
+  `;
 };
 
 export default TicketForm;
