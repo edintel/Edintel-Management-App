@@ -28,8 +28,8 @@ const TicketActionsModal = ({
     }
   };
 
-  const handleStatusUpdate = (ticketId, newStatus, files = null) => {
-    onUpdateStatus(ticketId, newStatus, files);
+  const handleStatusUpdate = (ticketId, newStatus, files = null, notes = null) => {
+    onUpdateStatus(ticketId, newStatus, files, notes);
   };
 
   return (

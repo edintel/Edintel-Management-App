@@ -1,14 +1,13 @@
-// src/modules/postVentaManagement/components/Tickets/modals/TicketActionsModal/DateAssignmentForm.js
 import React, { useState } from "react";
 import { Calendar } from "lucide-react";
 import Button from "../../../../../../components/common/Button";
 
 const DateAssignmentForm = ({ ticket, onSubmit, processing }) => {
-  const [selectedDate, setSelectedDate] = useState(ticket?.tentativeDate || "");
+  const [selectedDate, setSelectedDate] = useState(ticket?.tentativeDate ? ticket.tentativeDate.slice(0, 16) : "");
 
   const handleSubmit = () => {
     if (!selectedDate) return;
-    onSubmit(ticket.id, selectedDate);
+    onSubmit(ticket.id, selectedDate + ":00");
   };
 
   return (
@@ -22,7 +21,7 @@ const DateAssignmentForm = ({ ticket, onSubmit, processing }) => {
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
           className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-          min={new Date().toISOString().split(".")[0]}
+          min={new Date().toISOString().slice(0, 16)}
         />
       </div>
       <Button

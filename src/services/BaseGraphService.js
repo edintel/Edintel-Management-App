@@ -239,7 +239,10 @@ class BaseGraphService {
 
   async createCalendarEvent(groupId, title, startTime, attendees = [], body) {
     await this.initializeGraphClient();
-
+    
+    const adjustedStartTime = new Date(new Date(startTime).getTime() - (6 * 60 * 60 * 1000));
+    const adjustedEndTime = new Date(adjustedStartTime.getTime() + (4 * 60 * 60 * 1000));
+  
     const event = {
       subject: title,
       body: {
@@ -249,12 +252,16 @@ class BaseGraphService {
       start: {
         dateTime: startTime,
         timeZone: "America/Costa_Rica",
+        dateTime: adjustedStartTime.toISOString(),
+        timeZone: "America/Costa_Rica"
       },
       end: {
         dateTime: new Date(
           new Date(startTime).getTime() + 4 * 60 * 60 * 1000
         ).toISOString(), // 4 hour default duration
         timeZone: "America/Costa_Rica",
+        dateTime: adjustedEndTime.toISOString(),
+        timeZone: "America/Costa_Rica"
       },
       attendees: attendees.map((attendee) => ({
         emailAddress: {
@@ -264,11 +271,11 @@ class BaseGraphService {
         type: "required",
       })),
     };
-
+  
     const response = await this.client
       .api(`/groups/${groupId}/calendar/events`)
       .post(event);
-
+  
     return response.id;
   }
 
@@ -295,10 +302,15 @@ class BaseGraphService {
   }
 
   async updateCalendarEventDate(groupId, eventId, newStartTime) {
+    const adjustedStartTime = new Date(new Date(newStartTime).getTime() - (6 * 60 * 60 * 1000));
+    const adjustedEndTime = new Date(adjustedStartTime.getTime() + (4 * 60 * 60 * 1000));
+  
     const updates = {
       start: {
         dateTime: newStartTime,
         timeZone: "America/Costa_Rica",
+        dateTime: adjustedStartTime.toISOString(),
+        timeZone: "America/Costa_Rica"
       },
       end: {
         dateTime: new Date(
@@ -306,8 +318,11 @@ class BaseGraphService {
         ).toISOString(),
         timeZone: "America/Costa_Rica",
       },
+        dateTime: adjustedEndTime.toISOString(),
+        timeZone: "America/Costa_Rica"
+      }
     };
-
+  
     await this.updateCalendarEvent(groupId, eventId, updates);
   }
 

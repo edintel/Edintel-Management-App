@@ -2,6 +2,7 @@
 import React from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import Button from '../../../../../../components/common/Button';
+import TentativeDate from '../../components/common/TentativeDate';
 
 const DeleteTicketModal = ({
   isOpen,
@@ -56,7 +57,7 @@ const DeleteTicketModal = ({
               <div>
                 <dt className="text-sm text-gray-500">Fecha Tentativa</dt>
                 <dd className="text-sm font-medium">
-                  {new Date(ticket.tentativeDate).toLocaleDateString()}
+                  <TentativeDate date={ticket.tentativeDate} />
                 </dd>
               </div>
             )}

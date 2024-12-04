@@ -1,3 +1,4 @@
+// src/modules/postVentaManagement/components/Tickets/modals/TicketActionsModal/StatusUpdateForm.js
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
 import Button from "../../../../../../components/common/Button";
@@ -8,6 +9,7 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const [formData, setFormData] = useState({
     serviceTicket: null,
     report: null,
+    notes: ""
   });
   const [errors, setErrors] = useState({});
 
@@ -48,7 +50,6 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const handleStatusUpdate = () => {
     if (nextStatus === "Finalizada") {
       setShowFinishModal(true);
-      console.log(showFinishModal);
     } else {
       onSubmit(ticket.id, nextStatus);
     }
@@ -56,19 +57,19 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
 
   const handleFinish = () => {
     if (!validateFinishForm()) return;
-    onSubmit(ticket.id, nextStatus, formData);
+    onSubmit(ticket.id, nextStatus, formData, formData.notes);
   };
 
-  const handleFileChange = (field, file) => {
+  const handleInputChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: file,
+      [field]: value
     }));
-    // Clear error when file is uploaded
+    // Clear error when field is changed
     if (errors[field]) {
       setErrors((prev) => ({
         ...prev,
-        [field]: undefined,
+        [field]: undefined
       }));
     }
   };
@@ -85,7 +86,7 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
             type="file"
             accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
             onChange={(e) =>
-              handleFileChange("serviceTicket", e.target.files[0])
+              handleInputChange("serviceTicket", e.target.files[0])
             }
             className="w-full"
           />
@@ -103,7 +104,7 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
             <input
               type="file"
               accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
-              onChange={(e) => handleFileChange("report", e.target.files[0])}
+              onChange={(e) => handleInputChange("report", e.target.files[0])}
               className="w-full"
             />
             {errors.report && (
@@ -111,6 +112,19 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
             )}
           </div>
         )}
+
+        {/* Notes Input - Only shown when finalizing */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Notas
+          </label>
+          <textarea
+            value={formData.notes}
+            onChange={(e) => handleInputChange("notes", e.target.value)}
+            placeholder="Agregue notas o comentarios sobre el trabajo realizado..."
+            className="w-full min-h-[100px] px-3 py-2 resize-none border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+        </div>
 
         <div className="flex gap-2">
           <Button
