@@ -1,6 +1,6 @@
 import BaseGraphService from "../../../../services/BaseGraphService";
 import { generateRandomNumber } from "../../../../utils/randomUtils";
-import {isAdministrativeDoc} from "../../constants/documentTypes"
+import { isAdministrativeDoc } from "../../constants/documentTypes";
 
 class PostVentaManagementService extends BaseGraphService {
   constructor(msalInstance, config) {
@@ -136,7 +136,7 @@ class PostVentaManagementService extends BaseGraphService {
   async createServiceTicket(stData) {
     try {
       await this.initializeGraphClient();
-  
+
       const fields = {
         Title: stData.st,
         SitioIDLookupId: stData.siteId,
@@ -145,20 +145,24 @@ class PostVentaManagementService extends BaseGraphService {
         Estado: "Iniciada",
         Tipo: stData.type,
       };
-  
+
       const response = await this.client
-        .api(encodeURIComponent(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items`))
+        .api(
+          encodeURIComponent(
+            `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items`
+          )
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .post({
           fields: fields,
         });
-  
+
       return response;
     } catch (error) {
       console.error("Error creating service ticket:", error);
       throw new Error(`Error creating service ticket: ${error.message}`);
     }
-  }  
+  }
 
   async updateSTDate(stId, newDate, calendarEventId) {
     await this.initializeGraphClient();
@@ -472,20 +476,22 @@ class PostVentaManagementService extends BaseGraphService {
   }
 
   async getTicketById(ticketId) {
-    if (!ticketId) throw new Error('Ticket ID is required');
-  
+    if (!ticketId) throw new Error("Ticket ID is required");
+
     await this.initializeGraphClient();
-  
+
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.general.lists.controlPV}/items/${ticketId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.general.lists.controlPV}/items/${ticketId}`
+        )
+        .expand("fields")
         .get();
-  
+
       if (!response || !response.fields) {
-        throw new Error('Ticket not found');
+        throw new Error("Ticket not found");
       }
-  
+
       // Map the response to include all necessary fields
       return {
         id: response.id,
@@ -509,29 +515,31 @@ class PostVentaManagementService extends BaseGraphService {
         createdBy: response.createdBy,
         created: response.createdDateTime,
         messageId: response.fields.MessageId,
-        notes: response.fields.Notas || null
+        notes: response.fields.Notas || null,
       };
     } catch (error) {
-      console.error('Error fetching ticket:', error);
+      console.error("Error fetching ticket:", error);
       throw new Error(`Error fetching ticket: ${error.message}`);
     }
   }
-  
+
   async getSiteById(siteId) {
-    if (!siteId) throw new Error('Site ID is required');
-  
+    if (!siteId) throw new Error("Site ID is required");
+
     await this.initializeGraphClient();
-  
+
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.general.lists.sites}/items/${siteId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.general.lists.sites}/items/${siteId}`
+        )
+        .expand("fields")
         .get();
-  
+
       if (!response || !response.fields) {
-        throw new Error('Site not found');
+        throw new Error("Site not found");
       }
-  
+
       return {
         id: response.id,
         name: response.fields.Title,
@@ -541,72 +549,76 @@ class PostVentaManagementService extends BaseGraphService {
         contactName: response.fields.Nombrecontacto,
         contactEmail: response.fields.Correoelectr_x00f3_nico,
         contactPhone: response.fields.N_x00fa_merotelefonico,
-        systems: response.fields.SistemasID_x003a__x0020_Sistema || []
+        systems: response.fields.SistemasID_x003a__x0020_Sistema || [],
       };
     } catch (error) {
-      console.error('Error fetching site:', error);
+      console.error("Error fetching site:", error);
       throw new Error(`Error fetching site: ${error.message}`);
     }
   }
-  
+
   async getBuildingById(buildingId) {
-    if (!buildingId) throw new Error('Building ID is required');
-  
+    if (!buildingId) throw new Error("Building ID is required");
+
     await this.initializeGraphClient();
-  
+
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.general.lists.buildings}/items/${buildingId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.general.lists.buildings}/items/${buildingId}`
+        )
+        .expand("fields")
         .get();
-  
+
       if (!response || !response.fields) {
-        throw new Error('Building not found');
+        throw new Error("Building not found");
       }
-  
+
       return {
         id: response.id,
         name: response.fields.Title,
-        companyId: response.fields.EmpresaIDLookupId
+        companyId: response.fields.EmpresaIDLookupId,
       };
     } catch (error) {
-      console.error('Error fetching building:', error);
+      console.error("Error fetching building:", error);
       throw new Error(`Error fetching building: ${error.message}`);
     }
   }
-  
+
   async getCompanyById(companyId) {
-    if (!companyId) throw new Error('Company ID is required');
-  
+    if (!companyId) throw new Error("Company ID is required");
+
     await this.initializeGraphClient();
-  
+
     try {
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.general.lists.companies}/items/${companyId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.general.lists.companies}/items/${companyId}`
+        )
+        .expand("fields")
         .get();
-  
+
       if (!response || !response.fields) {
-        throw new Error('Company not found');
+        throw new Error("Company not found");
       }
-  
+
       return {
         id: response.id,
-        name: response.fields.Title
+        name: response.fields.Title,
       };
     } catch (error) {
-      console.error('Error fetching company:', error);
+      console.error("Error fetching company:", error);
       throw new Error(`Error fetching company: ${error.message}`);
     }
   }
 
-  async updateTicketStatus(ticketId, newStatus, notes = '') {
+  async updateTicketStatus(ticketId, newStatus, notes = "") {
     await this.initializeGraphClient();
-  
+
     try {
       const fields = {};
       const now = new Date().toISOString();
-  
+
       // Set appropriate date field based on status
       switch (newStatus) {
         case "Técnico asignado":
@@ -630,9 +642,9 @@ class PostVentaManagementService extends BaseGraphService {
         default:
           break;
       }
-  
+
       fields.Estado = newStatus;
-      
+
       const response = await this.client
         .api(
           `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
@@ -640,7 +652,7 @@ class PostVentaManagementService extends BaseGraphService {
         .patch({
           fields: fields,
         });
-  
+
       return response;
     } catch (error) {
       console.error("Error updating ticket status:", error);
@@ -676,7 +688,7 @@ class PostVentaManagementService extends BaseGraphService {
 
   async updateTicket(ticketId, data) {
     await this.initializeGraphClient();
-  
+
     try {
       // Prepare update fields
       const fields = {
@@ -686,28 +698,36 @@ class PostVentaManagementService extends BaseGraphService {
         alcance: data.scope,
         Tipo: data.type,
       };
-  
+
       const ticket = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .expand("fields")
         .get();
-  
+
       if (data.description) {
         const site = await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${data.siteId}`)
+          .api(
+            `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${data.siteId}`
+          )
           .expand("fields")
           .get();
-  
+
         const building = await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`)
+          .api(
+            `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`
+          )
           .expand("fields")
           .get();
-  
+
         const company = await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`)
+          .api(
+            `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`
+          )
           .expand("fields")
           .get();
-  
+
         const folderPath = `/Boletas ST/${company.fields.Title}/${building.fields.Title}/${site.fields.Title}/${data.st}`;
         const fileId = await this.uploadFile(
           this.siteId,
@@ -716,22 +736,25 @@ class PostVentaManagementService extends BaseGraphService {
           folderPath,
           `Descripción - ${generateRandomNumber(16).toString()}`
         );
-  
+
         if (ticket.fields.Descripci_x00f3_n) {
           await this.deleteFile(ticket.fields.Descripci_x00f3_n);
         }
-  
+
         fields.Descripci_x00f3_n = fileId;
       }
-  
+
       if (data.serviceTicket) {
         if (ticket.fields.Boleta) {
           await this.deleteFile(ticket.fields.Boleta);
         }
-        const boletaId = await this.uploadServiceTicket(ticketId, data.serviceTicket);
+        const boletaId = await this.uploadServiceTicket(
+          ticketId,
+          data.serviceTicket
+        );
         fields.Boleta = boletaId;
       }
-      
+
       if (data.report) {
         if (ticket.fields.Informe) {
           await this.deleteFile(ticket.fields.Informe);
@@ -739,21 +762,22 @@ class PostVentaManagementService extends BaseGraphService {
         const reportId = await this.uploadServiceReport(ticketId, data.report);
         fields.Informe = reportId;
       }
-  
+
       // Update ticket
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .patch({
           fields: fields,
         });
-  
+
       return response;
     } catch (error) {
       console.error("Error updating ticket:", error);
       throw new Error("Error al actualizar el ticket");
     }
   }
-  
 
   async deleteTicket(ticketId) {
     await this.initializeGraphClient();
@@ -781,10 +805,7 @@ class PostVentaManagementService extends BaseGraphService {
       // Delete calendar event if exists
       if (ticket.fields.calendarEvent) {
         try {
-          this.deleteCalendarEvent(
-            this.groupId,
-            ticket.fields.calendarEvent
-          );
+          this.deleteCalendarEvent(this.groupId, ticket.fields.calendarEvent);
         } catch (error) {
           console.error("Error deleting calendar event:", error);
           // Continue with ticket deletion even if calendar event deletion fails
@@ -932,32 +953,36 @@ class PostVentaManagementService extends BaseGraphService {
 
   async getGeneralDocuments(ticketId) {
     const response = await this.client
-      .api(`/sites/${this.siteId}/lists/${this.config.general.lists.docs}/items`)
+      .api(
+        `/sites/${this.siteId}/lists/${this.config.general.lists.docs}/items`
+      )
       .filter(`fields/ticketId eq '${ticketId}'`)
-      .expand('fields')
+      .expand("fields")
       .get();
 
-    return response.value.map(item => ({
+    return response.value.map((item) => ({
       ...item.fields,
-      source: 'general'
+      source: "general",
     }));
   }
 
   async getAdminDocuments(ticketId) {
     try {
       const response = await this.client
-        .api(`/sites/${this.config.admins.siteId}/lists/${this.config.admins.lists.docsAdmins}/items`)
+        .api(
+          `/sites/${this.config.admins.siteId}/lists/${this.config.admins.lists.docsAdmins}/items`
+        )
         .filter(`fields/ticketId eq '${ticketId}'`)
-        .expand('fields')
+        .expand("fields")
         .get();
 
-      return response.value.map(item => ({
+      return response.value.map((item) => ({
         ...item.fields,
-        source: 'admin'
+        source: "admin",
       }));
     } catch (error) {
       // User might not have access to admin site
-      console.log('User does not have access to admin documents');
+      console.log("User does not have access to admin documents");
       return [];
     }
   }
@@ -968,35 +993,46 @@ class PostVentaManagementService extends BaseGraphService {
     // Get documents from both lists
     const [generalDocs, adminDocs] = await Promise.all([
       this.getGeneralDocuments(ticketId),
-      this.getAdminDocuments(ticketId)
+      this.getAdminDocuments(ticketId),
     ]);
 
     return [...generalDocs, ...adminDocs];
   }
 
-  async uploadTicketDocument(ticketId, file, documentType, customFileName = null) {
-    if (!documentType) throw new Error('Document type is required');
-    
+  async uploadTicketDocument(
+    ticketId,
+    file,
+    documentType,
+    customFileName = null
+  ) {
+    console.log("xd");
+    if (!documentType) throw new Error("Document type is required");
+    console.log("xxd");
     const isAdminDoc = isAdministrativeDoc(documentType);
+    console.log("xxxd");
     const config = isAdminDoc ? this.config.admins : this.config.general;
+    console.log("xxxxd");
     const listId = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
+    console.log("xxxxxd");
     const siteId = isAdminDoc ? config.siteId : this.siteId;
+    console.log("xxxxxxd");
     const driveId = isAdminDoc ? config.driveId : this.driveId;
-  
+    console.log("xxdasf");
     try {
       // Get ticket details for folder structure
       const ticket = await this.getTicketById(ticketId);
       const site = await this.getSiteById(ticket.siteId);
       const building = await this.getBuildingById(site.buildingId);
       const company = await this.getCompanyById(building.companyId);
-  
+
       // Create folder path
       const folderPath = `/Boletas ST/${company.name}/${building.name}/${site.name}/${ticket.stNumber}`;
-      
+
       // Generate unique filename
-      const fileExtension = file.name.split('.').pop();
-      const fileName = customFileName || `${documentType}_${Date.now()}.${fileExtension}`;
-  
+      const fileExtension = file.name.split(".").pop();
+      const fileName =
+        customFileName || `${documentType}_${Date.now()}.${fileExtension}`;
+
       // Upload file
       const itemId = await this.uploadFile(
         siteId,
@@ -1005,41 +1041,41 @@ class PostVentaManagementService extends BaseGraphService {
         folderPath,
         fileName
       );
-  
+
       // Create list item
-      await this.client
-        .api(`/sites/${siteId}/lists/${listId}/items`)
-        .post({
-          fields: {
-            ticketId,
-            fileName,
-            itemId,
-            documentType
-          }
-        });
-  
+      await this.client.api(`/sites/${siteId}/lists/${listId}/items`).post({
+        fields: {
+          ticketId,
+          fileName,
+          itemId,
+          documentType,
+        },
+      });
+
       return {
         itemId,
         fileName,
-        documentType
+        documentType,
       };
     } catch (error) {
-      console.error('Error uploading document:', error);
+      console.error("Error uploading document:", error);
       throw new Error(`Error uploading document: ${error.message}`);
     }
   }
 
   async deleteTicketDocument(documentId, source) {
-    const config = source === 'admin' ? this.config.admins : this.config.general;
-    const listName = source === 'admin' ? config.lists.docsAdmins : config.lists.docs;
-    const siteId = source === 'admin' ? config.siteId : this.siteId;
+    const config =
+      source === "admin" ? this.config.admins : this.config.general;
+    const listName =
+      source === "admin" ? config.lists.docsAdmins : config.lists.docs;
+    const siteId = source === "admin" ? config.siteId : this.siteId;
 
     // Delete file and list item
     await Promise.all([
       this.deleteFile(documentId),
       this.client
         .api(`/sites/${siteId}/lists/${listName}/items/${documentId}`)
-        .delete()
+        .delete(),
     ]);
   }
 }
