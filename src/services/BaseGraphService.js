@@ -47,48 +47,50 @@ class BaseGraphService {
 
   async getListItems(siteId, listId, options = {}) {
     await this.initializeGraphClient();
-    
+
     let allItems = [];
-    
+
     // Build the initial query URL with options
-    let queryParams = ['expand=fields', '$top=100'];
-    
+    let queryParams = ["expand=fields", "$top=100"];
+
     // Add filter if provided
     if (options.filter) {
       queryParams.push(`$filter=${encodeURIComponent(options.filter)}`);
     }
-    
+
     // Add select if provided
     if (options.select) {
-      queryParams.push(`$select=${encodeURIComponent(options.select.join(','))}`);
+      queryParams.push(
+        `$select=${encodeURIComponent(options.select.join(","))}`
+      );
     }
-    
+
     // Add orderby if provided
     if (options.orderBy) {
       queryParams.push(`$orderby=${encodeURIComponent(options.orderBy)}`);
     }
-    
+
     // Build initial URL
-    let nextLink = `/sites/${siteId}/lists/${listId}/items?${queryParams.join('&')}`;
-  
+    let nextLink = `/sites/${siteId}/lists/${listId}/items?${queryParams.join(
+      "&"
+    )}`;
+
     while (nextLink) {
       try {
-        const response = await this.client
-          .api(nextLink)
-          .get();
-  
+        const response = await this.client.api(nextLink).get();
+
         allItems = [...allItems, ...response.value];
-        
+
         // Update nextLink for the next page, if it exists
-        nextLink = response["@odata.nextLink"] ? 
-          response["@odata.nextLink"].split('/v1.0')[1] : 
-          null;
+        nextLink = response["@odata.nextLink"]
+          ? response["@odata.nextLink"].split("/v1.0")[1]
+          : null;
       } catch (error) {
         console.error("Error fetching list items:", error);
         throw error;
       }
     }
-  
+
     return allItems;
   }
 
@@ -237,10 +239,14 @@ class BaseGraphService {
 
   async createCalendarEvent(groupId, title, startTime, attendees = [], body) {
     await this.initializeGraphClient();
-    
-    const adjustedStartTime = new Date(new Date(startTime).getTime() - (6 * 60 * 60 * 1000));
-    const adjustedEndTime = new Date(adjustedStartTime.getTime() + (4 * 60 * 60 * 1000));
-  
+
+    const adjustedStartTime = new Date(
+      new Date(startTime).getTime() - 6 * 60 * 60 * 1000
+    );
+    const adjustedEndTime = new Date(
+      adjustedStartTime.getTime() + 4 * 60 * 60 * 1000
+    );
+
     const event = {
       subject: title,
       body: {
@@ -248,18 +254,12 @@ class BaseGraphService {
         content: body,
       },
       start: {
-        dateTime: startTime,
-        timeZone: "America/Costa_Rica",
         dateTime: adjustedStartTime.toISOString(),
-        timeZone: "America/Costa_Rica"
+        timeZone: "America/Costa_Rica",
       },
       end: {
-        dateTime: new Date(
-          new Date(startTime).getTime() + 4 * 60 * 60 * 1000
-        ).toISOString(), // 4 hour default duration
-        timeZone: "America/Costa_Rica",
         dateTime: adjustedEndTime.toISOString(),
-        timeZone: "America/Costa_Rica"
+        timeZone: "America/Costa_Rica",
       },
       attendees: attendees.map((attendee) => ({
         emailAddress: {
@@ -269,11 +269,11 @@ class BaseGraphService {
         type: "required",
       })),
     };
-  
+
     const response = await this.client
       .api(`/groups/${groupId}/calendar/events`)
       .post(event);
-  
+
     return response.id;
   }
 
@@ -300,27 +300,24 @@ class BaseGraphService {
   }
 
   async updateCalendarEventDate(groupId, eventId, newStartTime) {
-    const adjustedStartTime = new Date(new Date(newStartTime).getTime() - (6 * 60 * 60 * 1000));
-    const adjustedEndTime = new Date(adjustedStartTime.getTime() + (4 * 60 * 60 * 1000));
-  
+    const adjustedStartTime = new Date(
+      new Date(newStartTime).getTime() - 6 * 60 * 60 * 1000
+    );
+    const adjustedEndTime = new Date(
+      adjustedStartTime.getTime() + 4 * 60 * 60 * 1000
+    );
+
     const updates = {
       start: {
-        dateTime: newStartTime,
-        timeZone: "America/Costa_Rica",
         dateTime: adjustedStartTime.toISOString(),
-        timeZone: "America/Costa_Rica"
+        timeZone: "America/Costa_Rica",
       },
       end: {
-        dateTime: new Date(
-          new Date(newStartTime).getTime() + 4 * 60 * 60 * 1000
-        ).toISOString(),
+        dateTime: adjustedEndTime.toISOString(),
         timeZone: "America/Costa_Rica",
       },
-        dateTime: adjustedEndTime.toISOString(),
-        timeZone: "America/Costa_Rica"
-      }
     };
-  
+
     await this.updateCalendarEvent(groupId, eventId, updates);
   }
 
