@@ -51,7 +51,7 @@ const TicketForm = () => {
   });
 
   const {
-    files: descriptionFile = null,
+    files: descriptionFile = [],
     addFiles: addDescription,
     removeFile: removeDescription,
     error: descriptionError,
@@ -145,19 +145,21 @@ const TicketForm = () => {
       });
 
       // Upload description file
-      if (descriptionFile) {
-        const descriptionFileId = await service.uploadTicketDocument(
+      const descriptionDoc = {};
+      if (descriptionFile.length !== 0) {
+        const descriptionFileData = await service.uploadTicketDocument(
           response.id,
-          "description",
-          descriptionFile[0].file
+          descriptionFile[0].file,
+          "description"
         );
+        descriptionDoc.id = descriptionFileData.itemId
+        descriptionDoc.name = "Descripción adicional"
 
-        console.log("xd");
         const fields = {
-          Descripci_x00f3_n: descriptionFileId,
+          Descripci_x00f3_n: descriptionFileData.itemId,
         };
 
-        await this.client
+        await service.client
           .api(
             `/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${response.id}`
           )
@@ -165,43 +167,41 @@ const TicketForm = () => {
             fields: fields,
           });
 
-        const descriptionShareLink = await service.createShareLink(
-          service.general.siteId,
-          descriptionFileId,
+        const sharableLink = await service.createShareLink(
+          service.config.siteId,
+          descriptionFileData.itemId,
           "view",
           "organization"
         );
-
-        //falta a;adirlo al correo
+        descriptionDoc.link = sharableLink.webUrl;
       }
 
       // Upload admin docs and create share links
 
       const adminFileLinks = await Promise.all(
         adminDocs.map(async (doc) => {
-          console.log("admin");
-          let fileExtension = doc.name.split(".").pop();
-          let displayName = doc.displayName || doc.name;
-          const fileId = await service.uploadTicketDocument(
+          let fileExtension = doc.file.name.split(".").pop();
+          let displayName = doc.displayName || doc.file.name.split('.').slice(0, -1).join('.');
+          const uploadResponse = await service.uploadTicketDocument(
             response.id,
+            doc.file,
             "administrative",
             `${displayName} - ${generateRandomNumber(
               16
-            ).toString()}.${fileExtension}`,
-            doc.file
+            ).toString()}.${fileExtension}`
           );
 
           const shareLink = await service.createShareLink(
             service.admins.siteId,
-            fileId,
+            uploadResponse.itemId,
             "view",
             "organization"
           );
 
           return {
-            name: doc.displayName || doc.name,
+            name: doc.displayName || doc.file.name,
             link: shareLink.webUrl,
-            id: fileId,
+            id: uploadResponse.itemId,
           };
         })
       );
@@ -221,15 +221,15 @@ const TicketForm = () => {
           contactEmail: site.contactEmail,
           contactPhone: site.contactPhone,
         },
+        descriptionDoc: descriptionDoc,
         adminDocs: adminFileLinks,
       });
 
       // Send email with links
       await service.sendEmail({
         toRecipients: ["andres.villalobos@edintel.com"],
-        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${
-          systems.find((s) => s.id === formData.systemId)?.name
-        }`,
+        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${systems.find((s) => s.id === formData.systemId)?.name
+          }`,
         content: emailContent,
       });
 
@@ -459,6 +459,7 @@ const generateEmailContent = ({
   building,
   site,
   siteDetails,
+  descriptionDoc,
   adminDocs,
 }) => {
   return `
@@ -537,6 +538,17 @@ const generateEmailContent = ({
                     <span class="label">Alcance:</span>
                     <span class="value">${scope}</span>
                 </div>
+                ${descriptionDoc
+      ? `
+                <div class="info-row">
+                        <span class="label">${descriptionDoc.name}:</span>
+                        <span class="value">
+                            <a href="${descriptionDoc.link}">Ver documento</a>
+                        </span>
+                </div>
+                `
+      : ""
+    }
             </div>
 
             <div class="section">
@@ -553,16 +565,15 @@ const generateEmailContent = ({
                     <span class="label">Sitio:</span>
                     <span class="value">${site}</span>
                 </div>
-                ${
-                  siteDetails.location
-                    ? `
+                ${siteDetails.location
+      ? `
                 <div class="info-row">
                     <span class="label">Ubicación:</span>
                     <span class="value">${siteDetails.location}</span>
                 </div>
                 `
-                    : ""
-                }
+      : ""
+    }
             </div>
 
             <div class="section">
@@ -573,56 +584,51 @@ const generateEmailContent = ({
                 </div>
             </div>
 
-            ${
-              siteDetails.contactName ||
-              siteDetails.contactEmail ||
-              siteDetails.contactPhone
-                ? `
+            ${siteDetails.contactName ||
+      siteDetails.contactEmail ||
+      siteDetails.contactPhone
+      ? `
             <div class="section">
                 <div class="section-title">Información de Contacto</div>
-                ${
-                  siteDetails.contactName
-                    ? `
+                ${siteDetails.contactName
+        ? `
                 <div class="info-row">
                     <span class="label">Contacto:</span>
                     <span class="value">${siteDetails.contactName}</span>
                 </div>
                 `
-                    : ""
-                }
-                ${
-                  siteDetails.contactEmail
-                    ? `
+        : ""
+      }
+                ${siteDetails.contactEmail
+        ? `
                 <div class="info-row">
                     <span class="label">Email:</span>
                     <span class="value">${siteDetails.contactEmail}</span>
                 </div>
                 `
-                    : ""
-                }
-                ${
-                  siteDetails.contactPhone
-                    ? `
+        : ""
+      }
+                ${siteDetails.contactPhone
+        ? `
                 <div class="info-row">
                     <span class="label">Teléfono:</span>
                     <span class="value">${siteDetails.contactPhone}</span>
                 </div>
                 `
-                    : ""
-                }
+        : ""
+      }
             </div>
             `
-                : ""
-            }
+      : ""
+    }
 
-            ${
-              adminDocs.length > 0
-                ? `
+            ${adminDocs.length > 0
+      ? `
             <div class="section">
                 <div class="section-title">Documentos Administrativos</div>
                 ${adminDocs
-                  .map(
-                    (doc) => `
+        .map(
+          (doc) => `
                 <div class="info-row">
                     <span class="label">${doc.name}:</span>
                     <span class="value">
@@ -630,12 +636,12 @@ const generateEmailContent = ({
                     </span>
                 </div>
                 `
-                  )
-                  .join("")}
+        )
+        .join("")}
             </div>
             `
-                : ""
-            }
+      : ""
+    }
         </div>
     </body>
     </html>

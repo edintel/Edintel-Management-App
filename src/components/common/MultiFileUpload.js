@@ -29,6 +29,8 @@ const MultiFileUpload = ({
 
     // Validate each file
     return newFiles.filter(file => {
+      if (!file || !file.name) return false;
+      
       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
       if (!allowedTypes.includes(fileExtension)) {
         throw new Error(`Tipo de archivo no permitido. Use: ${allowedTypes.join(', ')}`);
@@ -40,18 +42,18 @@ const MultiFileUpload = ({
     });
   };
 
-  const processNewFiles = (incomingFiles) => {
+  const processNewFiles = async (incomingFiles) => {
     try {
       const validFiles = validateFiles(incomingFiles);
-      const newFiles = validFiles.map(file => ({
+      
+      const processedFiles = validFiles.map(file => ({
         file,
-        name: file.name,
-        displayName: '',
-        size: file.size
+        displayName: ''
       }));
       
-      // Only pass the new files to onFilesChange
-      onFilesChange(newFiles);
+      if (processedFiles.length > 0) {
+        onFilesChange(processedFiles);
+      }
     } catch (err) {
       console.error('Error processing files:', err);
       if (err.message) alert(err.message);
@@ -83,31 +85,38 @@ const MultiFileUpload = ({
       {/* File List */}
       {files.length > 0 && (
         <div className="space-y-2">
-          {files.map((file, index) => (
-            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                {showDisplayName && (
-                  <input
-                    type="text"
-                    value={file.displayName || ''}
-                    onChange={(e) => onDisplayNameChange?.(index, e.target.value)}
-                    className="w-full px-3 py-1.5 border rounded text-sm mb-1"
-                    placeholder="Nombre para mostrar"
-                  />
-                )}
-                <p className="text-sm text-gray-600 truncate">{file.name}</p>
-                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+          {files.map((fileObj, index) => {
+            // Safety check to ensure file object exists and has required properties
+            if (!fileObj?.file?.name) return null;
+            
+            return (
+              <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  {showDisplayName && (
+                    <input
+                      type="text"
+                      value={fileObj.displayName || ''}
+                      onChange={(e) => onDisplayNameChange?.(index, e.target.value)}
+                      className="w-full px-3 py-1.5 border rounded text-sm mb-1"
+                      placeholder="Nombre para mostrar"
+                    />
+                  )}
+                  <p className="text-sm text-gray-600 truncate">{fileObj.file.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {fileObj.file.size ? formatFileSize(fileObj.file.size) : 'Calculando tamaño...'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => onRemove(index)} 
+                  className="p-1 hover:bg-gray-200 rounded"
+                  disabled={disabled}
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button 
-                onClick={() => onRemove(index)} 
-                className="p-1 hover:bg-gray-200 rounded"
-                disabled={disabled}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

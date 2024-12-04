@@ -483,7 +483,7 @@ class PostVentaManagementService extends BaseGraphService {
     try {
       const response = await this.client
         .api(
-          `/sites/${this.siteId}/lists/${this.config.general.lists.controlPV}/items/${ticketId}`
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
         )
         .expand("fields")
         .get();
@@ -531,7 +531,7 @@ class PostVentaManagementService extends BaseGraphService {
     try {
       const response = await this.client
         .api(
-          `/sites/${this.siteId}/lists/${this.config.general.lists.sites}/items/${siteId}`
+          `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${siteId}`
         )
         .expand("fields")
         .get();
@@ -565,7 +565,7 @@ class PostVentaManagementService extends BaseGraphService {
     try {
       const response = await this.client
         .api(
-          `/sites/${this.siteId}/lists/${this.config.general.lists.buildings}/items/${buildingId}`
+          `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${buildingId}`
         )
         .expand("fields")
         .get();
@@ -593,7 +593,7 @@ class PostVentaManagementService extends BaseGraphService {
     try {
       const response = await this.client
         .api(
-          `/sites/${this.siteId}/lists/${this.config.general.lists.companies}/items/${companyId}`
+          `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${companyId}`
         )
         .expand("fields")
         .get();
@@ -1005,19 +1005,12 @@ class PostVentaManagementService extends BaseGraphService {
     documentType,
     customFileName = null
   ) {
-    console.log("xd");
     if (!documentType) throw new Error("Document type is required");
-    console.log("xxd");
     const isAdminDoc = isAdministrativeDoc(documentType);
-    console.log("xxxd");
-    const config = isAdminDoc ? this.config.admins : this.config.general;
-    console.log("xxxxd");
+    const config = isAdminDoc ?  this.admins : this.config;
     const listId = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
-    console.log("xxxxxd");
     const siteId = isAdminDoc ? config.siteId : this.siteId;
-    console.log("xxxxxxd");
     const driveId = isAdminDoc ? config.driveId : this.driveId;
-    console.log("xxdasf");
     try {
       // Get ticket details for folder structure
       const ticket = await this.getTicketById(ticketId);
@@ -1031,7 +1024,7 @@ class PostVentaManagementService extends BaseGraphService {
       // Generate unique filename
       const fileExtension = file.name.split(".").pop();
       const fileName =
-        customFileName || `${documentType}_${Date.now()}.${fileExtension}`;
+        customFileName || `${documentType}_${Date.now()}_${generateRandomNumber(5)}.${fileExtension}`;
 
       // Upload file
       const itemId = await this.uploadFile(

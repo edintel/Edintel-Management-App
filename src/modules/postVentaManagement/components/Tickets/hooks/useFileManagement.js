@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { generateDisplayName, validateFileSize } from '../../../../../utils/fileUtils';
 
-// Map of MIME types to file extensions and vice versa
 const FILE_TYPE_MAP = {
   // MIME types to extensions
   'application/pdf': '.pdf',
@@ -20,31 +19,33 @@ const FILE_TYPE_MAP = {
   '.xlsb': ['application/vnd.ms-excel.sheet.binary.macroEnabled.12']
 };
 
-// Helper function to validate file type using both MIME types and extensions
 const validateFileType = (file, allowedTypes) => {
-  if (!file || !allowedTypes?.length) return false;
+  if (!file?.name) {
+    console.log('File or filename is missing');
+    return false;
+  }
 
-  // Get the file extension
+  if (!allowedTypes?.length) {
+    console.log('No allowed types specified');
+    return false;
+  }
+
   const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
 
-  // Convert allowed types to a set of valid extensions and MIME types
-  const validTypes = new Set(allowedTypes.flatMap(type => {
-    if (type.startsWith('.')) {
-      // If it's an extension, get its MIME types
-      return FILE_TYPE_MAP[type.toLowerCase()] || [];
-    } else {
-      // If it's a MIME type, get its extension
-      return [FILE_TYPE_MAP[type]];
+  // Check direct file type match
+  if (allowedTypes.includes(file.type)) {
+    return true;
+  }
+
+  // Check extension match from allowed MIME types
+  for (const allowedType of allowedTypes) {
+    const allowedExtension = FILE_TYPE_MAP[allowedType];
+    if (allowedExtension && allowedExtension === fileExtension) {
+      return true;
     }
-  }));
+  }
 
-  // Check if the file extension is valid
-  if (validTypes.has(fileExtension)) return true;
-
-  // Also check MIME type if available
-  if (file.type && validTypes.has(file.type)) return true;
-
-  // Special case for DOCX files (which sometimes have undefined type)
+  // Special case for DOCX
   if (fileExtension === '.docx' && allowedTypes.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
     return true;
   }
@@ -63,45 +64,62 @@ export const useFileManagement = ({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
-  const validateFile = useCallback((file) => {
-    if (!validateFileType(file, allowedTypes)) {
-      console.log('File validation failed:', {
-        fileName: file.name,
-        fileType: file.type,
-        allowedTypes,
-        fileExtension: '.' + file.name.split('.').pop().toLowerCase()
-      });
-      throw new Error('Tipo de archivo no permitido');
+  const validateFile = useCallback((fileObj) => {
+    // Extract the actual File object
+    const file = fileObj instanceof File ? fileObj : fileObj.file;
+
+    if (!file?.name) {
+      throw new Error('Archivo inválido');
     }
+
+    const isValidType = validateFileType(file, allowedTypes);
+    if (!isValidType) {
+      throw new Error(`Tipo de archivo no permitido. Tipos permitidos: ${allowedTypes.join(', ')}`);
+    }
+
     if (!validateFileSize(file, maxSize)) {
-      throw new Error(`El archivo no debe superar ${maxSize} bytes`);
+      throw new Error(`El archivo no debe superar ${(maxSize / (1024 * 1024)).toFixed(1)}MB`);
     }
+
+    return file;
   }, [allowedTypes, maxSize]);
 
   const addFiles = useCallback((newFiles) => {
     setError(null);
     
     try {
-      // Validate total number of files
-      if (files.length + newFiles.length > maxFiles) {
+      // Convert to array if it's a FileList
+      const filesArray = Array.from(newFiles);
+
+      if (files.length + filesArray.length > maxFiles) {
         throw new Error(`No se pueden subir más de ${maxFiles} archivos`);
       }
 
-      // Validate each file
-      newFiles.forEach(validateFile);
+      // Process and validate files
+      const processedFiles = filesArray.map(fileInput => {
+        // Get the actual File object after validation
+        const validFile = validateFile(fileInput);
+        
+        let processedFile = validFile;
+        if (generateNames) {
+          const newName = generateDisplayName(validFile, namePrefix);
+          processedFile = new File([validFile], newName, { 
+            type: validFile.type,
+            lastModified: validFile.lastModified 
+          });
+        }
 
-      // Process files
-      const processedFiles = newFiles.map(file => ({
-        file,
-        name: generateNames ? generateDisplayName(file, namePrefix) : file.name,
-        displayName: '',
-        size: file.size,
-        type: file.type
-      }));
+        return {
+          file: processedFile,
+          displayName: ''
+        };
+      });
 
       setFiles(prev => [...prev, ...processedFiles]);
     } catch (err) {
+      console.error('Error in addFiles:', err);
       setError(err.message);
+      throw err;
     }
   }, [files, maxFiles, validateFile, generateNames, namePrefix]);
 

@@ -65,7 +65,7 @@ export const useTicketActions = () => {
   );
 
   const handleUpdateStatus = useCallback(
-    async (ticketId, newStatus, files = null, notes = '') => {
+    async (ticketId, newStatus, files = [], notes = '') => {
       if (!ticketId || !newStatus) return;
   
       setProcessing(true);

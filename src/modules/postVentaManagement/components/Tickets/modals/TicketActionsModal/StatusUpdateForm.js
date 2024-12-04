@@ -62,10 +62,11 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
     }, formData.notes);
   };
 
-  const handleServiceTicketsChange = (files) => {
+  // Updated to accumulate files instead of replacing them
+  const handleServiceTicketsChange = (newFiles) => {
     setFormData(prev => ({
       ...prev,
-      serviceTickets: files
+      serviceTickets: [...prev.serviceTickets, ...newFiles]
     }));
     if (errors.serviceTickets) {
       setErrors(prev => ({
@@ -73,6 +74,14 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
         serviceTickets: undefined
       }));
     }
+  };
+
+  // Handle removal of specific service tickets
+  const handleServiceTicketRemove = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceTickets: prev.serviceTickets.filter((_, i) => i !== index)
+    }));
   };
 
   const handleReportChange = (files) => {
@@ -101,11 +110,7 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
           <MultiFileUpload
             files={formData.serviceTickets}
             onFilesChange={handleServiceTicketsChange}
-            onRemove={(index) => {
-              const newFiles = [...formData.serviceTickets];
-              newFiles.splice(index, 1);
-              handleServiceTicketsChange(newFiles);
-            }}
+            onRemove={handleServiceTicketRemove}
             maxFiles={5}
             maxSize={10 * 1024 * 1024}
             allowedTypes={allowedTypes}
