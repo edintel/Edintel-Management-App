@@ -1,13 +1,15 @@
-// src/modules/postVentaManagement/components/Tickets/modals/TicketEditModal/TicketEditForm.js
 import React, { useState, useEffect } from 'react';
-import { FileText } from 'lucide-react';
 import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
+import { FileText } from 'lucide-react';
+import MultiFileUpload from '../../../../../../components/common/MultiFileUpload';
+import { cn } from '../../../../../../utils/cn';
 
 const TicketEditForm = ({
   onSubmit,
   initialData = null
 }) => {
-  const { companies = [], buildings = [], sites = [], systems = [] } = usePostVentaManagement();
+  const { companies = [], buildings = [], sites = [], systems = [], userRole } = usePostVentaManagement();
+  
   const [formData, setFormData] = useState({
     st: '',
     scope: '',
@@ -17,9 +19,12 @@ const TicketEditForm = ({
     systemId: '',
     type: '',
     description: null,
-    serviceTicket: null,
-    report: null,
+    adminDocs: [],
+    serviceTickets: [], // Changed from serviceTicket to serviceTickets array
+    report: null
   });
+
+  const [errors, setErrors] = useState({});
 
   // Filter buildings based on selected company
   const filteredBuildings = buildings.filter(
@@ -53,7 +58,10 @@ const TicketEditForm = ({
         siteId: initialData.siteId || '',
         systemId: initialData.systemId || '',
         type: initialData.type || '',
-        description: null // Don't pre-fill file input
+        description: null,
+        adminDocs: [],
+        serviceTickets: [], // Initialize as empty array
+        report: null
       });
     }
   }, [initialData, buildings, sites]);
@@ -79,34 +87,58 @@ const TicketEditForm = ({
     });
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData(prev => ({
-        ...prev,
-        description: file
-      }));
+  const handleAdminDocsChange = (files) => {
+    setFormData(prev => ({
+      ...prev,
+      adminDocs: files
+    }));
+    if (errors.adminDocs) {
+      setErrors(prev => ({ ...prev, adminDocs: undefined }));
     }
   };
 
-  const handleServiceTicketChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData(prev => ({
-        ...prev,
-        serviceTicket: file
-      }));
+  const handleServiceTicketsChange = (files) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceTickets: files
+    }));
+    if (errors.serviceTickets) {
+      setErrors(prev => ({ ...prev, serviceTickets: undefined }));
     }
   };
 
-  const handleReportChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData(prev => ({
-        ...prev,
-        report: file
-      }));
+  const handleReportChange = (files) => {
+    setFormData(prev => ({
+      ...prev,
+      report: files[0] || null
+    }));
+    if (errors.report) {
+      setErrors(prev => ({ ...prev, report: undefined }));
     }
+  };
+
+  const handleDescriptionChange = (files) => {
+    setFormData(prev => ({
+      ...prev,
+      description: files[0] || null
+    }));
+    if (errors.description) {
+      setErrors(prev => ({ ...prev, description: undefined }));
+    }
+  };
+
+  const handleRemoveServiceTicket = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceTickets: prev.serviceTickets.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleRemoveAdminDoc = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      adminDocs: prev.adminDocs.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -114,8 +146,11 @@ const TicketEditForm = ({
     onSubmit(initialData.id, formData);
   };
 
+  const isAdmin = userRole?.role === 'Administrativo';
+
   return (
     <form id="ticketForm" onSubmit={handleSubmit} className="space-y-6">
+      {/* Basic Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -126,13 +161,36 @@ const TicketEditForm = ({
             name="st"
             value={formData.st}
             onChange={handleInputChange}
-            placeholder="Inserte la ST + nombre"
-            className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+            className={cn(
+              "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
+              errors.st && "border-error focus:border-error focus:ring-error"
+            )}
             required
           />
         </div>
 
         <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Tipo de Servicio *
+          </label>
+          <select
+            name="type"
+            value={formData.type}
+            onChange={handleInputChange}
+            className={cn(
+              "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
+              errors.type && "border-error focus:border-error focus:ring-error"
+            )}
+            required
+          >
+            <option value="">Seleccione un tipo</option>
+            <option value="Correctiva">Correctiva</option>
+            <option value="Preventiva">Preventiva</option>
+          </select>
+        </div>
+
+        {/* Location Selection */}
+        <div className="space-y-2 md:col-span-2">
           <label className="block text-sm font-medium text-gray-700">
             Alcance *
           </label>
@@ -140,11 +198,14 @@ const TicketEditForm = ({
             name="scope"
             value={formData.scope}
             onChange={handleInputChange}
-            placeholder="Explique el alcance del trabajo"
-            className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary min-h-[100px] resize-y"
+            rows={4}
+            className={cn(
+              "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
+              errors.scope && "border-error focus:border-error focus:ring-error"
+            )}
             required
           />
-        </div>
+        </div>     
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -154,7 +215,10 @@ const TicketEditForm = ({
             name="companyId"
             value={formData.companyId}
             onChange={handleInputChange}
-            className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+            className={cn(
+              "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
+              errors.companyId && "border-error focus:border-error focus:ring-error"
+            )}
             required
           >
             <option value="">Seleccione una empresa</option>
@@ -175,7 +239,10 @@ const TicketEditForm = ({
             value={formData.buildingId}
             onChange={handleInputChange}
             disabled={!formData.companyId}
-            className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+            className={cn(
+              "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
+              errors.buildingId && "border-error focus:border-error focus:ring-error"
+            )}
             required
           >
             <option value="">Seleccione un edificio</option>
@@ -196,7 +263,10 @@ const TicketEditForm = ({
             value={formData.siteId}
             onChange={handleInputChange}
             disabled={!formData.buildingId}
-            className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+            className={cn(
+              "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
+              errors.siteId && "border-error focus:border-error focus:ring-error"
+            )}
             required
           >
             <option value="">Seleccione un sitio</option>
@@ -217,7 +287,10 @@ const TicketEditForm = ({
             value={formData.systemId}
             onChange={handleInputChange}
             disabled={!formData.siteId}
-            className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+            className={cn(
+              "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
+              errors.systemId && "border-error focus:border-error focus:ring-error"
+            )}
             required
           >
             <option value="">Seleccione un sistema</option>
@@ -228,143 +301,96 @@ const TicketEditForm = ({
             ))}
           </select>
         </div>
-
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Tipo de Servicio *
-          </label>
-          <select
-            name="type"
-            value={formData.type}
-            onChange={handleInputChange}
-            className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-            required
-          >
-            <option value="">Seleccione un tipo</option>
-            <option value="Correctiva">Correctiva</option>
-            <option value="Preventiva">Preventiva</option>
-          </select>
-        </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          Nueva Descripción
-        </label>
-        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-          <div className="space-y-1 text-center">
-            <FileText size={24} className="mx-auto text-gray-400" />
-            <div className="flex text-sm text-gray-600">
-              <label
-                htmlFor="description"
-                className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none"
-              >
-                <span>Subir archivo</span>
-                <input
-                  id="description"
-                  name="description"
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
-                  className="sr-only"
-                  onChange={handleFileChange}
-                />
-              </label>
-              <p className="pl-1">o arrastrar y soltar</p>
-            </div>
-            <p className="text-xs text-gray-500">
-              PDF, DOC, DOCX hasta 10MB
+      {/* Document Management */}
+      <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Nueva Descripción
+            </label>
+            <MultiFileUpload
+              files={formData.description ? [formData.description] : []}
+              onFilesChange={handleDescriptionChange}
+              onRemove={() => setFormData(prev => ({ ...prev, description: null }))}
+              maxFiles={1}
+              maxSize={10 * 1024 * 1024}
+              allowedTypes={['.pdf', '.doc', '.docx']}
+              error={errors.description}
+            />
+            <p className="text-sm text-gray-500">
+              Deje vacío para mantener la descripción actual
             </p>
-            {formData.description && (
+          </div>
+
+          {initialData?.serviceTicketId && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Nuevas Boletas de Servicio
+              </label>
+              <MultiFileUpload
+                files={formData.serviceTickets}
+                onFilesChange={handleServiceTicketsChange}
+                onRemove={handleRemoveServiceTicket}
+                maxFiles={5}
+                maxSize={10 * 1024 * 1024}
+                allowedTypes={['.pdf', '.doc', '.docx']}
+                error={errors.serviceTickets}
+              />
               <p className="text-sm text-gray-500">
-                Archivo seleccionado: {formData.description.name}
+                Deje vacío para mantener las boletas actuales
               </p>
-            )}
-          </div>
-        </div>
-        <p className="text-sm text-gray-500">
-          Deje vacío para mantener la descripción actual
-        </p>
-      </div>
-      {initialData?.serviceTicketId && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Nueva Boleta
-          </label>
-          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-            <div className="space-y-1 text-center">
-              <FileText size={24} className="mx-auto text-gray-400" />
-              <div className="flex text-sm text-gray-600">
-                <label
-                  htmlFor="description"
-                  className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none"
-                >
-                  <span>Subir archivo</span>
-                  <input
-                    id="ticket"
-                    name="ticket"
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
-                    className="sr-only"
-                    onChange={handleServiceTicketChange}
-                  />
-                </label>
-                <p className="pl-1">o arrastrar y soltar</p>
-              </div>
-              <p className="text-xs text-gray-500">
-                PDF, DOC, DOCX hasta 10MB
-              </p>
-              {formData.description && (
-                <p className="text-sm text-gray-500">
-                  Archivo seleccionado: {formData.description.name}
-                </p>
-              )}
             </div>
-          </div>
-          <p className="text-sm text-gray-500">
-            Deje vacío para mantener la boleta actual
-          </p>
-        </div>
-      )}
-      {initialData?.reportId && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Nuevo Reporte
-          </label>
-          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-            <div className="space-y-1 text-center">
-              <FileText size={24} className="mx-auto text-gray-400" />
-              <div className="flex text-sm text-gray-600">
-                <label
-                  htmlFor="description"
-                  className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none"
-                >
-                  <span>Subir archivo</span>
-                  <input
-                    id="report"
-                    name="report"
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
-                    className="sr-only"
-                    onChange={handleReportChange}
-                  />
-                </label>
-                <p className="pl-1">o arrastrar y soltar</p>
-              </div>
-              <p className="text-xs text-gray-500">
-                PDF, DOC, DOCX hasta 10MB
+          )}
+
+          {initialData?.reportId && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Nuevo Informe
+              </label>
+              <MultiFileUpload
+                files={formData.report ? [formData.report] : []}
+                onFilesChange={handleReportChange}
+                onRemove={() => setFormData(prev => ({ ...prev, report: null }))}
+                maxFiles={1}
+                maxSize={10 * 1024 * 1024}
+                allowedTypes={['.pdf', '.doc', '.docx']}
+                error={errors.report}
+              />
+              <p className="text-sm text-gray-500">
+                Deje vacío para mantener el informe actual
               </p>
-              {formData.description && (
-                <p className="text-sm text-gray-500">
-                  Archivo seleccionado: {formData.description.name}
-                </p>
-              )}
             </div>
-          </div>
-          <p className="text-sm text-gray-500">
-            Deje vacío para mantener el reporte actual
-          </p>
+          )}
+
+          {/* Administrative Documents (Only visible to admins) */}
+          {isAdmin && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Documentos Administrativos
+              </label>
+              <MultiFileUpload
+                files={formData.adminDocs}
+                onFilesChange={handleAdminDocsChange}
+                onRemove={handleRemoveAdminDoc}
+                onDisplayNameChange={(index, name) => {
+                  const newAdminDocs = [...formData.adminDocs];
+                  newAdminDocs[index].displayName = name;
+                  setFormData(prev => ({ ...prev, adminDocs: newAdminDocs }));
+                }}
+                showDisplayName={true}
+                maxFiles={5}
+                maxSize={10 * 1024 * 1024}
+                allowedTypes={['.pdf', '.doc', '.docx']}
+                error={errors.adminDocs}
+              />
+            </div>
+          )}
         </div>
-      )}
     </form>
   );
 };

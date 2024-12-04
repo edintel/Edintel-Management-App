@@ -131,30 +131,16 @@ class PostVentaManagementService extends BaseGraphService {
    * @param {string} stData.st - ST number
    * @param {string} stData.siteId - Site ID
    * @param {string} stData.systemId - System ID
-   * @param {File} descriptionFile - File to be uploaded as description
    * @returns {Promise<Object>} Created Service Ticket
    */
-  async createServiceTicket(stData, descriptionFile) {
+  async createServiceTicket(stData) {
     try {
       await this.initializeGraphClient();
-  
-      let fileId = null;
-      if (descriptionFile) {
-        const folderPath = `/Boletas ST/${stData.companyName}/${stData.buildingName}/${stData.siteName}/${stData.st}`;
-        fileId = await this.uploadFile(
-          this.siteId,
-          this.driveId,
-          descriptionFile,
-          folderPath,
-          `Descripción - ${generateRandomNumber(16).toString()}`
-        );
-      }
   
       const fields = {
         Title: stData.st,
         SitioIDLookupId: stData.siteId,
         SistemaIDLookupId: stData.systemId,
-        Descripci_x00f3_n: fileId, 
         alcance: stData.scope,
         Estado: "Iniciada",
         Tipo: stData.type,
@@ -989,51 +975,58 @@ class PostVentaManagementService extends BaseGraphService {
   }
 
   async uploadTicketDocument(ticketId, file, documentType, customFileName = null) {
+    if (!documentType) throw new Error('Document type is required');
+    
     const isAdminDoc = isAdministrativeDoc(documentType);
     const config = isAdminDoc ? this.config.admins : this.config.general;
-    const listName = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
+    const listId = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
     const siteId = isAdminDoc ? config.siteId : this.siteId;
     const driveId = isAdminDoc ? config.driveId : this.driveId;
-
-    // Get ticket details for folder structure
-    const ticket = await this.getTicketById(ticketId);
-    const site = await this.getSiteById(ticket.siteId);
-    const building = await this.getBuildingById(site.buildingId);
-    const company = await this.getCompanyById(building.companyId);
-
-    // Create folder path
-    const folderPath = `/Boletas ST/${company.name}/${building.name}/${site.name}/${ticket.stNumber}`;
-    
-    // Generate unique filename
-    const fileExtension = file.name.split('.').pop();
-    const fileName = customFileName || `${documentType}_${Date.now()}.${fileExtension}`;
-
-    // Upload file
-    const itemId = await this.uploadFile(
-      siteId,
-      driveId,
-      file,
-      folderPath,
-      fileName
-    );
-
-    // Create list item
-    await this.client
-      .api(`/sites/${siteId}/lists/${listName}/items`)
-      .post({
-        fields: {
-          ticketId,
-          fileName,
-          itemId,
-          documentType
-        }
-      });
-
-    return {
-      itemId,
-      fileName,
-      documentType
-    };
+  
+    try {
+      // Get ticket details for folder structure
+      const ticket = await this.getTicketById(ticketId);
+      const site = await this.getSiteById(ticket.siteId);
+      const building = await this.getBuildingById(site.buildingId);
+      const company = await this.getCompanyById(building.companyId);
+  
+      // Create folder path
+      const folderPath = `/Boletas ST/${company.name}/${building.name}/${site.name}/${ticket.stNumber}`;
+      
+      // Generate unique filename
+      const fileExtension = file.name.split('.').pop();
+      const fileName = customFileName || `${documentType}_${Date.now()}.${fileExtension}`;
+  
+      // Upload file
+      const itemId = await this.uploadFile(
+        siteId,
+        driveId,
+        file,
+        folderPath,
+        fileName
+      );
+  
+      // Create list item
+      await this.client
+        .api(`/sites/${siteId}/lists/${listId}/items`)
+        .post({
+          fields: {
+            ticketId,
+            fileName,
+            itemId,
+            documentType
+          }
+        });
+  
+      return {
+        itemId,
+        fileName,
+        documentType
+      };
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      throw new Error(`Error uploading document: ${error.message}`);
+    }
   }
 
   async deleteTicketDocument(documentId, source) {

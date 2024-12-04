@@ -8,6 +8,7 @@ import Card from '../../../../../../components/common/Card';
 import Button from '../../../../../../components/common/Button';
 import MultiFileUpload from '../../../../../../components/common/MultiFileUpload';
 import { useFileManagement } from '../../hooks/useFileManagement';
+import { generateRandomNumber } from '../../../../../../utils/randomUtils';
 
 const TicketForm = () => {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ const TicketForm = () => {
 
   // File management hooks
   const {
-    files: adminDocs,
+    files: adminDocs = [],
     addFiles: addAdminDocs,
     removeFile: removeAdminDoc,
     updateDisplayName: updateAdminDocName,
@@ -38,12 +39,12 @@ const TicketForm = () => {
     maxFiles: 5,
     maxSize: 10 * 1024 * 1024, // 10MB
     allowedTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-    generateNames: true,
+    generateNames: false,
     namePrefix: 'admin_'
   });
 
   const {
-    files: descriptionFile,
+    files: descriptionFile = null,
     addFiles: addDescription,
     removeFile: removeDescription,
     error: descriptionError,
@@ -53,6 +54,8 @@ const TicketForm = () => {
     maxSize: 10 * 1024 * 1024,
     allowedTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
   });
+
+  const allowedTypes = ['.pdf', '.doc', '.docx', '.xlsx', '.xlsm', '.xlsb'];
 
   // Filter buildings based on selected company
   const filteredBuildings = buildings.filter(
@@ -104,7 +107,6 @@ const TicketForm = () => {
     if (!formData.siteId) return 'Seleccione un sitio';
     if (!formData.systemId) return 'Seleccione un sistema';
     if (!formData.type) return 'Seleccione un tipo de servicio';
-    if (!descriptionFile.length) return 'La descripción es requerida';
     return null;
   };
 
@@ -124,24 +126,55 @@ const TicketForm = () => {
       const building = buildings.find(b => b.id === site.buildingId);
       const company = companies.find(c => c.id === building.companyId);
 
+      // Create ticket with all references
+      const response = await service.createServiceTicket({
+        ...formData
+      });
+
       // Upload description file
-      const descriptionFileId = await service.uploadTicketDocument(
-        {
-          ticketId: formData.st,
-          documentType: 'description'
-        },
-        descriptionFile[0].file,
-        false
-      );
+      if (descriptionFile) {
+        const descriptionFileId = await service.uploadTicketDocument(
+          {
+            ticketId: response.id,
+            documentType: 'description'
+          },
+          descriptionFile[0].file,
+          false
+        );
+
+        const fields = {
+          Descripci_x00f3_n: descriptionFileId
+        }
+
+        await this.client
+          .api(`/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${response.id}`)
+          .patch({
+            fields: fields,
+          });
+
+
+        const descriptionShareLink = await service.createShareLink(
+          service.general.siteId,
+          descriptionFileId,
+          "view",
+          "organization"
+        );
+
+        //falta a;adirlo al correo
+      }
+
 
       // Upload admin docs and create share links
+      
+
       const adminFileLinks = await Promise.all(
         adminDocs.map(async doc => {
+          let displayName = doc.displayName || doc.name;
           const fileId = await service.uploadTicketDocument(
             {
-              ticketId: formData.st,
+              ticketId: response.id,
               documentType: 'administrative',
-              displayName: doc.displayName || doc.name
+              displayName: `${displayName} - ${generateRandomNumber(16).toString()}`
             },
             doc.file,
             true
@@ -162,6 +195,8 @@ const TicketForm = () => {
         })
       );
 
+
+
       // Create email content with admin docs
       const emailContent = generateEmailContent({
         st: formData.st,
@@ -178,16 +213,6 @@ const TicketForm = () => {
           contactPhone: site.contactPhone
         },
         adminDocs: adminFileLinks
-      });
-
-      // Create ticket with all references
-      await service.createServiceTicket({
-        ...formData,
-        descriptionId: descriptionFileId,
-        adminDocs: adminDocs.map(doc => ({
-          itemId: doc.id,
-          displayName: doc.displayName || doc.name
-        }))
       });
 
       // Send email with links
@@ -359,7 +384,7 @@ const TicketForm = () => {
           {/* Description File */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
-              Descripción *
+              Descripción
             </label>
             <MultiFileUpload
               files={descriptionFile}
@@ -368,6 +393,7 @@ const TicketForm = () => {
               maxFiles={1}
               error={descriptionError}
               disabled={processing}
+              allowedTypes={allowedTypes}
             />
           </div>
 
@@ -385,6 +411,7 @@ const TicketForm = () => {
               maxFiles={5}
               error={adminDocsError}
               disabled={processing}
+              allowedTypes={allowedTypes}
             />
           </div>
 
