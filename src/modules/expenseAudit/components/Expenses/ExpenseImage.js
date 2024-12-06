@@ -29,7 +29,7 @@ const ExpenseImage = ({ itemId, className = '' }) => {
         setLoading(true);
         setError(null);
 
-        const { url, token } = await service.getImageContent(
+        const { url, token } = await service.getFile(
           expenseAuditConfig.siteId,
           expenseAuditConfig.driveId,
           itemId

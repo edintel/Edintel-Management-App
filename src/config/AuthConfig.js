@@ -4,11 +4,16 @@ export const msalConfig = {
     authority: `https://login.microsoftonline.com/${process.env.REACT_APP_TENANT_ID}`,
     redirectUri: process.env.REACT_APP_REDIRECT_URI,
     postLogoutRedirectUri: `${window.location.origin}/login`,
-    navigateToLoginRequestUrl: false,
+    navigateToLoginRequestUrl: true,
   },
   cache: {
-    cacheLocation: "localStorage",
-    storeAuthStateInCookie: false,
+    cacheLocation: "sessionStorage", 
+    storeAuthStateInCookie: true,   
+    secureCookies: true             
+  },
+  system: {
+    allowRedirectInIframe: true,    
+    iframeHashTimeout: 6000         
   }
 };
 

@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { POST_VENTA_ROUTES } from "../../../../routes";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Image } from "lucide-react";
 
 import Card from "../../../../../../components/common/Card";
 import Button from "../../../../../../components/common/Button";
 import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
+import MultiImageUpload from "../../../../../../components/common/MultiImageUpload";
 import { useFileManagement } from "../../hooks/useFileManagement";
+import {useImageManagement} from "../../hooks/useImageManagement"
 import { generateRandomNumber } from "../../../../../../utils/randomUtils";
 
 const TicketForm = () => {
@@ -35,40 +37,18 @@ const TicketForm = () => {
     removeFile: removeAdminDoc,
     updateDisplayName: updateAdminDocName,
     error: adminDocsError,
-  } = useFileManagement({
-    maxFiles: 5,
-    maxSize: 10 * 1024 * 1024, // 10MB
-    allowedTypes: [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel.sheet.macroEnabled.12",
-      "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
-    ],
-    generateNames: false,
-    namePrefix: "admin_",
-  });
+  } = useFileManagement();
 
   const {
-    files: descriptionFile = [],
-    addFiles: addDescription,
-    removeFile: removeDescription,
-    error: descriptionError,
-  } = useFileManagement({
-    maxFiles: 1,
-    maxSize: 10 * 1024 * 1024,
-    allowedTypes: [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel.sheet.macroEnabled.12",
-      "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
-    ],
+    images,
+    processing: processingImages,
+    error: imagesError,
+    addImages,
+    removeImage
+  }  = useImageManagement({
+    generateNames: true,
+    namePrefix: "image - ",
   });
-
-  const allowedTypes = [".pdf", ".doc", ".docx", ".xlsx", ".xlsm", ".xlsb"];
 
   // Filter buildings based on selected company
   const filteredBuildings = buildings.filter(
@@ -144,43 +124,22 @@ const TicketForm = () => {
         ...formData,
       });
 
-      // Upload description file
-      const descriptionDoc = {};
-      if (descriptionFile.length !== 0) {
-        const descriptionFileData = await service.uploadTicketDocument(
-          response.id,
-          descriptionFile[0].file,
-          "description"
-        );
-        descriptionDoc.id = descriptionFileData.itemId
-        descriptionDoc.name = "Descripción adicional"
-
-        const fields = {
-          Descripci_x00f3_n: descriptionFileData.itemId,
-        };
-
-        await service.client
-          .api(
-            `/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${response.id}`
-          )
-          .patch({
-            fields: fields,
-          });
-
-        const sharableLink = await service.createShareLink(
-          service.config.siteId,
-          descriptionFileData.itemId,
-          "view",
-          "organization"
-        );
-        descriptionDoc.link = sharableLink.webUrl;
+      //Upload images
+      if (images.length > 0) {
+        for (const image of images) {
+          await service.uploadTicketDocument(
+            response.id, 
+            image.file,
+            'image',
+            image.name
+          );
+        }
       }
 
       // Upload admin docs and create share links
 
       const adminFileLinks = await Promise.all(
         adminDocs.map(async (doc) => {
-          let fileExtension = doc.file.name.split(".").pop();
           let displayName = doc.displayName || doc.file.name.split('.').slice(0, -1).join('.');
           const uploadResponse = await service.uploadTicketDocument(
             response.id,
@@ -188,7 +147,7 @@ const TicketForm = () => {
             "administrative",
             `${displayName} - ${generateRandomNumber(
               16
-            ).toString()}.${fileExtension}`
+            ).toString()}`
           );
 
           const shareLink = await service.createShareLink(
@@ -221,7 +180,7 @@ const TicketForm = () => {
           contactEmail: site.contactEmail,
           contactPhone: site.contactPhone,
         },
-        descriptionDoc: descriptionDoc,
+        images: images,
         adminDocs: adminFileLinks,
       });
 
@@ -389,19 +348,19 @@ const TicketForm = () => {
             </div>
           </div>
 
-          {/* Description File */}
+          {/* Images Files */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Descripción
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <Image className="w-4 h-4" />
+              Imágenes
             </label>
-            <MultiFileUpload
-              files={descriptionFile}
-              onFilesChange={addDescription}
-              onRemove={removeDescription}
-              maxFiles={1}
-              error={descriptionError}
-              disabled={processing}
-              allowedTypes={allowedTypes}
+            <MultiImageUpload
+              images={images}
+              onImagesChange={addImages}
+              onRemove={removeImage}
+              maxImages={5}
+              processing={processingImages}
+              error={imagesError}
             />
           </div>
 
@@ -416,10 +375,10 @@ const TicketForm = () => {
               onRemove={removeAdminDoc}
               onDisplayNameChange={updateAdminDocName}
               showDisplayName={true}
+              maxSize={20 * 1024 * 1024}
               maxFiles={5}
               error={adminDocsError}
               disabled={processing}
-              allowedTypes={allowedTypes}
             />
           </div>
 

@@ -3,15 +3,23 @@ import { Loader2 } from "lucide-react";
 import Button from "../../../../../../components/common/Button";
 import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
 import TicketStatusBadge from "../../components/common/TicketStatusBadge";
+import { useFileManagement } from "../../hooks/useFileManagement";
 
 const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const [showFinishModal, setShowFinishModal] = useState(false);
-  const [formData, setFormData] = useState({
-    serviceTickets: [],
-    report: null,
-    notes: ""
-  });
+  const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState({});
+
+  // File management hooks
+  const serviceTickets = useFileManagement({
+    generateNames: true,
+    namePrefix: 'service-ticket-'
+  });
+
+  const reportFile = useFileManagement({
+    generateNames: true,
+    namePrefix: 'report-'
+  });
 
   const getNextStatus = () => {
     switch (ticket?.state) {
@@ -34,12 +42,14 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const validateFinishForm = () => {
     const newErrors = {};
 
-    if (formData.serviceTickets.length === 0) {
+    if (serviceTickets.files.length === 0) {
       newErrors.serviceTickets = "Al menos una boleta de servicio es requerida";
+      serviceTickets.setError(newErrors.serviceTickets);
     }
 
-    if (ticket?.type === "Preventiva" && !formData.report) {
+    if (ticket?.type === "Preventiva" && !reportFile.files.length) {
       newErrors.report = "El informe es requerido para tickets preventivos";
+      reportFile.setError(newErrors.report);
     }
 
     setErrors(newErrors);
@@ -49,52 +59,24 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const handleStatusUpdate = () => {
     if (nextStatus === "Finalizada") {
       setShowFinishModal(true);
+      // Clear any previous errors when showing the modal
+      setErrors({});
+      serviceTickets.setError(null);
+      reportFile.setError(null);
     } else {
       onSubmit(ticket.id, nextStatus);
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!validateFinishForm()) return;
-    onSubmit(ticket.id, nextStatus, {
-      serviceTickets: formData.serviceTickets.map(f => f.file),
-      report: formData.report?.file || null
-    }, formData.notes);
-  };
 
-  // Updated to accumulate files instead of replacing them
-  const handleServiceTicketsChange = (newFiles) => {
-    setFormData(prev => ({
-      ...prev,
-      serviceTickets: [...prev.serviceTickets, ...newFiles]
-    }));
-    if (errors.serviceTickets) {
-      setErrors(prev => ({
-        ...prev,
-        serviceTickets: undefined
-      }));
-    }
-  };
+    const files = {
+      serviceTickets: serviceTickets.files,
+      report: reportFile.files[0] || null
+    };
 
-  // Handle removal of specific service tickets
-  const handleServiceTicketRemove = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      serviceTickets: prev.serviceTickets.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleReportChange = (files) => {
-    setFormData(prev => ({
-      ...prev,
-      report: files[0] || null
-    }));
-    if (errors.report) {
-      setErrors(prev => ({
-        ...prev,
-        report: undefined
-      }));
-    }
+    onSubmit(ticket.id, nextStatus, files, notes);
   };
 
   const allowedTypes = ['.pdf', '.doc', '.docx', '.xlsx', '.xlsm', '.xlsb'];
@@ -108,15 +90,20 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
             Boletas de Servicio *
           </label>
           <MultiFileUpload
-            files={formData.serviceTickets}
-            onFilesChange={handleServiceTicketsChange}
-            onRemove={handleServiceTicketRemove}
+            files={serviceTickets.files}
+            onFilesChange={serviceTickets.addFiles}
+            onRemove={serviceTickets.removeFile}
+            onDisplayNameChange={serviceTickets.updateDisplayName}
             maxFiles={5}
-            maxSize={10 * 1024 * 1024}
+            maxSize={20 * 1024 * 1024}
             allowedTypes={allowedTypes}
-            error={errors.serviceTickets}
+            error={errors.serviceTickets || serviceTickets.error}
             disabled={processing}
+            showDisplayName={true}
           />
+          {errors.serviceTickets && (
+            <p className="text-sm text-red-600 mt-1">{errors.serviceTickets}</p>
+          )}
         </div>
 
         {/* Report Upload (only for preventive tickets) */}
@@ -126,15 +113,21 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
               Informe *
             </label>
             <MultiFileUpload
-              files={formData.report ? [formData.report] : []}
-              onFilesChange={handleReportChange}
-              onRemove={() => handleReportChange([])}
+              files={reportFile.files}
+              onFilesChange={(files) => {
+                reportFile.clearFiles();
+                reportFile.addFiles(files);
+              }}
+              onRemove={() => reportFile.clearFiles()}
               maxFiles={1}
               maxSize={10 * 1024 * 1024}
               allowedTypes={allowedTypes}
-              error={errors.report}
+              error={errors.report || reportFile.error}
               disabled={processing}
             />
+            {errors.report && (
+              <p className="text-sm text-red-600 mt-1">{errors.report}</p>
+            )}
           </div>
         )}
 
@@ -144,8 +137,8 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
             Notas
           </label>
           <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
             placeholder="Agregue notas o comentarios sobre el trabajo realizado..."
             className="w-full min-h-[100px] px-3 py-2 resize-none border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
             disabled={processing}
@@ -155,7 +148,12 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
         <div className="flex gap-2">
           <Button
             variant="ghost"
-            onClick={() => setShowFinishModal(false)}
+            onClick={() => {
+              setShowFinishModal(false);
+              setErrors({});
+              serviceTickets.setError(null);
+              reportFile.setError(null);
+            }}
             disabled={processing}
           >
             Cancelar

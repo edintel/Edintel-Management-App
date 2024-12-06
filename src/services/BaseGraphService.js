@@ -142,7 +142,6 @@ class BaseGraphService {
     }
 
     const filePath = `${folderPath}/${uniqueFileName}`;
-
     if (file.size <= 4 * 1024 * 1024) {
       const response = await this.client
         .api(`/sites/${siteId}/drives/${driveId}/root:${filePath}:/content`)
@@ -206,7 +205,7 @@ class BaseGraphService {
     }
   }
 
-  async getImageContent(siteId, driveId, itemId) {
+  async getFile(siteId, driveId, itemId) {
     if (!itemId) {
       throw new Error("Item ID is required");
     }
@@ -391,6 +390,17 @@ class BaseGraphService {
     await this.client.api("/me/sendMail").post(message);
 
     return messageId;
+  }
+
+  async checkListItemExists(siteId, listName, itemId) {
+    const response = await this.client
+      .api(`/sites/${siteId}/lists/${listName}/items`)
+      .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+      .filter(`fields/itemId eq '${itemId}'`)
+      .expand('fields')
+      .get();
+  
+    return response.value.length > 0;
   }
 }
 

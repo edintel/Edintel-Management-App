@@ -33,7 +33,7 @@ const SharePointImage = ({
         setLoading(true);
         setError(null);
 
-        const { url, token } = await service.getImageContent(
+        const { url, token } = await service.getFile(
           siteId,
           driveId,
           itemId

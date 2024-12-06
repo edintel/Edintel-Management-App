@@ -623,6 +623,7 @@ class PostVentaManagementService extends BaseGraphService {
       switch (newStatus) {
         case "Técnico asignado":
           fields.FechaTecnicoAsignado = now;
+          fields.Fechaconfirmaci_x00f3_n = null;
           break;
         case "Confirmado por técnico":
           fields.Fechaconfirmaci_x00f3_n = now;
@@ -706,44 +707,6 @@ class PostVentaManagementService extends BaseGraphService {
         .expand("fields")
         .get();
 
-      if (data.description) {
-        const site = await this.client
-          .api(
-            `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${data.siteId}`
-          )
-          .expand("fields")
-          .get();
-
-        const building = await this.client
-          .api(
-            `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`
-          )
-          .expand("fields")
-          .get();
-
-        const company = await this.client
-          .api(
-            `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`
-          )
-          .expand("fields")
-          .get();
-
-        const folderPath = `/Boletas ST/${company.fields.Title}/${building.fields.Title}/${site.fields.Title}/${data.st}`;
-        const fileId = await this.uploadFile(
-          this.siteId,
-          this.driveId,
-          data.description,
-          folderPath,
-          `Descripción - ${generateRandomNumber(16).toString()}`
-        );
-
-        if (ticket.fields.Descripci_x00f3_n) {
-          await this.deleteFile(ticket.fields.Descripci_x00f3_n);
-        }
-
-        fields.Descripci_x00f3_n = fileId;
-      }
-
       if (data.serviceTicket) {
         if (ticket.fields.Boleta) {
           await this.deleteFile(ticket.fields.Boleta);
@@ -781,44 +744,66 @@ class PostVentaManagementService extends BaseGraphService {
 
   async deleteTicket(ticketId) {
     await this.initializeGraphClient();
-
+  
     try {
       // Get ticket details first
       const ticket = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
-        )
-        .expand("fields")
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .expand('fields')
         .get();
-
-      // Delete all associated files
-      const filesToDelete = [
-        ticket.fields.Descripci_x00f3_n,
-        ticket.fields.Boleta,
-        ticket.fields.Informe,
-      ].filter(Boolean);
-
-      for (const fileId of filesToDelete) {
-        await this.deleteFile(fileId);
+  
+      // Get all associated documents
+      const [generalDocs, adminDocs] = await Promise.all([
+        this.getGeneralDocuments(ticketId),
+        this.getAdminDocuments(ticketId)
+      ]);
+  
+      // Delete all general documents
+      for (const doc of generalDocs) {
+        try {
+          // Delete file
+          await this.deleteFile(doc.itemId);
+          // Delete list item
+          await this.client
+            .api(`/sites/${this.siteId}/lists/${this.config.lists.docs}/items`)
+            .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+            .filter(`fields/itemId eq '${doc.itemId}'`)
+            .delete();
+        } catch (error) {
+          console.error(`Error deleting general document ${doc.itemId}:`, error);
+        }
       }
-
+  
+      // Delete all admin documents
+      for (const doc of adminDocs) {
+        try {
+          // Delete file
+          await this.deleteFile(doc.itemId);
+          // Delete list item
+          await this.client
+            .api(`/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items`)
+            .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+            .filter(`fields/itemId eq '${doc.itemId}'`)
+            .delete();
+        } catch (error) {
+          console.error(`Error deleting admin document ${doc.itemId}:`, error);
+        }
+      }
+  
       // Delete calendar event if exists
       if (ticket.fields.calendarEvent) {
         try {
-          this.deleteCalendarEvent(this.groupId, ticket.fields.calendarEvent);
+          await this.deleteCalendarEvent(this.groupId, ticket.fields.calendarEvent);
         } catch (error) {
           console.error("Error deleting calendar event:", error);
-          // Continue with ticket deletion even if calendar event deletion fails
         }
       }
-
+  
       // Finally delete the ticket
       await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
-        )
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
         .delete();
-
+  
       return true;
     } catch (error) {
       console.error("Error deleting ticket:", error);
@@ -826,159 +811,40 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-  // Additional helper methods
-  async uploadServiceTicket(ticketId, file) {
-    await this.initializeGraphClient();
-
-    try {
-      // Get ticket details
-      const ticket = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
-        )
-        .expand("fields")
-        .get();
-
-      // Get location details
-      const site = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${ticket.fields.SitioIDLookupId}`
-        )
-        .expand("fields")
-        .get();
-
-      const building = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`
-        )
-        .expand("fields")
-        .get();
-
-      const company = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`
-        )
-        .expand("fields")
-        .get();
-
-      // Upload file
-      const folderPath = `/Boletas ST/${company.fields.Title}/${building.fields.Title}/${site.fields.Title}/${ticket.fields.Title}`;
-      const fileId = await this.uploadFile(
-        this.siteId,
-        this.driveId,
-        file,
-        folderPath,
-        `Boleta - ${generateRandomNumber(16).toString()}`
-      );
-
-      // Update ticket with file reference
-      await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
-        )
-        .patch({
-          fields: {
-            Boleta: fileId,
-          },
-        });
-
-      return fileId;
-    } catch (error) {
-      console.error("Error uploading service ticket:", error);
-      throw new Error("Error al subir la boleta de servicio");
-    }
-  }
-
-  async uploadServiceReport(ticketId, file) {
-    await this.initializeGraphClient();
-
-    try {
-      // Get ticket details
-      const ticket = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
-        )
-        .expand("fields")
-        .get();
-
-      // Get location details
-      const site = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.sites}/items/${ticket.fields.SitioIDLookupId}`
-        )
-        .expand("fields")
-        .get();
-
-      const building = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.buildings}/items/${site.fields.EdificioIDLookupId}`
-        )
-        .expand("fields")
-        .get();
-
-      const company = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.companies}/items/${building.fields.EmpresaIDLookupId}`
-        )
-        .expand("fields")
-        .get();
-
-      // Upload file
-      const folderPath = `/Boletas ST/${company.fields.Title}/${building.fields.Title}/${site.fields.Title}/${ticket.fields.Title}`;
-      const fileId = await this.uploadFile(
-        this.siteId,
-        this.driveId,
-        file,
-        folderPath,
-        `Informe - ${generateRandomNumber(16).toString()}`
-      );
-
-      // Update ticket with file reference
-      await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
-        )
-        .patch({
-          fields: {
-            Informe: fileId,
-          },
-        });
-
-      return fileId;
-    } catch (error) {
-      console.error("Error uploading service report:", error);
-      throw new Error("Error al subir el informe de servicio");
-    }
-  }
-
   async getGeneralDocuments(ticketId) {
+    await this.initializeGraphClient();
+
     const response = await this.client
-      .api(
-        `/sites/${this.siteId}/lists/${this.config.general.lists.docs}/items`
-      )
+      .api(`/sites/${this.siteId}/lists/${this.config.lists.docs}/items`)
+      .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
       .filter(`fields/ticketId eq '${ticketId}'`)
-      .expand("fields")
+      .expand('fields')
       .get();
 
-    return response.value.map((item) => ({
-      ...item.fields,
-      source: "general",
+    return response.value.map(item => ({
+      itemId: item.fields.itemId,
+      fileName: item.fields.fileName,
+      documentType: item.fields.documentType,
+      source: 'general'
     }));
   }
 
   async getAdminDocuments(ticketId) {
     try {
+      await this.initializeGraphClient();
+
       const response = await this.client
-        .api(
-          `/sites/${this.config.admins.siteId}/lists/${this.config.admins.lists.docsAdmins}/items`
-        )
+        .api(`/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .filter(`fields/ticketId eq '${ticketId}'`)
-        .expand("fields")
+        .expand('fields')
         .get();
 
-      return response.value.map((item) => ({
-        ...item.fields,
-        source: "admin",
+      return response.value.map(item => ({
+        itemId: item.fields.itemId,
+        fileName: item.fields.fileName,
+        documentType: item.fields.documentType,
+        source: 'admin'
       }));
     } catch (error) {
       // User might not have access to admin site
@@ -988,26 +854,29 @@ class PostVentaManagementService extends BaseGraphService {
   }
 
   async getTicketDocuments(ticketId) {
-    await this.initializeGraphClient();
+    if (!ticketId) return [];
 
-    // Get documents from both lists
-    const [generalDocs, adminDocs] = await Promise.all([
-      this.getGeneralDocuments(ticketId),
-      this.getAdminDocuments(ticketId),
-    ]);
+    try {
+      await this.initializeGraphClient();
+      // Get documents from both lists
+      const [generalDocs, adminDocs] = await Promise.all([
+        this.getGeneralDocuments(ticketId),
+        this.getAdminDocuments(ticketId)
+      ]);
 
-    return [...generalDocs, ...adminDocs];
+      return [...generalDocs, ...adminDocs];
+    } catch (error) {
+      console.error("Error fetching ticket documents:", error);
+      throw new Error("Error al obtener los documentos");
+    }
   }
 
-  async uploadTicketDocument(
-    ticketId,
-    file,
-    documentType,
-    customFileName = null
-  ) {
-    if (!documentType) throw new Error("Document type is required");
+  async uploadTicketDocument(ticketId, file, documentType, customFileName = null) {
+    if (!ticketId || !file || !documentType) {
+      throw new Error("Missing required parameters");
+    }
     const isAdminDoc = isAdministrativeDoc(documentType);
-    const config = isAdminDoc ?  this.admins : this.config;
+    const config = isAdminDoc ? this.admins : this.config;
     const listId = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
     const siteId = isAdminDoc ? config.siteId : this.siteId;
     const driveId = isAdminDoc ? config.driveId : this.driveId;
@@ -1022,9 +891,8 @@ class PostVentaManagementService extends BaseGraphService {
       const folderPath = `/Boletas ST/${company.name}/${building.name}/${site.name}/${ticket.stNumber}`;
 
       // Generate unique filename
-      const fileExtension = file.name.split(".").pop();
       const fileName =
-        customFileName || `${documentType}_${Date.now()}_${generateRandomNumber(5)}.${fileExtension}`;
+        customFileName || `${documentType} - ${generateRandomNumber(16)}`;
 
       // Upload file
       const itemId = await this.uploadFile(
@@ -1036,19 +904,23 @@ class PostVentaManagementService extends BaseGraphService {
       );
 
       // Create list item
-      await this.client.api(`/sites/${siteId}/lists/${listId}/items`).post({
-        fields: {
-          ticketId,
-          fileName,
-          itemId,
-          documentType,
-        },
-      });
+      await this.client
+        .api(`/sites/${siteId}/lists/${listId}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .post({
+          fields: {
+            ticketId,
+            fileName,
+            itemId,
+            documentType,
+          },
+        });
 
       return {
         itemId,
         fileName,
         documentType,
+        source: isAdminDoc ? 'admin' : 'general'
       };
     } catch (error) {
       console.error("Error uploading document:", error);
@@ -1056,21 +928,6 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-  async deleteTicketDocument(documentId, source) {
-    const config =
-      source === "admin" ? this.config.admins : this.config.general;
-    const listName =
-      source === "admin" ? config.lists.docsAdmins : config.lists.docs;
-    const siteId = source === "admin" ? config.siteId : this.siteId;
-
-    // Delete file and list item
-    await Promise.all([
-      this.deleteFile(documentId),
-      this.client
-        .api(`/sites/${siteId}/lists/${listName}/items/${documentId}`)
-        .delete(),
-    ]);
-  }
 }
 
 export default PostVentaManagementService;

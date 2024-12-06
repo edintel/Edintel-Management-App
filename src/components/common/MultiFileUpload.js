@@ -11,7 +11,7 @@ const MultiFileUpload = ({
   showDisplayName = false,
   maxFiles = 5,
   maxSize = 10 * 1024 * 1024,
-  allowedTypes = ['.pdf', '.doc', '.docx', '.xlsx', '.xlsm', '.xlsb'],
+  allowedTypes = [".pdf", ".doc", ".docx", ".xlsx", ".xlsm", ".xlsb"],
   disabled = false,
   error = null,
   className
@@ -76,6 +76,12 @@ const MultiFileUpload = ({
     e.target.value = null; // Reset input
   };
 
+  const handleDisplayNameChange = (index, value) => {
+    // Remove any backslashes or forward slashes from the input
+    const sanitizedValue = value.replace(/[/\\]/g, '');
+    onDisplayNameChange?.(index, sanitizedValue);
+  };
+
   const displayAllowedTypes = () => {
     return allowedTypes.join(', ');
   };
@@ -97,7 +103,7 @@ const MultiFileUpload = ({
                     <input
                       type="text"
                       value={fileObj.displayName || ''}
-                      onChange={(e) => onDisplayNameChange?.(index, e.target.value)}
+                      onChange={(e) => handleDisplayNameChange(index, e.target.value)}
                       className="w-full px-3 py-1.5 border rounded text-sm mb-1"
                       placeholder="Nombre para mostrar"
                     />
