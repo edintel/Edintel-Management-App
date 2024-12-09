@@ -9,7 +9,7 @@ import Button from "../../../../../../components/common/Button";
 import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
 import MultiImageUpload from "../../../../../../components/common/MultiImageUpload";
 import { useFileManagement } from "../../hooks/useFileManagement";
-import {useImageManagement} from "../../hooks/useImageManagement"
+import { useImageManagement } from "../../hooks/useImageManagement";
 import { generateRandomNumber } from "../../../../../../utils/randomUtils";
 
 const TicketForm = () => {
@@ -44,8 +44,8 @@ const TicketForm = () => {
     processing: processingImages,
     error: imagesError,
     addImages,
-    removeImage
-  }  = useImageManagement({
+    removeImage,
+  } = useImageManagement({
     generateNames: true,
     namePrefix: "image - ",
   });
@@ -125,29 +125,44 @@ const TicketForm = () => {
       });
 
       //Upload images
+      let imageLinks = [];
       if (images.length > 0) {
-        for (const image of images) {
-          await service.uploadTicketDocument(
-            response.id, 
-            image.file,
-            'image',
-            image.name
-          );
-        }
+        imageLinks = await Promise.all(
+          images.map(async (image) => {
+            const uploadResponse = await service.uploadTicketDocument(
+              response.id,
+              image.file,
+              "image",
+              image.name
+            );
+
+            const shareLink = await service.createShareLink(
+              service.siteId,
+              uploadResponse.itemId,
+              "view",
+              "organization"
+            );
+
+            return {
+              name: image.name,
+              link: shareLink.webUrl,
+              id: uploadResponse.itemId,
+            };
+          })
+        );
       }
 
       // Upload admin docs and create share links
 
       const adminFileLinks = await Promise.all(
         adminDocs.map(async (doc) => {
-          let displayName = doc.displayName || doc.file.name.split('.').slice(0, -1).join('.');
+          let displayName =
+            doc.displayName || doc.file.name.split(".").slice(0, -1).join(".");
           const uploadResponse = await service.uploadTicketDocument(
             response.id,
             doc.file,
             "administrative",
-            `${displayName} - ${generateRandomNumber(
-              16
-            ).toString()}`
+            `${displayName} - ${generateRandomNumber(16).toString()}`
           );
 
           const shareLink = await service.createShareLink(
@@ -180,15 +195,16 @@ const TicketForm = () => {
           contactEmail: site.contactEmail,
           contactPhone: site.contactPhone,
         },
-        images: images,
+        images: imageLinks,
         adminDocs: adminFileLinks,
       });
 
       // Send email with links
       await service.sendEmail({
         toRecipients: ["andres.villalobos@edintel.com"],
-        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${systems.find((s) => s.id === formData.systemId)?.name
-          }`,
+        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${
+          systems.find((s) => s.id === formData.systemId)?.name
+        }`,
         content: emailContent,
       });
 
@@ -418,7 +434,7 @@ const generateEmailContent = ({
   building,
   site,
   siteDetails,
-  descriptionDoc,
+  images,
   adminDocs,
 }) => {
   return `
@@ -497,17 +513,27 @@ const generateEmailContent = ({
                     <span class="label">Alcance:</span>
                     <span class="value">${scope}</span>
                 </div>
-                ${descriptionDoc
-      ? `
-                <div class="info-row">
-                        <span class="label">${descriptionDoc.name}:</span>
-                        <span class="value">
-                            <a href="${descriptionDoc.link}">Ver documento</a>
-                        </span>
+                ${
+                  images.length > 0
+                    ? `
+                <div class="section">
+                    <div class="section-title">Imágenes</div>
+                    ${images
+                      .map(
+                        (image) => `
+                        <div class="info-row">
+                            <span class="label">${image.name}:</span>
+                            <span class="value">
+                                <a href="${image.link}">Ver imagen</a>
+                            </span>
+                        </div>
+                        `
+                      )
+                      .join("")}
                 </div>
                 `
-      : ""
-    }
+                    : ""
+                }
             </div>
 
             <div class="section">
@@ -524,15 +550,16 @@ const generateEmailContent = ({
                     <span class="label">Sitio:</span>
                     <span class="value">${site}</span>
                 </div>
-                ${siteDetails.location
-      ? `
+                ${
+                  siteDetails.location
+                    ? `
                 <div class="info-row">
                     <span class="label">Ubicación:</span>
                     <span class="value">${siteDetails.location}</span>
                 </div>
                 `
-      : ""
-    }
+                    : ""
+                }
             </div>
 
             <div class="section">
@@ -543,51 +570,56 @@ const generateEmailContent = ({
                 </div>
             </div>
 
-            ${siteDetails.contactName ||
-      siteDetails.contactEmail ||
-      siteDetails.contactPhone
-      ? `
+            ${
+              siteDetails.contactName ||
+              siteDetails.contactEmail ||
+              siteDetails.contactPhone
+                ? `
             <div class="section">
                 <div class="section-title">Información de Contacto</div>
-                ${siteDetails.contactName
-        ? `
+                ${
+                  siteDetails.contactName
+                    ? `
                 <div class="info-row">
                     <span class="label">Contacto:</span>
                     <span class="value">${siteDetails.contactName}</span>
                 </div>
                 `
-        : ""
-      }
-                ${siteDetails.contactEmail
-        ? `
+                    : ""
+                }
+                ${
+                  siteDetails.contactEmail
+                    ? `
                 <div class="info-row">
                     <span class="label">Email:</span>
                     <span class="value">${siteDetails.contactEmail}</span>
                 </div>
                 `
-        : ""
-      }
-                ${siteDetails.contactPhone
-        ? `
+                    : ""
+                }
+                ${
+                  siteDetails.contactPhone
+                    ? `
                 <div class="info-row">
                     <span class="label">Teléfono:</span>
                     <span class="value">${siteDetails.contactPhone}</span>
                 </div>
                 `
-        : ""
-      }
+                    : ""
+                }
             </div>
             `
-      : ""
-    }
+                : ""
+            }
 
-            ${adminDocs.length > 0
-      ? `
+            ${
+              adminDocs.length > 0
+                ? `
             <div class="section">
                 <div class="section-title">Documentos Administrativos</div>
                 ${adminDocs
-        .map(
-          (doc) => `
+                  .map(
+                    (doc) => `
                 <div class="info-row">
                     <span class="label">${doc.name}:</span>
                     <span class="value">
@@ -595,12 +627,12 @@ const generateEmailContent = ({
                     </span>
                 </div>
                 `
-        )
-        .join("")}
+                  )
+                  .join("")}
             </div>
             `
-      : ""
-    }
+                : ""
+            }
         </div>
     </body>
     </html>

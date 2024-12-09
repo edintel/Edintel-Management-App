@@ -1,5 +1,5 @@
-import React from 'react';
-import { cn } from '../../utils/cn';
+import React from "react";
+import { cn } from "../../utils/cn";
 
 const GridView = ({
   items = [],
@@ -11,10 +11,11 @@ const GridView = ({
     default: 2,
     sm: 3,
     md: 4,
-    lg: 4
+    lg: 4,
   },
   gap = 4,
-  className
+  className,
+  keyExtractor = (item, index) => index, // New prop for custom key extraction
 }) => {
   // Generate grid columns classes based on provided cols configuration
   const getGridCols = () => {
@@ -23,7 +24,7 @@ const GridView = ({
     if (cols.sm) colClasses.push(`sm:grid-cols-${cols.sm}`);
     if (cols.md) colClasses.push(`md:grid-cols-${cols.md}`);
     if (cols.lg) colClasses.push(`lg:grid-cols-${cols.lg}`);
-    return colClasses.join(' ');
+    return colClasses.join(" ");
   };
 
   // Loading state
@@ -37,31 +38,21 @@ const GridView = ({
 
   // Error state
   if (error) {
-    return (
-      <div className="p-4 text-error bg-error/10 rounded-lg">
-        {error}
-      </div>
-    );
+    return <div className="p-4 text-error bg-error/10 rounded-lg">{error}</div>;
   }
 
   // Empty state
   if (!items.length) {
-    return (
-      <div className="text-center py-6 text-gray-500">
-        {emptyMessage}
-      </div>
-    );
+    return <div className="text-center py-6 text-gray-500">{emptyMessage}</div>;
   }
 
   // Grid view
   return (
-    <div className={cn(
-      "grid",
-      getGridCols(),
-      `gap-${gap}`,
-      className
-    )}>
-      {items.map((item, index) => renderItem(item, index))}
+    <div className={cn("grid", getGridCols(), `gap-${gap}`, className)}>
+      {items.map((item, index) => {
+        const key = keyExtractor(item, index);
+        return React.cloneElement(renderItem(item, index), { key });
+      })}
     </div>
   );
 };
