@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
-import { Loader2, FileText, Eye, Download, X } from "lucide-react";
+import { Loader2, FileText, X } from "lucide-react";
 import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
 import MultiImageUpload from "../../../../../../components/common/MultiImageUpload";
 import ImageModal from "../../../../../../components/common/ImageModal";
@@ -35,11 +35,6 @@ const TicketEditForm = ({
 
   // File management state structure
   const [fileState, setFileState] = useState({
-    description: {
-      existing: null,
-      fileName: null,
-      toDelete: false,
-    },
     serviceTickets: {
       existing: [],
       toDelete: [],
@@ -62,11 +57,6 @@ const TicketEditForm = ({
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // File management hooks for new files
-  const descriptionFile = useFileManagement({
-    generateNames: true,
-    namePrefix: "description-",
-  });
-
   const serviceTicketsFiles = useFileManagement({
     generateNames: true,
     namePrefix: "service-ticket-",
@@ -131,15 +121,6 @@ const TicketEditForm = ({
         );
 
         setFileState({
-          description: {
-            existing:
-              documents.find((doc) => doc.documentType === "description") ||
-              null,
-            fileName:
-              documents.find((doc) => doc.documentType === "description")
-                ?.fileName || null,
-            toDelete: false,
-          },
           serviceTickets: {
             existing: documents.filter(
               (doc) => doc.documentType === "serviceTicket"
@@ -176,7 +157,7 @@ const TicketEditForm = ({
         }
       });
     };
-  }, [initialData?.id, service]);
+  }, [initialData?.id, service, fileState.images.existing]);
 
   // Load initial form data
   useEffect(() => {
@@ -306,43 +287,6 @@ const TicketEditForm = ({
     setSelectedPreview(null);
   };
 
-  const handleDownloadFile = async (file) => {
-    try {
-      const configSiteId =
-        file.source === "admin" ? service.admins.siteId : service.siteId;
-      const configDriveId =
-        file.source === "admin" ? service.admins.driveId : service.driveId;
-
-      const { url, token } = await service.getFile(
-        configSiteId,
-        configDriveId,
-        file.itemId
-      );
-
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) throw new Error("Error downloading file");
-
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = file.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error("Error downloading file:", error);
-      setErrors((prev) => ({
-        ...prev,
-        download: "Error downloading file",
-      }));
-    }
-  };
-
   // Submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -352,17 +296,6 @@ const TicketEditForm = ({
       // Prepare files data
       const filesToDelete = [];
       const filesToUpload = [];
-
-      // Handle description file
-      if (fileState.description.toDelete && fileState.description.existing) {
-        filesToDelete.push(fileState.description.existing.itemId);
-      }
-      if (descriptionFile.files[0]) {
-        filesToUpload.push({
-          type: "description",
-          file: descriptionFile.files[0],
-        });
-      }
 
       // Handle service tickets
       fileState.serviceTickets.toDelete.forEach((index) => {
@@ -571,67 +504,6 @@ const TicketEditForm = ({
 
       {/* File Management Section */}
       <div className="space-y-6">
-        {/* Description File Section */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Descripción
-          </label>
-
-          {/* Show existing description file if any */}
-          {fileState.description.existing &&
-            !fileState.description.toDelete && (
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <FileText className="w-4 h-4 text-gray-400" />
-                <span className="flex-1 text-sm">
-                  {fileState.description.fileName}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handlePreviewFile(fileState.description.existing)
-                    }
-                    className="p-1 text-gray-500 hover:text-primary transition-colors"
-                    title="Ver archivo"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDownloadFile(fileState.description.existing)
-                    }
-                    className="p-1 text-gray-500 hover:text-primary transition-colors"
-                    title="Descargar archivo"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleDeleteExisting("description")}
-                    className="text-sm text-error hover:text-error/80"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            )}
-
-          {/* Show file upload if no existing file or marked for deletion */}
-          {(!fileState.description.existing ||
-            fileState.description.toDelete) && (
-            <MultiFileUpload
-              files={descriptionFile.files}
-              onFilesChange={descriptionFile.addFiles}
-              onRemove={() => descriptionFile.clearFiles()}
-              maxFiles={1}
-              maxSize={10 * 1024 * 1024}
-              error={errors.description}
-            />
-          )}
-        </div>
-
         {/* Service Tickets Section */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
