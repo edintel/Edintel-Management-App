@@ -115,7 +115,7 @@ class BaseGraphService {
             .put({
               name: segment,
               folder: {},
-              "@microsoft.graph.conflictBehavior": "rename",
+              "@microsoft.graph.conflictBehavior": "fail",
             });
         } else {
           throw error;
