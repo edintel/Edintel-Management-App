@@ -201,7 +201,7 @@ const TicketForm = () => {
 
       // Send email with links
       await service.sendEmail({
-        toRecipients: ["andres.villalobos@edintel.com"],
+        toRecipients: ["inicios@edintel.com"],
         subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${
           systems.find((s) => s.id === formData.systemId)?.name
         }`,

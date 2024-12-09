@@ -278,7 +278,7 @@ export const useTicketActions = () => {
 </html>`;
 
           await service.sendEmail({
-            toRecipients: ['andres.villalobos@edintel.com'],
+            toRecipients: ['inicios@edintel.com'],
             subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
             content: emailContent,
           });
