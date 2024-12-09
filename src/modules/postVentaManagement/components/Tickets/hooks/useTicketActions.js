@@ -90,12 +90,13 @@ export const useTicketActions = () => {
             await service.uploadTicketDocument(
               ticketId,
               files.report.file,
-              'report'
+              'report',
+              files.report.displayName
             );
           }
         }
 
-        if (newStatus === "Cerrada" && selectedTicket?.messageId) {
+        if (newStatus === "Cerrada") {
           const ticketDetails = await service.client
             .api(`/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${ticketId}`)
             .expand('fields')
@@ -118,7 +119,13 @@ export const useTicketActions = () => {
 
           const systemName = (await service.client
             .api(`/sites/${service.siteId}/lists/${service.config.lists.systems}/items/${ticketDetails.fields.SistemaIDLookupId}`)
-            .get()).fields.Title
+            .get()).fields.Title;
+
+          // Get all documents
+          const [generalDocs, adminDocs] = await Promise.all([
+            service.getGeneralDocuments(ticketId),
+            service.getAdminDocuments(ticketId)
+          ]);
 
           const emailContent = `
 <!DOCTYPE html>
@@ -242,30 +249,29 @@ export const useTicketActions = () => {
 
         <div class="section">
             <div class="section-title">Documentos</div>
-            ${ticketDetails.fields.Descripci_x00f3_n ? `
-            <div class="info-row">
-                <span class="label">Descripción:</span>
+            ${await Promise.all(generalDocs.map(async doc => {
+              const shareLink = await service.createShareLink(service.siteId, doc.itemId, "view", "organization");
+              return `
+              <div class="info-row">
+                <span class="label">${doc.documentType === 'serviceTicket' ? 'Boleta de Servicio' : 
+                                   doc.documentType === 'report' ? 'Informe' : 
+                                   doc.documentType === 'image' ? 'Imagen' : 'Documento'}:</span>
                 <span class="value">
-                    <a href="${(await service.createShareLink(service.siteId, ticketDetails.fields.Descripci_x00f3_n, "view", "organization")).webUrl}">Ver documento</a>
+                  <a href="${shareLink.webUrl}">Ver documento</a>
                 </span>
-            </div>
-            ` : ''}
-            ${ticketDetails.fields.Boleta ? `
-            <div class="info-row">
-                <span class="label">Boleta de Servicio:</span>
+              </div>`;
+            })).then(links => links.join(''))}
+            
+            ${await Promise.all(adminDocs.map(async doc => {
+              const shareLink = await service.createShareLink(service.admins.siteId, doc.itemId, "view", "organization");
+              return `
+              <div class="info-row">
+                <span class="label">Documento Administrativo:</span>
                 <span class="value">
-                    <a href="${(await service.createShareLink(service.siteId, ticketDetails.fields.Boleta, "view", "organization")).webUrl}">Ver documento</a>
+                  <a href="${shareLink.webUrl}">Ver documento</a>
                 </span>
-            </div>
-            ` : ''}
-            ${ticketDetails.fields.Informe ? `
-            <div class="info-row">
-                <span class="label">Informe:</span>
-                <span class="value">
-                    <a href="${(await service.createShareLink(service.siteId, ticketDetails.fields.Informe, "view", "organization")).webUrl}">Ver documento</a>
-                </span>
-            </div>
-            ` : ''}
+              </div>`;
+            })).then(links => links.join(''))}
         </div>
     </div>
 </body>
@@ -275,16 +281,6 @@ export const useTicketActions = () => {
             toRecipients: ['andres.villalobos@edintel.com'],
             subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
             content: emailContent,
-            headers: [
-              {
-                name: 'References',
-                value: ticketDetails.fields.MessageId
-              },
-              {
-                name: 'In-Reply-To',
-                value: ticketDetails.fields.MessageId
-              }
-            ]
           });
         }
 
@@ -298,7 +294,7 @@ export const useTicketActions = () => {
         setProcessing(false);
       }
     },
-    [service, selectedTicket, closeModal, loadPostVentaData]
+    [service, closeModal, loadPostVentaData]
   );
 
   const handleConfirmDate = useCallback(
