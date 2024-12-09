@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     const initializeAuth = async () => {
       if (!mounted) return;
@@ -37,17 +38,36 @@ export function AuthProvider({ children }) {
               username: response.account.username,
             });
 
-            // Only navigate if we're on the login page and authenticated
+            // Debounce navigation
             if (location.pathname === '/login') {
-              navigate(location.state?.from?.pathname || '/', { replace: true });
+              clearTimeout(timeoutId);
+              timeoutId = setTimeout(() => {
+                navigate(location.state?.from?.pathname || '/', { 
+                  replace: true,
+                  state: {} // Clear state to prevent loops
+                });
+              }, 100);
             }
           }
         } else if (location.pathname !== '/login' && !isAuthenticated) {
-          navigate('/login', { state: { from: location }, replace: true });
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            navigate('/login', { 
+              state: { from: location }, 
+              replace: true 
+            });
+          }, 100);
         }
       } catch (error) {
+        console.error('Auth error:', error);
         if (mounted && location.pathname !== '/login') {
-          navigate('/login', { state: { from: location }, replace: true });
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            navigate('/login', { 
+              state: { from: location }, 
+              replace: true 
+            });
+          }, 100);
         }
       } finally {
         if (mounted) {
@@ -58,14 +78,18 @@ export function AuthProvider({ children }) {
 
     initializeAuth();
 
-    // Cleanup function
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
     };
   }, [instance, accounts, isAuthenticated, navigate, location]);
 
   const login = () => instance.loginRedirect(loginRequest);
-  const logout = () => instance.logoutRedirect();
+  
+  const logout = async () => {
+    setUser(null);
+    await instance.logoutRedirect();
+  };
 
   if (loading) {
     return <LoadingScreen />;

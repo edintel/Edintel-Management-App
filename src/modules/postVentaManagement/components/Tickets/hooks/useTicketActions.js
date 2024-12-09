@@ -31,7 +31,7 @@ export const useTicketActions = () => {
       setError(null);
       try {
         await service.assignTechnicians(ticketId, technicians);
-  
+
         if (selectedTicket?.calendarEventId && selectedTicket?.tentativeDate) {
           const techDetails = await Promise.all(
             technicians.map(async (techId) => {
@@ -44,7 +44,7 @@ export const useTicketActions = () => {
               };
             })
           );
-  
+
           const validAttendees = techDetails.filter(tech => tech.email && tech.name);
           await service.updateCalendarEventAttendees(
             service.groupId,
@@ -52,7 +52,7 @@ export const useTicketActions = () => {
             validAttendees
           );
         }
-  
+
         await loadPostVentaData();
         closeModal();
       } catch (err) {
@@ -72,16 +72,29 @@ export const useTicketActions = () => {
       setError(null);
   
       try {
-          if (newStatus === "Finalizada" && files) {
-            if (files.serviceTicket) {
-              await service.uploadServiceTicket(ticketId, files.serviceTicket);
-    
-              if (selectedTicket?.type === "Preventiva" && files.report) {
-                await service.uploadServiceReport(ticketId, files.report);
-              }
+        if (newStatus === "Finalizada" && files) {
+          // Upload service tickets
+          if (files.serviceTickets?.length > 0) {
+            for (const serviceTicket of files.serviceTickets) {
+              await service.uploadTicketDocument(
+                ticketId,
+                serviceTicket.file,
+                'serviceTicket',
+                serviceTicket.displayName
+              );
             }
           }
-        
+  
+          // Upload report if exists
+          if (files.report) {
+            await service.uploadTicketDocument(
+              ticketId,
+              files.report.file,
+              'report'
+            );
+          }
+        }
+
         if (newStatus === "Cerrada" && selectedTicket?.messageId) {
           const ticketDetails = await service.client
             .api(`/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${ticketId}`)
@@ -404,46 +417,41 @@ export const useTicketActions = () => {
   }, [service, selectedTicket, closeModal, loadPostVentaData]);
 
 
-  const handleFileDownload = useCallback(
-    async (itemId, fileName) => {
-      if (!itemId) return;
+  const handleFileDownload = useCallback(async (file) => {
+    if (!file?.itemId) return;
 
-      try {
-        const fileMetadata = await service.client
-          .api(
-            `/sites/${service.siteId}/drives/${service.driveId}/items/${itemId}`
-          )
-          .get();
+    try {
+      const siteId = file.source === 'admin' ? service.admins.siteId : service.siteId;
+      const driveId = file.source === 'admin' ? service.admins.driveId : service.driveId;
 
-        const { url, token } = await service.getImageContent(
-          service.siteId,
-          service.driveId,
-          itemId
-        );
+      // Get download URL
+      const { url, token } = await service.getFile(
+        siteId,
+        driveId,
+        file.itemId
+      );
 
-        const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      // Download file
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        if (!response.ok) throw new Error("Error downloading file");
+      if (!response.ok) throw new Error("Error downloading file");
 
-        const fileExtension = fileMetadata.name.split(".").pop();
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = `${fileName}.${fileExtension}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-      } catch (error) {
-        console.error("Error downloading file:", error);
-        setError("Error downloading file");
-      }
-    },
-    [service]
-  );
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${file.fileName}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      setError("Error al descargar el archivo");
+    }
+  }, [service]);
 
   // Helper functions for determining modal state
   const isStatusOrScheduleModal = useCallback(() => {
@@ -453,18 +461,19 @@ export const useTicketActions = () => {
     );
   }, [currentModal]);
 
-  const handleCreateShareLink = useCallback(async (fileId) => {
+  const handleCreateShareLink = useCallback(async (file) => {
     try {
-      const shareLink = await service.createShareLink(service.siteId, fileId, "view", "organization");
+      const siteId = file.source === 'admin' ? service.admins.siteId : service.siteId;
+      const shareLink = await service.createShareLink(siteId, file.itemId, "view", "organization");
 
       // Open link in new tab
       window.open(shareLink.webUrl, '_blank');
-
     } catch (err) {
       console.error('Error creating share link:', err);
-      setError(err.message || 'Error al crear enlace compartido');
+      setError('Error al crear enlace compartido');
     }
   }, [service]);
+
 
   return {
     // Modal state

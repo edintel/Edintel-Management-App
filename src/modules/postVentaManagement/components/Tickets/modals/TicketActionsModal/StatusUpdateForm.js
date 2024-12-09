@@ -1,22 +1,29 @@
-// src/modules/postVentaManagement/components/Tickets/modals/TicketActionsModal/StatusUpdateForm.js
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
 import Button from "../../../../../../components/common/Button";
+import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
 import TicketStatusBadge from "../../components/common/TicketStatusBadge";
+import { useFileManagement } from "../../hooks/useFileManagement";
 
 const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const [showFinishModal, setShowFinishModal] = useState(false);
-  const [formData, setFormData] = useState({
-    serviceTicket: null,
-    report: null,
-    notes: ""
-  });
+  const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState({});
+
+  // File management hooks
+  const serviceTickets = useFileManagement({
+    generateNames: true,
+    namePrefix: 'service-ticket-'
+  });
+
+  const reportFile = useFileManagement({
+    generateNames: true,
+    namePrefix: 'report-'
+  });
 
   const getNextStatus = () => {
     switch (ticket?.state) {
       case "Iniciada":
-        return "Técnico asignado";
       case "Técnico asignado":
         return "Confirmado por técnico";
       case "Confirmado por técnico":
@@ -35,12 +42,14 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const validateFinishForm = () => {
     const newErrors = {};
 
-    if (!formData.serviceTicket) {
-      newErrors.serviceTicket = "La boleta de servicio es requerida";
+    if (serviceTickets.files.length === 0) {
+      newErrors.serviceTickets = "Al menos una boleta de servicio es requerida";
+      serviceTickets.setError(newErrors.serviceTickets);
     }
 
-    if (ticket?.type === "Preventiva" && !formData.report) {
+    if (ticket?.type === "Preventiva" && !reportFile.files.length) {
       newErrors.report = "El informe es requerido para tickets preventivos";
+      reportFile.setError(newErrors.report);
     }
 
     setErrors(newErrors);
@@ -50,48 +59,50 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const handleStatusUpdate = () => {
     if (nextStatus === "Finalizada") {
       setShowFinishModal(true);
+      // Clear any previous errors when showing the modal
+      setErrors({});
+      serviceTickets.setError(null);
+      reportFile.setError(null);
     } else {
       onSubmit(ticket.id, nextStatus);
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!validateFinishForm()) return;
-    onSubmit(ticket.id, nextStatus, formData, formData.notes);
+
+    const files = {
+      serviceTickets: serviceTickets.files,
+      report: reportFile.files[0] || null
+    };
+
+    onSubmit(ticket.id, nextStatus, files, notes);
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value
-    }));
-    // Clear error when field is changed
-    if (errors[field]) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: undefined
-      }));
-    }
-  };
+  const allowedTypes = ['.pdf', '.doc', '.docx', '.xlsx', '.xlsm', '.xlsb'];
 
   if (showFinishModal) {
     return (
       <div className="space-y-6">
-        {/* Service Ticket Upload */}
+        {/* Service Tickets Upload */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
-            Boleta de Servicio *
+            Boletas de Servicio *
           </label>
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
-            onChange={(e) =>
-              handleInputChange("serviceTicket", e.target.files[0])
-            }
-            className="w-full"
+          <MultiFileUpload
+            files={serviceTickets.files}
+            onFilesChange={serviceTickets.addFiles}
+            onRemove={serviceTickets.removeFile}
+            onDisplayNameChange={serviceTickets.updateDisplayName}
+            maxFiles={5}
+            maxSize={20 * 1024 * 1024}
+            allowedTypes={allowedTypes}
+            error={errors.serviceTickets || serviceTickets.error}
+            disabled={processing}
+            showDisplayName={true}
           />
-          {errors.serviceTicket && (
-            <p className="text-sm text-error">{errors.serviceTicket}</p>
+          {errors.serviceTickets && (
+            <p className="text-sm text-red-600 mt-1">{errors.serviceTickets}</p>
           )}
         </div>
 
@@ -101,35 +112,48 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
             <label className="block text-sm font-medium text-gray-700">
               Informe *
             </label>
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
-              onChange={(e) => handleInputChange("report", e.target.files[0])}
-              className="w-full"
+            <MultiFileUpload
+              files={reportFile.files}
+              onFilesChange={(files) => {
+                reportFile.clearFiles();
+                reportFile.addFiles(files);
+              }}
+              onRemove={() => reportFile.clearFiles()}
+              maxFiles={1}
+              maxSize={10 * 1024 * 1024}
+              allowedTypes={allowedTypes}
+              error={errors.report || reportFile.error}
+              disabled={processing}
             />
             {errors.report && (
-              <p className="text-sm text-error">{errors.report}</p>
+              <p className="text-sm text-red-600 mt-1">{errors.report}</p>
             )}
           </div>
         )}
 
-        {/* Notes Input - Only shown when finalizing */}
+        {/* Notes Input */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
             Notas
           </label>
           <textarea
-            value={formData.notes}
-            onChange={(e) => handleInputChange("notes", e.target.value)}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
             placeholder="Agregue notas o comentarios sobre el trabajo realizado..."
             className="w-full min-h-[100px] px-3 py-2 resize-none border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+            disabled={processing}
           />
         </div>
 
         <div className="flex gap-2">
           <Button
             variant="ghost"
-            onClick={() => setShowFinishModal(false)}
+            onClick={() => {
+              setShowFinishModal(false);
+              setErrors({});
+              serviceTickets.setError(null);
+              reportFile.setError(null);
+            }}
             disabled={processing}
           >
             Cancelar

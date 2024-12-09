@@ -1,9 +1,7 @@
-// src/modules/postVentaManagement/components/Tickets/modals/TicketEditModal/index.js
-import React from 'react';
-import { Loader2, AlertCircle, X } from 'lucide-react';
-import TicketEditForm from './TicketEditForm';
-import Button from '../../../../../../components/common/Button';
-import { usePostVentaManagement } from '../../../../context/postVentaManagementContext';
+import React from "react";
+import { AlertCircle, X } from "lucide-react";
+import Button from "../../../../../../components/common/Button";
+import TicketEditForm from "./TicketEditForm";
 
 const TicketEditModal = ({
   isOpen,
@@ -13,7 +11,6 @@ const TicketEditModal = ({
   processing = false,
   error = null,
 }) => {
-  const { companies, buildings, sites, systems } = usePostVentaManagement();
   if (!isOpen) return null;
 
   return (
@@ -33,7 +30,7 @@ const TicketEditModal = ({
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1 p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           {error && (
             <div className="mb-4 p-4 bg-error/10 text-error rounded-lg flex items-center gap-2">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -41,24 +38,17 @@ const TicketEditModal = ({
             </div>
           )}
 
-          <TicketEditForm 
+          <TicketEditForm
             onSubmit={onSubmit}
-            companies={companies}
-            buildings={buildings}
-            sites={sites}
-            systems={systems}
             initialData={ticket}
+            processing={processing}
           />
         </div>
 
         {/* Footer */}
         <div className="border-t p-6">
           <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              disabled={processing}
-            >
+            <Button variant="ghost" onClick={onClose} disabled={processing}>
               Cancelar
             </Button>
             <Button
@@ -69,11 +59,11 @@ const TicketEditModal = ({
             >
               {processing ? (
                 <>
-                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                   Guardando...
                 </>
               ) : (
-                'Guardar'
+                "Guardar"
               )}
             </Button>
           </div>

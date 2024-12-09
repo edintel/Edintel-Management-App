@@ -97,14 +97,9 @@ const TicketDetails = () => {
         showEditDelete={canEdit || canDelete}
       />
 
-      
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-        <Card title={"Alcance"}>
-        {ticket.scope}
-      </Card>
-          <TimelineSection ticket={ticket} />
+          <Card title={"Alcance"}>{ticket.scope}</Card>
           <FilesSection
             ticket={ticket}
             onDownload={handleFileDownload}
@@ -112,6 +107,7 @@ const TicketDetails = () => {
             loading={processing}
             userRole={userRole}
           />
+          <TimelineSection ticket={ticket} />
         </div>
 
         <div className="space-y-6">

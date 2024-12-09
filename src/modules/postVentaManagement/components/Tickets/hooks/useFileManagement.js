@@ -1,10 +1,7 @@
 import { useState, useCallback } from 'react';
-import { generateDisplayName, validateFileSize, validateFileType } from '../../../../../utils/fileUtils';
+import { generateDisplayName } from '../../../../../utils/fileUtils';
 
 export const useFileManagement = ({
-  maxFiles = 5,
-  maxSize = 10 * 1024 * 1024,
-  allowedTypes = [],
   generateNames = false,
   namePrefix = ''
 } = {}) => {
@@ -12,41 +9,36 @@ export const useFileManagement = ({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
-  const validateFile = useCallback((file) => {
-    if (!validateFileType(file, allowedTypes)) {
-      throw new Error('Tipo de archivo no permitido');
-    }
-    if (!validateFileSize(file, maxSize)) {
-      throw new Error(`El archivo no debe superar ${maxSize} bytes`);
-    }
-  }, [allowedTypes, maxSize]);
-
   const addFiles = useCallback((newFiles) => {
     setError(null);
     
     try {
-      // Validate total number of files
-      if (files.length + newFiles.length > maxFiles) {
-        throw new Error(`No se pueden subir más de ${maxFiles} archivos`);
-      }
+      // Process files - only handle name generation if needed
+      const processedFiles = newFiles.map(fileInput => {
+        const file = fileInput instanceof File ? fileInput : fileInput.file;
+        
+        let processedFile = file;
+        if (generateNames) {
+          const newName = generateDisplayName(file, namePrefix);
+          processedFile = new File([file], newName, { 
+            type: file.type,
+            lastModified: file.lastModified 
+          });
+        }
 
-      // Validate each file
-      newFiles.forEach(validateFile);
-
-      // Process files
-      const processedFiles = newFiles.map(file => ({
-        file,
-        name: generateNames ? generateDisplayName(file, namePrefix) : file.name,
-        displayName: '',
-        size: file.size,
-        type: file.type
-      }));
+        return {
+          file: processedFile,
+          displayName: ''
+        };
+      });
 
       setFiles(prev => [...prev, ...processedFiles]);
     } catch (err) {
+      console.error('Error in addFiles:', err);
       setError(err.message);
+      throw err;
     }
-  }, [files, maxFiles, validateFile, generateNames, namePrefix]);
+  }, [generateNames, namePrefix]);
 
   const removeFile = useCallback((index) => {
     setFiles(prev => prev.filter((_, i) => i !== index));

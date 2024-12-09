@@ -140,11 +140,62 @@ export const optimizeImage = async (file) => {
  * Validates image file type and size
  */
 export const validateImage = (file) => {
-  const validTypes = ["image/jpeg", "image/png", "image/gif"];
-  const maxSize = 20 * 1024 * 1024; // Increased to 20MB for initial file size
+  // Common image MIME types
+  const validTypes = [
+    // Standard web formats
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    
+    // Raw formats
+    'image/x-adobe-dng',
+    'image/x-canon-cr2',
+    'image/x-nikon-nef',
+    'image/x-sony-arw',
+    'image/x-panasonic-rw2',
+    'image/x-olympus-orf',
+    'image/x-fujifilm-raf',
+    
+    // High quality formats
+    'image/tiff',
+    'image/bmp',
+    
+    // Vector formats
+    'image/svg+xml',
+    
+    // Modern formats
+    'image/avif',
+    'image/heic',
+    'image/heif',
+    
+    // Basic validation for when browser returns generic image type
+    'image/*',
+    'image'
+  ];
 
-  if (!validTypes.includes(file.type)) {
-    throw new Error("Solo se permiten archivos de imagen (JPEG, PNG, GIF)");
+  const maxSize = 20 * 1024 * 1024; // 20MB limit
+
+  // Check if file has any type property
+  if (!file.type) {
+    // If no type, try to validate using file extension
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const validExtensions = [
+      'jpg', 'jpeg', 'png', 'gif', 'webp', 
+      'dng', 'cr2', 'nef', 'arw', 'rw2', 'orf', 'raf',
+      'tiff', 'tif', 'bmp', 'svg',
+      'avif', 'heic', 'heif'
+    ];
+    
+    if (!extension || !validExtensions.includes(extension)) {
+      throw new Error("El archivo debe ser una imagen válida");
+    }
+  } else if (!validTypes.some(type => 
+    // Check if file type matches exactly or matches wildcard pattern
+    file.type === type || 
+    (type.endsWith('*') && file.type.startsWith(type.slice(0, -1)))
+  )) {
+    throw new Error("El archivo debe ser una imagen válida");
   }
 
   if (file.size > maxSize) {

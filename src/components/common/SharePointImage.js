@@ -33,11 +33,7 @@ const SharePointImage = ({
         setLoading(true);
         setError(null);
 
-        const { url, token } = await service.getImageContent(
-          siteId,
-          driveId,
-          itemId
-        );
+        const { url, token } = await service.getFile(siteId, driveId, itemId);
 
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
