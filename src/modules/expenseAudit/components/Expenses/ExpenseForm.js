@@ -101,6 +101,8 @@ const ExpenseForm = () => {
 
       const expenseData = {
         ...formData,
+        facturaDividida: formData.facturaDividida || false,
+        integrantes: formData.integrantes || "",
       };
 
       // The file is already optimized by CameraUpload
@@ -123,6 +125,8 @@ const ExpenseForm = () => {
         aprobacionAsistente: "Pendiente",
         aprobacionJefatura: "Pendiente",
         aprobacionContabilidad: "Pendiente",
+        facturaDividida: Boolean(newExpense.fields.FacturaDividida),
+        integrantes: newExpense.fields.Integrantes || "",
         createdBy: {
           name: newExpense.createdBy.user.displayName,
           email: newExpense.createdBy.user.email,
