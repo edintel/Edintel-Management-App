@@ -742,6 +742,7 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
+  
   async deleteTicket(ticketId) {
     await this.initializeGraphClient();
   
@@ -752,39 +753,27 @@ class PostVentaManagementService extends BaseGraphService {
         .expand('fields')
         .get();
   
-      // Get all associated documents
+      // Get all documents
       const [generalDocs, adminDocs] = await Promise.all([
         this.getGeneralDocuments(ticketId),
         this.getAdminDocuments(ticketId)
       ]);
   
-      // Delete all general documents
+      // Delete general documents
       for (const doc of generalDocs) {
         try {
-          // Delete file
-          await this.deleteFile(doc.itemId);
-          // Delete list item
-          await this.client
-            .api(`/sites/${this.siteId}/lists/${this.config.lists.docs}/items`)
-            .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-            .filter(`fields/itemId eq '${doc.itemId}'`)
-            .delete();
+          await this.deleteFile(this.siteId, this.driveId, doc.itemId);
+          await this.deleteListItem(this.siteId, this.config.lists.docs, doc.itemId);
         } catch (error) {
           console.error(`Error deleting general document ${doc.itemId}:`, error);
         }
       }
   
-      // Delete all admin documents
+      // Delete admin documents
       for (const doc of adminDocs) {
         try {
-          // Delete file
-          await this.deleteFile(doc.itemId);
-          // Delete list item
-          await this.client
-            .api(`/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items`)
-            .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-            .filter(`fields/itemId eq '${doc.itemId}'`)
-            .delete();
+          await this.deleteFile(this.admins.siteId, this.admins.driveId, doc.itemId);
+          await this.deleteListItem(this.admins.siteId, this.admins.lists.docsAdmins, doc.itemId);
         } catch (error) {
           console.error(`Error deleting admin document ${doc.itemId}:`, error);
         }
@@ -925,6 +914,38 @@ class PostVentaManagementService extends BaseGraphService {
     } catch (error) {
       console.error("Error uploading document:", error);
       throw new Error(`Error uploading document: ${error.message}`);
+    }
+  }
+
+  async deleteListItem(siteId, listId, itemId) {
+    try {
+      const response = await this.client
+        .api(`/sites/${siteId}/lists/${listId}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .filter(`fields/itemId eq '${itemId}'`)
+        .get();
+  
+      if (response.value?.length > 0) {
+        const listItemId = response.value[0].id;
+        await this.client
+          .api(`/sites/${siteId}/lists/${listId}/items/${listItemId}`)
+          .delete();
+      }
+    } catch (error) {
+      console.error(`Error deleting list item: ${itemId}`, error);
+    }
+  }
+
+  async deleteFile(siteId, driveId, itemId) {
+    if (!itemId) return;
+  
+    await this.initializeGraphClient();
+    try {
+      await this.client
+        .api(`/sites/${siteId}/drives/${driveId}/items/${itemId}`)
+        .delete();
+    } catch (error) {
+      console.error("Error deleting file:", error);
     }
   }
 
