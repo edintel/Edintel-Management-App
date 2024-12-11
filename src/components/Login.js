@@ -2,6 +2,9 @@ import React, { useEffect } from "react";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+import Card from "./common/Card";
+import Button from "./common/Button";
 
 function Login() {
   const { instance, inProgress } = useMsal();
@@ -18,7 +21,6 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
     if (inProgress !== InteractionStatus.None) {
       console.log("Authentication is already in progress");
       return;
@@ -41,28 +43,35 @@ function Login() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg text-center w-[90%] max-w-md">
-        <img
-          src="/LogoEdintel.png"
-          alt="Edintel S.A. Logo"
-          className="w-32 mx-auto mb-4"
-        />
-        <h1 className="text-2xl font-bold text-primary mb-2">Edintel S.A.</h1>
-        <h2 className="text-xl text-gray-700 mb-8">Inicio de sesión</h2>
-
-        <form onSubmit={handleLogin}>
-          <button
-            type="submit"
-            disabled={inProgress !== InteractionStatus.None}
-            className="w-full py-2 px-4 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {inProgress !== InteractionStatus.None
-              ? "Iniciando sesión..."
-              : "Iniciar sesión con Microsoft"}
-          </button>
-        </form>
-      </div>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <div className="flex flex-col items-center p-8">
+          <img
+            src="/LogoEdintel.png"
+            alt="Edintel S.A. Logo"
+            className="w-32 h-auto mb-6"
+          />
+          <h1 className="text-2xl font-bold text-primary mb-2">Edintel S.A.</h1>
+          <h2 className="text-xl text-gray-700 mb-8">Inicio de sesión</h2>
+          
+          <form onSubmit={handleLogin} className="w-full">
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              disabled={inProgress !== InteractionStatus.None}
+              startIcon={inProgress !== InteractionStatus.None ? 
+                <Loader2 className="w-4 h-4 animate-spin" /> : 
+                undefined
+              }
+            >
+              {inProgress !== InteractionStatus.None
+                ? "Iniciando sesión..."
+                : "Iniciar sesión con Microsoft"}
+            </Button>
+          </form>
+        </div>
+      </Card>
     </div>
   );
 }

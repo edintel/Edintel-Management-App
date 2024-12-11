@@ -18,6 +18,7 @@ const ExpenseEdit = () => {
     setExpenseReports,
     service,
     loading: contextLoading,
+    userDepartmentRole
   } = useExpenseAudit();
   const [formData, setFormData] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -62,16 +63,22 @@ const ExpenseEdit = () => {
         return;
       }
 
-      if (
-        expense.bloqueoEdicion &&
-        (!user?.role || user?.role === "Empleado")
-      ) {
+      const canEdit = () => {
+        if (!userDepartmentRole || !expense || !user) return false;
+        
+        if (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente") {
+          return true;
+        }
+
+        return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
+      };
+
+      if (!canEdit()) {
         navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id));
         return;
       }
 
       const formattedDate = expense.fecha.toISOString().split("T")[0];
-
       setFormData({
         rubro: expense.rubro,
         monto: expense.monto,
@@ -90,7 +97,7 @@ const ExpenseEdit = () => {
         setIsNewFile(false);
       }
     }
-  }, [id, expenseReports, navigate, contextLoading, user]);
+  }, [id, expenseReports, navigate, contextLoading, user, userDepartmentRole]);
 
   const handleCancel = () => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id), {

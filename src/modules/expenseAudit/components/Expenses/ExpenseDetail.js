@@ -98,17 +98,11 @@ const ExpenseDetail = () => {
   const canEdit = () => {
     if (!userDepartmentRole || !expense || !user) return false;
 
-    if (
-      userDepartmentRole.role === "Jefe" ||
-      userDepartmentRole.role === "Asistente"
-    ) {
+    if (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente") {
       return true;
     }
 
-    return (
-      user.username === expense.createdBy.email &&
-      !expense.bloqueoEdicion
-    );
+    return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
   };
 
   const handleDelete = () => {
