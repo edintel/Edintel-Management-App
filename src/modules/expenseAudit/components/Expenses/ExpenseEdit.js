@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
@@ -41,19 +41,6 @@ const ExpenseEdit = () => {
     "Parqueo",
     "Versatec",
   ];
-
-  const dateLimits = useMemo(() => {
-    const today = new Date();
-    const twoWeeksAgo = new Date(today);
-    twoWeeksAgo.setDate(today.getDate() - 14);
-
-    return {
-      max: today.toISOString().split("T")[0],
-      min: twoWeeksAgo.toISOString().split("T")[0],
-      displayMax: today.toLocaleDateString("es-CR"),
-      displayMin: twoWeeksAgo.toLocaleDateString("es-CR"),
-    };
-  }, []);
 
   useEffect(() => {
     if (!contextLoading) {
@@ -131,16 +118,6 @@ const ExpenseEdit = () => {
       // Check if there's no image (neither existing nor new)
       if (!formData.comprobante && !isNewFile) {
         throw new Error("Debe adjuntar un comprobante");
-      }
-
-      const selectedDate = new Date(formData.fecha);
-      const minDate = new Date(dateLimits.min);
-      const maxDate = new Date(dateLimits.max);
-
-      if (selectedDate < minDate || selectedDate > maxDate) {
-        throw new Error(
-          "La fecha debe estar entre las últimas 2 semanas y hoy"
-        );
       }
 
       const expenseData = {
@@ -277,8 +254,6 @@ const ExpenseEdit = () => {
                 name="fecha"
                 value={formData?.fecha || ""}
                 onChange={handleInputChange}
-                min={dateLimits.min}
-                max={dateLimits.max}
                 required
                 className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
               />

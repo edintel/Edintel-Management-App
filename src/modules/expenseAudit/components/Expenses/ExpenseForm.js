@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
@@ -24,28 +24,6 @@ const ExpenseForm = () => {
     integrantes: "",
     notas: "",
   });
-
-  const dateLimits = useMemo(() => {
-    const today = new Date();
-    const twoWeeksAgo = new Date(today);
-    twoWeeksAgo.setDate(today.getDate() - 14);
-
-    return {
-      max: today.toISOString().split("T")[0],
-      min: twoWeeksAgo.toISOString().split("T")[0],
-
-      displayMax: today.toLocaleDateString("es-CR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-      displayMin: twoWeeksAgo.toLocaleDateString("es-CR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-    };
-  }, []);
 
   const rubroOptions = [
     "Almuerzo",
@@ -87,16 +65,6 @@ const ExpenseForm = () => {
 
       if (!formData.comprobante) {
         throw new Error("Debe adjuntar un comprobante");
-      }
-
-      const selectedDate = new Date(formData.fecha);
-      const minDate = new Date(dateLimits.min);
-      const maxDate = new Date(dateLimits.max);
-
-      if (selectedDate < minDate || selectedDate > maxDate) {
-        throw new Error(
-          "La fecha debe estar entre las últimas 2 semanas y hoy"
-        );
       }
 
       const expenseData = {
@@ -220,17 +188,9 @@ const ExpenseForm = () => {
                 name="fecha"
                 value={formData.fecha}
                 onChange={handleInputChange}
-                min={dateLimits.min}
-                max={dateLimits.max}
                 required
                 className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
               />
-              <div className="text-sm">
-                <p className="text-gray-500">
-                  Rango permitido: {dateLimits.displayMin} -{" "}
-                  {dateLimits.displayMax}
-                </p>
-              </div>
             </div>
 
             <div className="space-y-2">
