@@ -40,6 +40,7 @@ const ExpenseEdit = () => {
     "Uber",
     "Parqueo",
     "Versatec",
+    "Transporte público"
   ];
 
   useEffect(() => {
