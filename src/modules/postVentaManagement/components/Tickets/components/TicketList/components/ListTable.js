@@ -99,7 +99,7 @@ const ListTable = ({
       header: "Alcance",
       render: (value) => {
         return (
-          <div className="max-w-[150px] break-words">
+          <div className="max-w-[150px] truncate" title={value || "N/A"}>
             {value || "N/A"}
           </div>
         );
