@@ -25,6 +25,10 @@ const Reports = () => {
   const location = useLocation();
 
   const columns = [
+    { 
+      key: "id", 
+      header: "ID" 
+    },
     {
       key: "fecha",
       header: "Fecha",
@@ -220,7 +224,8 @@ const Reports = () => {
       return (
         expense.rubro.toLowerCase().includes(search) ||
         expense.st.toLowerCase().includes(search) ||
-        expense.createdBy.name.toLowerCase().includes(search)
+        expense.createdBy.name.toLowerCase().includes(search) ||
+        expense.id.toString().includes(search)
       );
     }
     return true;
@@ -374,7 +379,7 @@ const Reports = () => {
               <Search size={16} className="text-gray-400 mr-2" />
               <input
                 type="text"
-                placeholder="Buscar por rubro, ST o solicitante..."
+                placeholder="Buscar por ID, rubro, ST o solicitante..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-transparent border-none focus:outline-none text-sm"
