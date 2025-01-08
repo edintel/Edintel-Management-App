@@ -38,6 +38,7 @@ const ExpenseForm = () => {
     "Uber",
     "Parqueo",
     "Versatec",
+    "Transporte público"
   ];
 
   const handleInputChange = (e) => {
