@@ -11,7 +11,6 @@ import MultiImageUpload from "../../../../../../components/common/MultiImageUplo
 import { useFileManagement } from "../../hooks/useFileManagement";
 import { useImageManagement } from "../../hooks/useImageManagement";
 import { generateRandomNumber } from "../../../../../../utils/randomUtils";
-import { handlePathComponentValidation } from "../../../../../../utils/fileUtils";
 
 const TicketForm = () => {
   const navigate = useNavigate();
