@@ -30,14 +30,11 @@ export const validateFileType = (file, allowedTypes) => {
   export const sanitizePathComponent = (name) => {
     if (!name) return '';
     
-    // Replace accented characters with non-accented equivalents
-    const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    
-    // Define allowed characters (alphanumeric, spaces, hyphens, underscores)
-    const allowedCharsRegex = /[^a-zA-Z0-9\s\-_]/g;
+    // Define allowed characters (alphanumeric, Spanish accents, spaces, hyphens, underscores)
+    const allowedCharsRegex = /[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9\s\-_]/g;
     
     // Replace any disallowed characters with empty string
-    const sanitized = normalized.replace(allowedCharsRegex, '');
+    const sanitized = name.replace(allowedCharsRegex, '');
     
     // Replace multiple spaces with single space and trim
     return sanitized.replace(/\s+/g, ' ').trim();
@@ -63,7 +60,7 @@ export const validateFileType = (file, allowedTypes) => {
     if (sanitized !== name) {
       return {
         isValid: false,
-        error: 'El nombre contiene caracteres no permitidos. Solo se permiten letras, números, espacios, guiones y subrayados',
+        error: 'El nombre contiene caracteres no permitidos. Solo se permiten letras, números, acentos españoles, espacios, guiones y subrayados',
         sanitizedValue: sanitized
       };
     }
@@ -79,7 +76,6 @@ export const validateFileType = (file, allowedTypes) => {
   
     if (!validation.isValid) {
       setError?.(validation.error);
-      // Optionally auto-correct the input
       if (validation.sanitizedValue) {
         setFieldValue?.(validation.sanitizedValue);
       }
