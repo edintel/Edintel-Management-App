@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'lucide-react';
 import { cn } from '../../../../../../utils/cn';
+import { handlePathComponentValidation } from '../../../../../../utils/fileUtils';
 
 const SiteForm = ({
   onSubmit,
@@ -19,7 +20,6 @@ const SiteForm = ({
     systems: [],
     supervisorId: '',
   });
-
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -40,26 +40,55 @@ const SiteForm = ({
         buildingId: selectedBuildingId
       }));
     }
-  }, [initialData, selectedBuildingId, roles]);
+  }, [initialData, selectedBuildingId]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // First update the form data immediately to show the changes
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Handle validation and errors differently for name field
+    if (name === 'name') {
+      handlePathComponentValidation(
+        value,
+        (error) => setErrors(prev => ({ ...prev, name: error })),
+        () => {} // We don't need to update the value again here
+      );
+    } else {
+      // Only clear errors for non-name fields
+      if (errors[name]) {
+        setErrors(prev => ({ ...prev, [name]: null }));
+      }
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Required fields validation
-    if (!formData.name.trim()) {
-      newErrors.name = 'El nombre es requerido';
+    // Validate name
+    if (!handlePathComponentValidation(
+      formData.name,
+      (error) => newErrors.name = error,
+      () => {} // We don't need to update the value here
+    )) {
+      return false;
     }
 
+    // Validate required fields
     if (!formData.supervisorId) {
       newErrors.supervisorId = 'Debe seleccionar un supervisor';
     }
 
-    // Email validation if provided
+    // Validate email format
     if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
       newErrors.contactEmail = 'Email inválido';
     }
 
-    // Phone validation if provided
+    // Validate phone format
     if (formData.contactPhone && !/^[\d\s-+()]*$/.test(formData.contactPhone)) {
       newErrors.contactPhone = 'Número de teléfono inválido';
     }
@@ -70,24 +99,12 @@ const SiteForm = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
+    
+    if (!validateForm()) {
+      return;
     }
-  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when field is modified
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }));
-    }
+    onSubmit(formData);
   };
 
   const handleSystemToggle = (systemName) => {
@@ -105,23 +122,18 @@ const SiteForm = ({
       supervisorId: supervisorId.toString()
     }));
     if (errors.supervisorId) {
-      setErrors(prev => ({
-        ...prev,
-        supervisorId: undefined
-      }));
+      setErrors(prev => ({ ...prev, supervisorId: null }));
     }
   };
 
-  // Filter supervisors from roles
-  const supervisors = roles.filter(role => 
+  const supervisors = roles.filter(role =>
     role.role === 'Supervisor' && role.employee
   );
 
   return (
     <form id="siteForm" onSubmit={handleSubmit} className="space-y-6">
-      {/* Site Name */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="text-sm font-medium text-gray-700">
           Nombre del Sitio *
         </label>
         <input
@@ -131,18 +143,21 @@ const SiteForm = ({
           onChange={handleChange}
           className={cn(
             "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
-            errors.name && "border-error focus:border-error focus:ring-error"
+            errors.name && "border-error focus:ring-error"
           )}
           placeholder="Ingrese el nombre del sitio"
+          required
         />
         {errors.name && (
           <p className="text-sm text-error">{errors.name}</p>
         )}
+        <p className="text-xs text-gray-500">
+          Solo se permiten letras, números, espacios, guiones y subrayados
+        </p>
       </div>
 
-      {/* Location */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="text-sm font-medium text-gray-700">
           Ubicación
         </label>
         <input
@@ -155,10 +170,9 @@ const SiteForm = ({
         />
       </div>
 
-      {/* Contact Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700">
             Nombre de Contacto
           </label>
           <input
@@ -170,9 +184,8 @@ const SiteForm = ({
             placeholder="Nombre del contacto"
           />
         </div>
-
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700">
             Email de Contacto
           </label>
           <input
@@ -182,7 +195,7 @@ const SiteForm = ({
             onChange={handleChange}
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
-              errors.contactEmail && "border-error focus:border-error focus:ring-error"
+              errors.contactEmail && "border-error focus:ring-error"
             )}
             placeholder="correo@ejemplo.com"
           />
@@ -190,9 +203,8 @@ const SiteForm = ({
             <p className="text-sm text-error">{errors.contactEmail}</p>
           )}
         </div>
-
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="text-sm font-medium text-gray-700">
             Teléfono de Contacto
           </label>
           <input
@@ -202,7 +214,7 @@ const SiteForm = ({
             onChange={handleChange}
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
-              errors.contactPhone && "border-error focus:border-error focus:ring-error"
+              errors.contactPhone && "border-error focus:ring-error"
             )}
             placeholder="1234-5678"
           />
@@ -212,9 +224,8 @@ const SiteForm = ({
         </div>
       </div>
 
-      {/* Supervisor Selection */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="text-sm font-medium text-gray-700">
           Supervisor *
         </label>
         <div className="space-y-2">
@@ -252,9 +263,8 @@ const SiteForm = ({
         )}
       </div>
 
-      {/* Systems Selection */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="text-sm font-medium text-gray-700">
           Sistemas Instalados
         </label>
         <div className="flex flex-wrap gap-2">

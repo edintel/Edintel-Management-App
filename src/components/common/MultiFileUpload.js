@@ -77,8 +77,19 @@ const MultiFileUpload = ({
   };
 
   const handleDisplayNameChange = (index, value) => {
-    // Remove any backslashes or forward slashes from the input
-    const sanitizedValue = value.replace(/[/\\]/g, '');
+    // Add this function at the top of the component
+    const sanitizeDisplayName = (name) => {
+      if (!name) return '';
+      // Define allowed characters (alphanumeric, Spanish accents, spaces, hyphens, underscores)
+      const allowedCharsRegex = /[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9\s\-_]/g;
+      // Replace any disallowed characters with empty string
+      const sanitized = name.replace(allowedCharsRegex, '');
+      // Replace multiple spaces with single space and trim
+      return sanitized.replace(/\s+/g, ' ').trim();
+    };
+  
+    // Sanitize the display name before updating
+    const sanitizedValue = sanitizeDisplayName(value);
     onDisplayNameChange?.(index, sanitizedValue);
   };
 
