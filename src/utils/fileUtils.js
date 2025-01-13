@@ -26,3 +26,66 @@ export const validateFileType = (file, allowedTypes) => {
   export const getFileExtension = (filename) => {
     return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2);
   };
+
+  export const sanitizePathComponent = (name) => {
+    if (!name) return '';
+    
+    // Replace accented characters with non-accented equivalents
+    const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    // Define allowed characters (alphanumeric, spaces, hyphens, underscores)
+    const allowedCharsRegex = /[^a-zA-Z0-9\s\-_]/g;
+    
+    // Replace any disallowed characters with empty string
+    const sanitized = normalized.replace(allowedCharsRegex, '');
+    
+    // Replace multiple spaces with single space and trim
+    return sanitized.replace(/\s+/g, ' ').trim();
+  };
+  
+  export const validatePathComponent = (name) => {
+    if (!name || typeof name !== 'string') {
+      return {
+        isValid: false,
+        error: 'El nombre es requerido'
+      };
+    }
+  
+    const sanitized = sanitizePathComponent(name);
+    
+    if (sanitized.length === 0) {
+      return {
+        isValid: false,
+        error: 'El nombre debe contener caracteres válidos (letras, números, espacios, guiones o subrayados)'
+      };
+    }
+  
+    if (sanitized !== name) {
+      return {
+        isValid: false,
+        error: 'El nombre contiene caracteres no permitidos. Solo se permiten letras, números, espacios, guiones y subrayados',
+        sanitizedValue: sanitized
+      };
+    }
+  
+    return {
+      isValid: true,
+      sanitizedValue: sanitized
+    };
+  };
+  
+  export const handlePathComponentValidation = (name, setError, setFieldValue) => {
+    const validation = validatePathComponent(name);
+  
+    if (!validation.isValid) {
+      setError?.(validation.error);
+      // Optionally auto-correct the input
+      if (validation.sanitizedValue) {
+        setFieldValue?.(validation.sanitizedValue);
+      }
+      return false;
+    }
+  
+    setError?.(null);
+    return true;
+  };
