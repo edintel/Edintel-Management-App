@@ -48,6 +48,13 @@ class ExpenseAuditService extends BaseGraphService {
         id: item.createdBy.user.id || "",
       },
       notas: item.fields.Notas || "",
+      IntegrantesV2: Array.isArray(item.fields.IntegrantesV2) 
+      ? item.fields.IntegrantesV2.map(integrante => ({
+          email: integrante.Email,
+          displayName: integrante.LookupValue,
+          id: integrante.LookupId
+        }))
+      : [],
     }));
   }
 
@@ -78,6 +85,8 @@ class ExpenseAuditService extends BaseGraphService {
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
       Notas: expenseData.notas,
+      "IntegrantesV2LookupId@odata.type": "Collection(Edm.String)",
+      IntegrantesV2LookupId: expenseData.IntegrantesV2?.map(i => i.id.toString()) || [],
     };
 
     const response = await this.client
@@ -162,6 +171,8 @@ class ExpenseAuditService extends BaseGraphService {
       Integrantes: expenseData.integrantes,
       Comprobante: comprobanteId,
       Notas: expenseData.notas,
+      "IntegrantesV2LookupId@odata.type": "Collection(Edm.String)",
+      IntegrantesV2LookupId: expenseData.IntegrantesV2?.map(i => i.id.toString()) || [],
     };
 
     try {
@@ -188,6 +199,30 @@ class ExpenseAuditService extends BaseGraphService {
       );
     }
   }
+
+  async updateExpenseIntegrantes(expenseId, integranteIds) {
+  await this.initializeGraphClient();
+
+  try {
+    const integranteLookups = integranteIds.map((id) => id.toString());
+
+    const response = await this.client
+      .api(
+        `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${expenseId}`
+      )
+      .patch({
+        fields: {
+          "IntegrantesV2LookupId@odata.type": "Collection(Edm.String)",
+          IntegrantesV2LookupId: integranteLookups,
+        },
+      });
+
+    return response;
+  } catch (error) {
+    console.error("Error updating integrantes:", error);
+    throw new Error("Error al actualizar integrantes");
+  }
+}
 
   async updateApprovalStatus(id, status, type, notes = "") {
     await this.initializeGraphClient();

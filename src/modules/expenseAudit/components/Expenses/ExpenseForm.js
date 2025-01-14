@@ -6,12 +6,15 @@ import Button from "../../../../components/common/Button";
 import { Save, Loader } from "lucide-react";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import CameraUpload from "../../../../components/common/CameraUpload";
+import MultiSelect from "../../../../components/common/MultiSelect";
+import { useAuth } from "../../../../components/AuthProvider";
 
 const ExpenseForm = () => {
   const navigate = useNavigate();
-  const { service, setExpenseReports } = useExpenseAudit();
+  const { service, setExpenseReports, departmentWorkers } = useExpenseAudit();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     rubro: "",
     monto: "",
@@ -23,6 +26,7 @@ const ExpenseForm = () => {
     facturaDividida: false,
     integrantes: "",
     notas: "",
+    IntegrantesV2: [],
   });
 
   const rubroOptions = [
@@ -40,6 +44,27 @@ const ExpenseForm = () => {
     "Versatec",
     "Transporte público"
   ];
+
+  const allWorkers = React.useMemo(() => {
+    return departmentWorkers
+      .reduce((acc, dept) => {
+        dept.workers.forEach((worker) => {
+          if (
+            worker.empleado &&
+            !acc.some((p) => p.id === worker.empleado.id) &&
+            worker.empleado.email !== user?.username
+          ) {
+            acc.push({
+              id: worker.empleado.id,
+              displayName: worker.empleado.displayName,
+              email: worker.empleado.email,
+            });
+          }
+        });
+        return acc;
+      }, [])
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [departmentWorkers, user?.username]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -71,7 +96,9 @@ const ExpenseForm = () => {
       const expenseData = {
         ...formData,
         facturaDividida: formData.facturaDividida || false,
-        integrantes: formData.integrantes || "",
+        integrantes: formData.IntegrantesV2
+          .map(user => user.displayName)
+          .join(", "),
       };
 
       // The file is already optimized by CameraUpload
@@ -79,6 +106,13 @@ const ExpenseForm = () => {
         expenseData,
         formData.comprobante
       );
+
+      if (newExpense.id) {
+        await service.updateExpenseIntegrantes(
+          newExpense.id,
+          formData.IntegrantesV2.map(user => user.id)
+        );
+      }
 
       const formattedExpense = {
         id: newExpense.id,
@@ -272,19 +306,19 @@ const ExpenseForm = () => {
           {formData.facturaDividida && (
             <div className="space-y-2">
               <label
-                htmlFor="integrantes"
                 className="block text-sm font-medium text-gray-700"
               >
-                Integrantes
+                Integrantes adicionales
               </label>
-              <input
-                type="text"
-                id="integrantes"
-                name="integrantes"
-                value={formData.integrantes || ""}
-                onChange={handleInputChange}
-                placeholder="Ingrese los nombres de los integrantes"
-                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+              <MultiSelect
+                options={allWorkers}
+                value={formData.IntegrantesV2}
+                onChange={(selected) => setFormData(prev => ({
+                  ...prev,
+                  IntegrantesV2: selected
+                }))}
+                placeholder="Seleccionar integrantes..."
+                searchPlaceholder="Buscar por nombre o correo..."
               />
             </div>
           )}

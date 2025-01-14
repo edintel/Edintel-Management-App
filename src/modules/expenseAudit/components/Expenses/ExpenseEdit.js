@@ -7,6 +7,7 @@ import CameraUpload from "../../../../components/common/CameraUpload";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import { Save, Loader, AlertTriangle } from "lucide-react";
 import { useAuth } from "../../../../components/AuthProvider";
+import MultiSelect from "../../../../components/common/MultiSelect";
 
 const ExpenseEdit = () => {
   const navigate = useNavigate();
@@ -18,14 +19,14 @@ const ExpenseEdit = () => {
     setExpenseReports,
     service,
     loading: contextLoading,
-    userDepartmentRole
+    userDepartmentRole,
+    departmentWorkers
   } = useExpenseAudit();
   const [formData, setFormData] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isNewFile, setIsNewFile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [imageRemoved] = useState(false);
 
   const rubroOptions = [
     "Almuerzo",
@@ -43,6 +44,27 @@ const ExpenseEdit = () => {
     "Transporte público"
   ];
 
+  const allWorkers = React.useMemo(() => {
+    return departmentWorkers
+      .reduce((acc, dept) => {
+        dept.workers.forEach((worker) => {
+          if (
+            worker.empleado &&
+            !acc.some((p) => p.id === worker.empleado.id) &&
+            worker.empleado.email !== user?.username
+          ) {
+            acc.push({
+              id: worker.empleado.id,
+              displayName: worker.empleado.displayName,
+              email: worker.empleado.email,
+            });
+          }
+        });
+        return acc;
+      }, [])
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [departmentWorkers, user?.username]);
+
   useEffect(() => {
     if (!contextLoading) {
       const expense = expenseReports.find((exp) => exp.id === id);
@@ -53,7 +75,7 @@ const ExpenseEdit = () => {
 
       const canEdit = () => {
         if (!userDepartmentRole || !expense || !user) return false;
-        
+
         if (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente") {
           return true;
         }
@@ -77,7 +99,12 @@ const ExpenseEdit = () => {
         comprobante: expense.comprobante,
         facturaDividida: expense.facturaDividida || false,
         integrantes: expense.integrantes || "",
-        notas: expense.notas || ""
+        notas: expense.notas || "",
+        IntegrantesV2: expense.IntegrantesV2?.map(integrante => ({
+          id: integrante.id,
+          displayName: integrante.displayName,
+          email: integrante.email
+        })) || []
       });
 
       if (expense.comprobante) {
@@ -123,19 +150,20 @@ const ExpenseEdit = () => {
 
       const expenseData = {
         ...formData,
+        integrantes: formData.IntegrantesV2
+          .map(user => user.displayName)
+          .join(", "),
       };
-
-      // Only pass the new file if one was uploaded or if image was explicitly removed
-      const fileToUpload = isNewFile
-        ? formData.comprobante
-        : imageRemoved
-          ? null
-          : undefined;
 
       const updatedExpense = await service.updateExpenseReport(
         id,
         expenseData,
-        fileToUpload
+        isNewFile ? formData.comprobante : undefined
+      );
+
+      await service.updateExpenseIntegrantes(
+        id,
+        formData.IntegrantesV2.map(user => user.id)
       );
 
       setExpenseReports((prevReports) =>
@@ -330,19 +358,19 @@ const ExpenseEdit = () => {
           {formData.facturaDividida && (
             <div className="space-y-2">
               <label
-                htmlFor="integrantes"
                 className="block text-sm font-medium text-gray-700"
               >
-                Integrantes
+                Integrantes adicionales
               </label>
-              <input
-                type="text"
-                id="integrantes"
-                name="integrantes"
-                value={formData.integrantes || ""}
-                onChange={handleInputChange}
-                placeholder="Ingrese los nombres de los integrantes"
-                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+              <MultiSelect
+                options={allWorkers}
+                value={formData.IntegrantesV2}
+                onChange={(selected) => setFormData(prev => ({
+                  ...prev,
+                  IntegrantesV2: selected
+                }))}
+                placeholder="Seleccionar integrantes..."
+                searchPlaceholder="Buscar por nombre o correo..."
               />
             </div>
           )}
