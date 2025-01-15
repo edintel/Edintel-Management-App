@@ -45,9 +45,10 @@ const CompanyForm = ({ onSubmit, initialData = null }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const trimmedName = formData.name.trim();
     
     if (!handlePathComponentValidation(
-      formData.name, 
+      trimmedName,
       setError,
       (sanitizedValue) => {
         setFormData(prev => ({
@@ -58,8 +59,10 @@ const CompanyForm = ({ onSubmit, initialData = null }) => {
     )) {
       return;
     }
-
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      name: trimmedName
+    });
   };
 
   return (

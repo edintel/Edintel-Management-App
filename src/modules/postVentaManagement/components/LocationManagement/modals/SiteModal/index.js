@@ -9,6 +9,7 @@ const SiteModal = ({
   onClose,
   onSubmit,
   initialData = null,
+  selectedBuildingId=null,
   processing = false,
   error = null,
 }) => {
@@ -47,6 +48,7 @@ const SiteModal = ({
             systems={systems}
             roles={roles}
             initialData={initialData}
+            selectedBuildingId={selectedBuildingId}
           />
         </div>
 
