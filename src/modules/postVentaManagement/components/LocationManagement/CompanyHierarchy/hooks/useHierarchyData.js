@@ -15,30 +15,40 @@ export const useHierarchyData = () => {
   const [expandedBuildings, setExpandedBuildings] = useState([]);
 
   const toggleCompany = (companyId) => {
-    setExpandedCompanies(prev => 
-      prev.includes(companyId) 
+    setExpandedCompanies(prev =>
+      prev.includes(companyId)
         ? prev.filter(id => id !== companyId)
         : [...prev, companyId]
     );
   };
 
   const toggleBuilding = (buildingId) => {
-    setExpandedBuildings(prev => 
-      prev.includes(buildingId) 
+    setExpandedBuildings(prev =>
+      prev.includes(buildingId)
         ? prev.filter(id => id !== buildingId)
         : [...prev, buildingId]
     );
   };
 
   const hierarchyData = useMemo(() => {
-    const getFilteredBuildings = (companyId) => 
-      buildings.filter(building => building.companyId === companyId);
+    const sortedCompanies = [...companies].sort((a, b) => 
+      a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
+    );
 
-    const getFilteredSites = (buildingId) => 
-      sites.filter(site => site.buildingId === buildingId);
+    const getFilteredBuildings = (companyId) => {
+      return buildings
+        .filter(building => building.companyId === companyId)
+        .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    };
+
+    const getFilteredSites = (buildingId) => {
+      return sites
+        .filter(site => site.buildingId === buildingId)
+        .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    };
 
     return {
-      companies,
+      companies: sortedCompanies,
       getFilteredBuildings,
       getFilteredSites,
       expandedCompanies,

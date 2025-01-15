@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'lucide-react';
 import { cn } from '../../../../../../utils/cn';
-import { handlePathComponentValidation } from '../../../../../../utils/fileUtils';
+import { validatePathComponent } from '../../../../../../utils/fileUtils';
 
 const SiteForm = ({
   onSubmit,
@@ -44,67 +44,68 @@ const SiteForm = ({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    // First update the form data immediately to show the changes
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
 
-    // Handle validation and errors differently for name field
     if (name === 'name') {
-      handlePathComponentValidation(
-        value,
-        (error) => setErrors(prev => ({ ...prev, name: error })),
-        () => {} // We don't need to update the value again here
-      );
-    } else {
-      // Only clear errors for non-name fields
-      if (errors[name]) {
-        setErrors(prev => ({ ...prev, [name]: null }));
+      const validation = validatePathComponent(value);
+      if (validation.isValid) {
+        setFormData(prev => ({
+          ...prev,
+          name: validation.sanitizedValue
+        }));
+        setErrors(prev => ({ ...prev, name: null }));
+      } else {
+        setErrors(prev => ({ ...prev, name: validation.error }));
       }
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
-
-    // Validate name
-    if (!handlePathComponentValidation(
-      formData.name,
-      (error) => newErrors.name = error,
-      () => {} // We don't need to update the value here
-    )) {
-      return false;
+    const trimmedName = formData.name.trim();
+    
+    // Use validatePathComponent for name validation
+    const nameValidation = validatePathComponent(trimmedName);
+    
+    if (!nameValidation.isValid) {
+      newErrors.name = nameValidation.error;
     }
-
-    // Validate required fields
+    
+    if (!formData.buildingId) {
+      newErrors.buildingId = 'Debe seleccionar un edificio';
+    }
+    
     if (!formData.supervisorId) {
       newErrors.supervisorId = 'Debe seleccionar un supervisor';
     }
-
-    // Validate email format
+    
+    // Optional validations
     if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
       newErrors.contactEmail = 'Email inválido';
     }
-
-    // Validate phone format
+    
     if (formData.contactPhone && !/^[\d\s-+()]*$/.test(formData.contactPhone)) {
       newErrors.contactPhone = 'Número de teléfono inválido';
     }
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
+  
   const handleSubmit = (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
-
-    onSubmit(formData);
+  
+    onSubmit({
+      ...formData,
+      name: formData.name.trim()
+    });
   };
 
   const handleSystemToggle = (systemName) => {

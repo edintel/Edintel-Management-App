@@ -47,10 +47,11 @@ const BuildingForm = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const trimmedName = formData.name.trim();
 
     // Validate before submit
     if (!handlePathComponentValidation(
-      formData.name,
+      trimmedName,
       (error) => setErrors(prev => ({ ...prev, name: error })),
       (sanitizedValue) => {
         setFormData(prev => ({

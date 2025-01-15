@@ -47,27 +47,22 @@ export const validateFileType = (file, allowedTypes) => {
         error: 'El nombre es requerido'
       };
     }
-  
-    const sanitized = sanitizePathComponent(name);
     
-    if (sanitized.length === 0) {
-      return {
-        isValid: false,
-        error: 'El nombre debe contener caracteres válidos (letras, números, espacios, guiones o subrayados)'
-      };
-    }
+    // Define allowed characters (alphanumeric, Spanish accents, spaces, hyphens, underscores)
+    const allowedCharsRegex = /[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ0-9\s\-_]/g;
   
-    if (sanitized !== name) {
+    // Check if name contains any invalid characters
+    if (allowedCharsRegex.test(name)) {
       return {
         isValid: false,
         error: 'El nombre contiene caracteres no permitidos. Solo se permiten letras, números, acentos españoles, espacios, guiones y subrayados',
-        sanitizedValue: sanitized
+        sanitizedValue: name.replace(allowedCharsRegex, '')
       };
     }
   
     return {
       isValid: true,
-      sanitizedValue: sanitized
+      sanitizedValue: name
     };
   };
   
