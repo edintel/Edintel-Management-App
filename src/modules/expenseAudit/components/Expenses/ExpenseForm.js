@@ -38,7 +38,6 @@ const ExpenseForm = () => {
     "Hospedaje",
     "Materiales",
     "Peaje",
-    "Habitación",
     "Uber",
     "Parqueo",
     "Versatec",
