@@ -861,56 +861,88 @@ class PostVentaManagementService extends BaseGraphService {
   }
 
   async uploadTicketDocument(ticketId, file, documentType, customFileName = null) {
-    if (!ticketId || !file || !documentType) {
-      throw new Error("Missing required parameters");
-    }
-    const isAdminDoc = isAdministrativeDoc(documentType);
-    const config = isAdminDoc ? this.admins : this.config;
-    const listId = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
-    const siteId = isAdminDoc ? config.siteId : this.siteId;
-    const driveId = isAdminDoc ? config.driveId : this.driveId;
     try {
-      // Get ticket details for folder structure
-      const ticket = await this.getTicketById(ticketId);
-      const site = await this.getSiteById(ticket.siteId);
-      const building = await this.getBuildingById(site.buildingId);
-      const company = await this.getCompanyById(building.companyId);
-
-      // Create folder path
-      const folderPath = `/Boletas ST/${company.name}/${building.name}/${site.name}/${ticket.stNumber}`;
-
-      // Generate unique filename
-      const fileName =
-        customFileName || `${documentType} - ${generateRandomNumber(16)}`;
-
-      // Upload file
-      const itemId = await this.uploadFile(
-        siteId,
-        driveId,
-        file,
-        folderPath,
-        fileName
-      );
-
-      // Create list item
-      await this.client
-        .api(`/sites/${siteId}/lists/${listId}/items`)
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .post({
-          fields: {
-            ticketId,
-            fileName,
-            itemId,
-            documentType,
-          },
+      if (!ticketId || !file || !documentType) {
+        throw new Error("Missing required parameters");
+      }
+  
+      const isAdminDoc = isAdministrativeDoc(documentType);
+      const config = isAdminDoc ? this.admins : this.config;
+      const listId = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
+      const siteId = isAdminDoc ? config.siteId : this.siteId;
+      const driveId = isAdminDoc ? config.driveId : this.driveId;
+  
+      try {
+        const ticket = await this.getTicketById(ticketId);
+        const site = await this.getSiteById(ticket.siteId);
+        const building = await this.getBuildingById(site.buildingId);
+        const company = await this.getCompanyById(building.companyId);
+  
+        const sanitizePathComponent = (component) => {
+          return component
+            .toString()
+            .trim()
+            .replace(/\s+/g, ' ')
+            .replace(/[<>:"/\\|?*]/g, '_')
+            .replace(/\s+$/g, '');
+        };
+  
+        const sanitizedPath = {
+          company: sanitizePathComponent(company.name),
+          building: sanitizePathComponent(building.name),
+          site: sanitizePathComponent(site.name),
+          ticket: sanitizePathComponent(ticket.stNumber)
+        };
+  
+        const folderPath = `Boletas ST/${sanitizedPath.company}/${sanitizedPath.building}/${sanitizedPath.site}/${sanitizedPath.ticket}`.replace(/^\/+|\/+$/g, '');
+  
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        const timestamp = Date.now();
+        const randomNum = generateRandomNumber(8);
+        const baseFileName = customFileName || `${documentType}-${timestamp}-${randomNum}`;
+        const fileName = `${baseFileName}.${fileExtension}`;
+  
+        const itemId = await this.uploadFile(
+          siteId,
+          driveId,
+          file,
+          folderPath,
+          fileName
+        );
+  
+        await this.client
+          .api(`/sites/${siteId}/lists/${listId}/items`)
+          .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+          .post({
+            fields: {
+              ticketId,
+              fileName,
+              itemId,
+              documentType,
+            },
+          });
+  
+        return {
+          itemId,
+          fileName,
+          documentType,
+          source: isAdminDoc ? 'admin' : 'general'
+        };
+  
+      } catch (error) {
+        console.error('Detailed upload error:', {
+          error,
+          ticketId,
+          documentType,
+          fileName: customFileName,
+          file: {
+            name: file.name,
+            size: file.size,
+            type: file.type
+          }
         });
-
-      return {
-        itemId,
-        fileName,
-        documentType,
-        source: isAdminDoc ? 'admin' : 'general'
-      };
+        throw error;
+      }
     } catch (error) {
       console.error("Error uploading document:", error);
       throw new Error(`Error uploading document: ${error.message}`);

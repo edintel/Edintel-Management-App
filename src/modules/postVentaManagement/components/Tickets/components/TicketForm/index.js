@@ -119,9 +119,15 @@ const TicketForm = () => {
       const building = buildings.find((b) => b.id === site.buildingId);
       const company = companies.find((c) => c.id === building.companyId);
 
+
+      const trimmedData = {
+        ...formData,
+        st: formData.st.trim(),
+        scope: formData.scope.trim(),
+      };
       // Create ticket with all references
       const response = await service.createServiceTicket({
-        ...formData,
+        ...trimmedData,
       });
 
       //Upload images

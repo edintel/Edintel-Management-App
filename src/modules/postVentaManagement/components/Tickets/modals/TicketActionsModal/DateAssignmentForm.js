@@ -21,7 +21,6 @@ const DateAssignmentForm = ({ ticket, onSubmit, processing }) => {
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
           className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-          min={new Date().toISOString().slice(0, 16)}
         />
       </div>
       <Button
