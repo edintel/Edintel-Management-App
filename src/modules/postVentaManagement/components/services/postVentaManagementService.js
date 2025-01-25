@@ -742,57 +742,78 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-  
   async deleteTicket(ticketId) {
     await this.initializeGraphClient();
-  
+
     try {
       // Get ticket details first
       const ticket = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
-        .expand('fields')
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
+        .expand("fields")
         .get();
-  
+
       // Get all documents
       const [generalDocs, adminDocs] = await Promise.all([
         this.getGeneralDocuments(ticketId),
-        this.getAdminDocuments(ticketId)
+        this.getAdminDocuments(ticketId),
       ]);
-  
+
       // Delete general documents
       for (const doc of generalDocs) {
         try {
           await this.deleteFile(this.siteId, this.driveId, doc.itemId);
-          await this.deleteListItem(this.siteId, this.config.lists.docs, doc.itemId);
+          await this.deleteListItem(
+            this.siteId,
+            this.config.lists.docs,
+            doc.itemId
+          );
         } catch (error) {
-          console.error(`Error deleting general document ${doc.itemId}:`, error);
+          console.error(
+            `Error deleting general document ${doc.itemId}:`,
+            error
+          );
         }
       }
-  
+
       // Delete admin documents
       for (const doc of adminDocs) {
         try {
-          await this.deleteFile(this.admins.siteId, this.admins.driveId, doc.itemId);
-          await this.deleteListItem(this.admins.siteId, this.admins.lists.docsAdmins, doc.itemId);
+          await this.deleteFile(
+            this.admins.siteId,
+            this.admins.driveId,
+            doc.itemId
+          );
+          await this.deleteListItem(
+            this.admins.siteId,
+            this.admins.lists.docsAdmins,
+            doc.itemId
+          );
         } catch (error) {
           console.error(`Error deleting admin document ${doc.itemId}:`, error);
         }
       }
-  
+
       // Delete calendar event if exists
       if (ticket.fields.calendarEvent) {
         try {
-          await this.deleteCalendarEvent(this.groupId, ticket.fields.calendarEvent);
+          await this.deleteCalendarEvent(
+            this.groupId,
+            ticket.fields.calendarEvent
+          );
         } catch (error) {
           console.error("Error deleting calendar event:", error);
         }
       }
-  
+
       // Finally delete the ticket
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
         .delete();
-  
+
       return true;
     } catch (error) {
       console.error("Error deleting ticket:", error);
@@ -807,14 +828,14 @@ class PostVentaManagementService extends BaseGraphService {
       .api(`/sites/${this.siteId}/lists/${this.config.lists.docs}/items`)
       .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
       .filter(`fields/ticketId eq '${ticketId}'`)
-      .expand('fields')
+      .expand("fields")
       .get();
 
-    return response.value.map(item => ({
+    return response.value.map((item) => ({
       itemId: item.fields.itemId,
       fileName: item.fields.fileName,
       documentType: item.fields.documentType,
-      source: 'general'
+      source: "general",
     }));
   }
 
@@ -823,17 +844,19 @@ class PostVentaManagementService extends BaseGraphService {
       await this.initializeGraphClient();
 
       const response = await this.client
-        .api(`/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items`)
+        .api(
+          `/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .filter(`fields/ticketId eq '${ticketId}'`)
-        .expand('fields')
+        .expand("fields")
         .get();
 
-      return response.value.map(item => ({
+      return response.value.map((item) => ({
         itemId: item.fields.itemId,
         fileName: item.fields.fileName,
         documentType: item.fields.documentType,
-        source: 'admin'
+        source: "admin",
       }));
     } catch (error) {
       // User might not have access to admin site
@@ -850,7 +873,7 @@ class PostVentaManagementService extends BaseGraphService {
       // Get documents from both lists
       const [generalDocs, adminDocs] = await Promise.all([
         this.getGeneralDocuments(ticketId),
-        this.getAdminDocuments(ticketId)
+        this.getAdminDocuments(ticketId),
       ]);
 
       return [...generalDocs, ...adminDocs];
@@ -860,48 +883,53 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-  async uploadTicketDocument(ticketId, file, documentType, customFileName = null) {
+  async uploadTicketDocument(
+    ticketId,
+    file,
+    documentType,
+    customFileName = null
+  ) {
     try {
       if (!ticketId || !file || !documentType) {
         throw new Error("Missing required parameters");
       }
-  
+
       const isAdminDoc = isAdministrativeDoc(documentType);
       const config = isAdminDoc ? this.admins : this.config;
       const listId = isAdminDoc ? config.lists.docsAdmins : config.lists.docs;
       const siteId = isAdminDoc ? config.siteId : this.siteId;
       const driveId = isAdminDoc ? config.driveId : this.driveId;
-  
+
       try {
         const ticket = await this.getTicketById(ticketId);
         const site = await this.getSiteById(ticket.siteId);
         const building = await this.getBuildingById(site.buildingId);
         const company = await this.getCompanyById(building.companyId);
-  
+
         const sanitizePathComponent = (component) => {
           return component
             .toString()
             .trim()
-            .replace(/\s+/g, ' ')
-            .replace(/[<>:"/\\|?*]/g, '_')
-            .replace(/\s+$/g, '');
+            .replace(/\s+/g, " ")
+            .replace(/[<>:"/\\|?*]/g, "_")
+            .replace(/\s+$/g, "");
         };
-  
+
         const sanitizedPath = {
           company: sanitizePathComponent(company.name),
           building: sanitizePathComponent(building.name),
           site: sanitizePathComponent(site.name),
-          ticket: sanitizePathComponent(ticket.stNumber)
+          ticket: sanitizePathComponent(ticket.stNumber),
         };
-  
-        const folderPath = `Boletas ST/${sanitizedPath.company}/${sanitizedPath.building}/${sanitizedPath.site}/${sanitizedPath.ticket}`.replace(/^\/+|\/+$/g, '');
-  
-        const fileExtension = file.name.split('.').pop().toLowerCase();
+
+        const folderPath = `/Boletas ST/${sanitizedPath.company}/${sanitizedPath.building}/${sanitizedPath.site}/${sanitizedPath.ticket}`;
+        const fileExtension = file.name.split(".").pop().toLowerCase();
         const timestamp = Date.now();
         const randomNum = generateRandomNumber(8);
-        const baseFileName = customFileName || `${documentType}-${timestamp}-${randomNum}`;
+        const baseFileName =
+          customFileName || `${documentType}-${timestamp}-${randomNum}`;
         const fileName = `${baseFileName}.${fileExtension}`;
-  
+
         const itemId = await this.uploadFile(
           siteId,
           driveId,
@@ -909,7 +937,7 @@ class PostVentaManagementService extends BaseGraphService {
           folderPath,
           fileName
         );
-  
+
         await this.client
           .api(`/sites/${siteId}/lists/${listId}/items`)
           .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
@@ -921,16 +949,15 @@ class PostVentaManagementService extends BaseGraphService {
               documentType,
             },
           });
-  
+
         return {
           itemId,
           fileName,
           documentType,
-          source: isAdminDoc ? 'admin' : 'general'
+          source: isAdminDoc ? "admin" : "general",
         };
-  
       } catch (error) {
-        console.error('Detailed upload error:', {
+        console.error("Detailed upload error:", {
           error,
           ticketId,
           documentType,
@@ -938,8 +965,8 @@ class PostVentaManagementService extends BaseGraphService {
           file: {
             name: file.name,
             size: file.size,
-            type: file.type
-          }
+            type: file.type,
+          },
         });
         throw error;
       }
@@ -956,7 +983,7 @@ class PostVentaManagementService extends BaseGraphService {
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .filter(`fields/itemId eq '${itemId}'`)
         .get();
-  
+
       if (response.value?.length > 0) {
         const listItemId = response.value[0].id;
         await this.client
@@ -970,7 +997,7 @@ class PostVentaManagementService extends BaseGraphService {
 
   async deleteFile(siteId, driveId, itemId) {
     if (!itemId) return;
-  
+
     await this.initializeGraphClient();
     try {
       await this.client
@@ -980,7 +1007,6 @@ class PostVentaManagementService extends BaseGraphService {
       console.error("Error deleting file:", error);
     }
   }
-
 }
 
 export default PostVentaManagementService;
