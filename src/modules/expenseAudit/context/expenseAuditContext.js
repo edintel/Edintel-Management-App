@@ -91,33 +91,56 @@ export function AppProviderExpenseAudit({ children }) {
 
   const loadExpenseData = useCallback(async () => {
     if (expenseState.loading) return;
-
     const service = await initializeExpenseService();
     if (!service) return;
-
+    
     setExpenseState((prev) => ({ ...prev, loading: true, error: null }));
-
+    
     try {
       const [expenseReportsData, departmentsData, rolesData] = await Promise.all([
         service.getExpenseReports(),
         service.getDepartments(),
         service.getRoles(),
       ]);
-
+  
       const mappedDepartmentWorkers = service.mapDepartmentWorkers(
         departmentsData,
         rolesData
       );
-
+  
       const currentUserEmail = accounts[0]?.username;
       const userDeptRole = service.getUserDepartmentRole(
         currentUserEmail,
         departmentsData,
         rolesData
       );
-
+  
+      // Filter expenses based on department access
+      const filteredExpenses = expenseReportsData.filter(expense => {
+        // Contabilidad can see everything
+        if (userDeptRole?.department?.departamento.toLowerCase().includes('contabilidad')) {
+          return true;
+        }
+  
+        // Users can always see their own expenses
+        if (expense.createdBy.email === currentUserEmail) {
+          return true;
+        }
+  
+        // Department heads and assistants can see their department's expenses
+        if (userDeptRole?.role === 'Jefe' || userDeptRole?.role === 'Asistente') {
+          const expenseCreator = rolesData.find(role => 
+            role.empleado?.email === expense.createdBy.email
+          );
+          return expenseCreator?.departamentoId === parseInt(userDeptRole.department.id);
+        }
+  
+        // Regular users can only see their own expenses (already covered above)
+        return false;
+      });
+  
       setExpenseState({
-        expenseReports: expenseReportsData,
+        expenseReports: filteredExpenses, 
         departments: departmentsData,
         roles: rolesData,
         departmentWorkers: mappedDepartmentWorkers,

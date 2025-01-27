@@ -398,6 +398,35 @@ class ExpenseAuditService extends BaseGraphService {
     if (isAccountingApprover) return "Contabilidad";
     return userDepartmentRole.role;
   }
+
+  canViewExpense(expense, userDepartmentRole) {
+    if (!userDepartmentRole) return false;
+    
+    // Contabilidad can see everything
+    if (userDepartmentRole.department?.departamento.toLowerCase().includes('contabilidad')) {
+      return true;
+    }
+  
+    // User can see their own expenses
+    if (expense.createdBy.email === this.msalInstance.getAllAccounts()[0]?.username) {
+      return true;
+    }
+  
+    // Department heads and assistants can see their department's expenses
+    if (userDepartmentRole.role === 'Jefe' || userDepartmentRole.role === 'Asistente') {
+      const expenseCreator = this.roles.find(role => 
+        role.empleado?.email === expense.createdBy.email
+      );
+      return expenseCreator?.departamentoId === parseInt(userDepartmentRole.department.id);
+    }
+  
+    return false;
+  }
+  
+  filterExpensesByDepartment(expenses, userDepartmentRole) {
+    if (!userDepartmentRole) return [];
+    return expenses.filter(expense => this.canViewExpense(expense, userDepartmentRole));
+  }
 }
 
 export default ExpenseAuditService;
