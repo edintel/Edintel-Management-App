@@ -4,14 +4,14 @@ import { Plus } from "lucide-react";
 import Button from "../../../../../../../components/common/Button";
 import { POST_VENTA_ROUTES } from "../../../../../routes";
 import { usePostVentaManagement } from "../../../../../context/postVentaManagementContext";
+import { isActionAllowed, TICKET_ACTIONS } from "../../../permissions/ticketActionPermissions";
 
 const ListHeader = ({ total = 0 }) => {
   const navigate = useNavigate();
   const { userRole } = usePostVentaManagement();
 
   // Check if user is admin or supervisor
-  const canCreateTicket =
-    userRole?.role === "Administrativo" || userRole?.role === "Supervisor";
+  const canCreateTicket = isActionAllowed(TICKET_ACTIONS.CREATE, null, userRole);
 
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

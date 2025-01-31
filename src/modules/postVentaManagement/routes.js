@@ -13,7 +13,8 @@ import LoadingScreen from '../../components/LoadingScreen';
 const ROLES = {
   ADMIN: "Administrativo",
   SUPERVISOR: "Supervisor",
-  TECHNICIAN: "Técnico"
+  TECHNICIAN: "Técnico",
+  COMERCIAL: "Comercial"
 };
 
 // Navigation configuration for the module
@@ -56,7 +57,7 @@ export const PostVentaRoutes = () => {
           <Route 
             path="new" 
             element={
-              <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR]}>
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.COMERCIAL]}>
                 <TicketForm />
               </ProtectedRoute>
             } 

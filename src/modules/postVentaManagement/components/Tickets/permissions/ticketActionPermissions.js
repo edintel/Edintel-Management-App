@@ -1,22 +1,21 @@
-// Action types constants
 export const TICKET_ACTIONS = {
   ASSIGN_TECH: "assign_tech",
   UPDATE_STATUS: "update_status",
   SCHEDULE_DATE: "schedule_date",
   EDIT: "edit",
   DELETE: "delete",
+  CREATE: "create"
 };
 
-// User role checks
 const isAdmin = (userRole) => userRole?.role === "Administrativo";
 const isSupervisor = (userRole) => userRole?.role === "Supervisor";
+const isCommercial = (userRole) => userRole?.role === "Comercial";
 const isAssignedToTicket = (ticket, userRole) => {
   return ticket.technicians?.some(
     (tech) => tech.LookupId === userRole?.employee?.LookupId
   );
 };
 
-// States where supervisors can edit and delete
 const SUPERVISOR_EDITABLE_STATES = [
   "Iniciada",
   "Técnico asignado",
@@ -25,25 +24,22 @@ const SUPERVISOR_EDITABLE_STATES = [
   "Finalizada",
 ];
 
-// Check if the ticket is in a supervisor-editable state
 const isInSupervisorEditableState = (ticket) => {
   return SUPERVISOR_EDITABLE_STATES.includes(ticket.state);
 };
 
-// Check if user can edit/delete based on role and state
 const canEditDelete = (ticket, userRole) => {
-  // Admins can edit/delete in any state
   if (isAdmin(userRole)) return true;
-
-  // Supervisors can only edit/delete in specific states
   if (isSupervisor(userRole)) {
     return isInSupervisorEditableState(ticket);
   }
-
   return false;
 };
 
-// Define permission checks for each action and state
+const canCreate = (userRole) => {
+  return isAdmin(userRole) || isSupervisor(userRole) || isCommercial(userRole);
+};
+
 const statePermissions = {
   Iniciada: {
     [TICKET_ACTIONS.ASSIGN_TECH]: (ticket, userRole) =>
@@ -111,9 +107,11 @@ const statePermissions = {
 export const getAvailableActions = (ticket, userRole) => {
   if (!ticket || !userRole) return [];
 
-  const actions = new Set();
+  if (!ticket && canCreate(userRole)) {
+    return [TICKET_ACTIONS.CREATE];
+  }
 
-  // Get state-specific actions
+  const actions = new Set();
   const stateActions = statePermissions[ticket.state] || {};
   Object.entries(stateActions).forEach(([action, check]) => {
     if (check(ticket, userRole)) {
@@ -126,9 +124,11 @@ export const getAvailableActions = (ticket, userRole) => {
 
 // Check if a specific action is allowed
 export const isActionAllowed = (action, ticket, userRole) => {
-  if (!ticket || !userRole) return false;
+  if (action === TICKET_ACTIONS.CREATE) {
+    return canCreate(userRole);
+  }
 
-  // Check state-specific permissions
+  if (!ticket || !userRole) return false;
   const stateActions = statePermissions[ticket.state] || {};
   const check = stateActions[action];
   return check ? check(ticket, userRole) : false;
