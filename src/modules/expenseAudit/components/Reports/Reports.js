@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
@@ -12,23 +12,260 @@ import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 
 const Reports = () => {
   const { expenseReports, departmentWorkers, loading, reportFilters, setReportFilters } = useExpenseAudit();
-  const [dateRange, setDateRange] = useState({
-    startDate: null,
-    endDate: null,
-  });
-  const [selectedPerson, setSelectedPerson] = useState("");
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-
   const navigate = useNavigate();
   const location = useLocation();
 
-  const columns = [
-    { 
-      key: "id", 
-      header: "ID" 
+  const [filters, setFilters] = useState({
+    dateRange: {
+      startDate: reportFilters?.startDate || null,
+      endDate: reportFilters?.endDate || null
     },
+    selectedPerson: reportFilters?.selectedPerson || "",
+    selectedStatuses: reportFilters?.selectedStatuses || [],
+    searchTerm: reportFilters?.searchTerm || ""
+  });
+  const [searchInput, setSearchInput] = useState(filters.searchTerm);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [selectedExpenses, setSelectedExpenses] = useState(() => new Set());
+
+  const updateFilters = useCallback((updates) => {
+    setFilters(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  useEffect(() => {
+    if (location.state?.preserveFilters && reportFilters) {
+      setFilters({
+        searchTerm: reportFilters.searchTerm || "",
+        dateRange: {
+          startDate: reportFilters.startDate || null,
+          endDate: reportFilters.endDate || null
+        },
+        selectedPerson: reportFilters.selectedPerson || "",
+        selectedStatuses: reportFilters.selectedStatuses || []
+      });
+      setSearchInput(reportFilters.searchTerm || "");
+    }
+  }, [location.state?.preserveFilters, reportFilters]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isStatusOpen && !event.target.closest('.status-dropdown')) {
+        setIsStatusOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isStatusOpen]);
+
+  useEffect(() => {
+    const newFilters = {
+      searchTerm: filters.searchTerm,
+      startDate: filters.dateRange.startDate,
+      endDate: filters.dateRange.endDate,
+      selectedPerson: filters.selectedPerson,
+      selectedStatuses: filters.selectedStatuses
+    };
+
+    if (JSON.stringify(newFilters) !== JSON.stringify(reportFilters)) {
+      setReportFilters(newFilters);
+    }
+  }, [filters, setReportFilters, reportFilters]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setFilters(prev => ({ ...prev, searchTerm: searchInput }));
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  const people = useMemo(() => {
+    return departmentWorkers.reduce((acc, dept) => {
+      dept.workers.forEach((worker) => {
+        if (worker.empleado && !acc.some((p) => p.email === worker.empleado.email)) {
+          acc.push(worker.empleado);
+        }
+      });
+      return acc;
+    }, []).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [departmentWorkers]);
+
+  const getExpenseStatus = useCallback((expense) => {
+    if (
+      expense.aprobacionAsistente === "No aprobada" ||
+      expense.aprobacionJefatura === "No aprobada" ||
+      expense.aprobacionContabilidad === "No aprobada"
+    ) {
+      return "No aprobada";
+    }
+    if (expense.aprobacionContabilidad === "Aprobada") {
+      return "Aprobada por Contabilidad";
+    }
+    if (
+      expense.aprobacionJefatura === "Aprobada" &&
+      expense.aprobacionContabilidad === "Pendiente"
+    ) {
+      return "Aprobada por Jefatura";
+    }
+    if (
+      expense.aprobacionAsistente === "Aprobada" &&
+      expense.aprobacionJefatura === "Pendiente"
+    ) {
+      return "Aprobada por Asistente";
+    }
+  }, []);
+
+  const dateFiltered = useMemo(() => {
+    return expenseReports.filter(expense => {
+      if (!filters.dateRange.startDate || !filters.dateRange.endDate) return true;
+      const expenseDate = new Date(expense.fecha.toISOString().split("T")[0]);
+      const start = new Date(filters.dateRange.startDate);
+      const end = new Date(filters.dateRange.endDate);
+      return expenseDate >= start && expenseDate <= end;
+    });
+  }, [expenseReports, filters.dateRange.startDate, filters.dateRange.endDate]);
+
+  const personFiltered = useMemo(() => {
+    return dateFiltered.filter(expense => 
+      !filters.selectedPerson || expense.createdBy.email === filters.selectedPerson
+    );
+  }, [dateFiltered, filters.selectedPerson]);
+
+  const statusFiltered = useMemo(() => {
+    const getStatus = (expense) => {
+      if (expense.aprobacionAsistente === "No aprobada" ||
+          expense.aprobacionJefatura === "No aprobada" ||
+          expense.aprobacionContabilidad === "No aprobada") return "No aprobada";
+      if (expense.aprobacionContabilidad === "Aprobada") return "Aprobada por Contabilidad";
+      if (expense.aprobacionJefatura === "Aprobada") return "Aprobada por Jefatura";
+      if (expense.aprobacionAsistente === "Aprobada") return "Aprobada por Asistente";
+      return "Pendiente";
+    };
+
+    return personFiltered.filter(expense => 
+      filters.selectedStatuses.length === 0 || 
+      filters.selectedStatuses.includes(getStatus(expense))
+    );
+  }, [personFiltered, filters.selectedStatuses]);
+
+  const searchFiltered = useMemo(() => {
+    if (!filters.searchTerm) return statusFiltered;
+    const search = filters.searchTerm.toLowerCase();
+    return statusFiltered.filter(expense => 
+      expense.rubro.toLowerCase().includes(search) ||
+      expense.st.toLowerCase().includes(search) ||
+      expense.createdBy.name.toLowerCase().includes(search) ||
+      expense.id.toString().includes(search)
+    );
+  }, [statusFiltered, filters.searchTerm]);
+
+  const filteredExpenses = searchFiltered;
+
+  const selectedExpensesData = useMemo(() => {
+    if (selectedExpenses.size === 0) return filteredExpenses;
+    return filteredExpenses.filter(expense => selectedExpenses.has(expense.id));
+  }, [filteredExpenses, selectedExpenses]);
+
+  const handleRowClick = useCallback((expense) => {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
+      state: { from: location },
+    });
+  }, [navigate, location]);
+
+  const handleStatusToggle = useCallback((status) => {
+    setFilters(prev => ({
+      ...prev,
+      selectedStatuses: prev.selectedStatuses.includes(status)
+        ? prev.selectedStatuses.filter(s => s !== status)
+        : [...prev.selectedStatuses, status]
+    }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters({
+      dateRange: { startDate: null, endDate: null },
+      selectedPerson: "",
+      selectedStatuses: [],
+      searchTerm: ""
+    });
+  }, []);
+
+  const MemoizedExpenseSummary = useMemo(() => (
+    <ExpenseSummary expenses={filteredExpenses} />
+  ), [filteredExpenses]);
+
+  const handleCopyTable = useCallback(() => {
+    const rows = filteredExpenses.map((expense) => ({
+      Fecha: expense.fecha.toLocaleDateString("es-CR"),
+      Solicitante: expense.createdBy.name,
+      Rubro: expense.rubro,
+      Monto: expense.monto.toLocaleString("es-CR", {
+        style: "currency",
+        currency: "CRC",
+      }),
+      ST: expense.st,
+      Estado: getExpenseStatus(expense),
+    }));
+
+    const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "ST", "Estado"];
+    const csv = [
+      headers.join("\t"),
+      ...rows.map((row) => headers.map((header) => row[header]).join("\t")),
+    ].join("\n");
+
+    navigator.clipboard.writeText(csv);
+  }, [filteredExpenses, getExpenseStatus]);
+
+  const handleExportCSV = useCallback(() => {
+    const rows = filteredExpenses.map((expense) => ({
+      Fecha: expense.fecha.toLocaleDateString("es-CR"),
+      Solicitante: expense.createdBy.name,
+      Rubro: expense.rubro,
+      Monto: expense.monto,
+      ST: expense.st,
+      Estado: getExpenseStatus(expense),
+    }));
+
+    const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "ST", "Estado"];
+    const csv = [
+      headers.join(","),
+      ...rows.map((row) =>
+        headers
+          .map((header) => {
+            const value = row[header];
+            return typeof value === "string" && value.includes(",")
+              ? `"${value}"`
+              : value;
+          })
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    const filename = filters.dateRange.startDate && filters.dateRange.endDate
+      ? `reporte_gastos_${filters.dateRange.startDate}_${filters.dateRange.endDate}.csv`
+      : "reporte_gastos.csv";
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [filteredExpenses, filters.dateRange, getExpenseStatus]);
+
+  const getSelectedStatusDisplay = useCallback(() => {
+    if (filters.selectedStatuses.length === 0) return "Todos los estados";
+    if (filters.selectedStatuses.length === 1) return filters.selectedStatuses[0];
+    return `${filters.selectedStatuses.length} estados seleccionados`;
+  }, [filters.selectedStatuses]);
+
+  const getDateRangeLabel = useCallback(() => {
+    if (!filters.dateRange.startDate || !filters.dateRange.endDate) return "Todos los gastos";
+    return `Gastos del ${new Date(filters.dateRange.startDate).toLocaleDateString()} al ${new Date(filters.dateRange.endDate).toLocaleDateString()}`;
+  }, [filters.dateRange]);
+
+  const columns = useMemo(() => [
     {
       key: "fecha",
       header: "Fecha",
@@ -56,13 +293,9 @@ const Reports = () => {
     },
     { key: "st", header: "ST" },
     {
-      key: "fondosPropios", header: "F. Propios", render: (value) => {
-        if (value) {
-          return "Si";
-        } else {
-          return "No";
-        }
-      }
+      key: "fondosPropios",
+      header: "F. Propios",
+      render: (value) => value ? "Si" : "No"
     },
     {
       key: "status",
@@ -113,226 +346,14 @@ const Reports = () => {
         );
       },
     },
-  ];
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isStatusOpen && !event.target.closest('.status-dropdown')) {
-        setIsStatusOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isStatusOpen]);
-
-  const getSelectedStatusDisplay = () => {
-    if (selectedStatuses.length === 0) return "Todos los estados";
-    if (selectedStatuses.length === 1) return selectedStatuses[0];
-    return `${selectedStatuses.length} estados seleccionados`;
-  };
-
-  useEffect(() => {
-    if (location.state?.preserveFilters && Filter) {
-      setSearchTerm(reportFilters.searchTerm || "");
-      setDateRange({
-        startDate: reportFilters.startDate || null,
-        endDate: reportFilters.endDate || null
-      });
-      setSelectedPerson(reportFilters.selectedPerson || "");
-      setSelectedStatuses(reportFilters.selectedStatuses || []);
-    }
-  }, [location.state?.preserveFilters, reportFilters]);
-  
-  // Add filter saving effect:
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setReportFilters({
-          searchTerm,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
-          selectedPerson,
-          selectedStatuses
-      });
-    }, 300);
-  
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, dateRange, selectedPerson, selectedStatuses, setReportFilters]);
-
-  const handleRowClick = (expense) => {
-    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
-      state: { from: location },
-    });
-  };
-
-  const handleStatusToggle = (status) => {
-    setSelectedStatuses(prev =>
-      prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
-    );
-  };
-
-  const getExpenseStatus = (expense) => {
-    if (
-      expense.aprobacionAsistente === "No aprobada" ||
-      expense.aprobacionJefatura === "No aprobada" ||
-      expense.aprobacionContabilidad === "No aprobada"
-    ) {
-      return "No aprobada";
-    }
-
-    if (expense.aprobacionContabilidad === "Aprobada") {
-      return "Aprobada por Contabilidad";
-    }
-
-    if (
-      expense.aprobacionJefatura === "Aprobada" &&
-      expense.aprobacionContabilidad === "Pendiente"
-    ) {
-      return "Aprobada por Jefatura";
-    }
-
-    if (
-      expense.aprobacionAsistente === "Aprobada" &&
-      expense.aprobacionJefatura === "Pendiente"
-    ) {
-      return "Aprobada por Asistente";
-    }
-  };
-
-  const filteredExpenses = expenseReports.filter((expense) => {
-    // Date range filter
-    if (dateRange.startDate && dateRange.endDate) {
-      const expenseDate = new Date(expense.fecha.toISOString().split("T")[0]);
-      const startDate = new Date(dateRange.startDate);
-      const endDate = new Date(dateRange.endDate);
-
-      if (!(expenseDate >= startDate && expenseDate <= endDate)) return false;
-    }
-
-    if (selectedPerson && expense.createdBy.email !== selectedPerson)
-      return false;
-
-    if (selectedStatuses.length > 0) {
-      const status = getExpenseStatus(expense);
-      if (!selectedStatuses.includes(status)) return false;
-    }
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      return (
-        expense.rubro.toLowerCase().includes(search) ||
-        expense.st.toLowerCase().includes(search) ||
-        expense.createdBy.name.toLowerCase().includes(search) ||
-        expense.id.toString().includes(search)
-      );
-    }
-    return true;
-  });
-
-  const people = (departmentWorkers.reduce((acc, dept) => {
-    dept.workers.forEach((worker) => {
-      if (
-        worker.empleado &&
-        !acc.some((p) => p.email === worker.empleado.email)
-      ) {
-        acc.push(worker.empleado);
-      }
-    });
-    return acc;
-  }, [])).sort((a, b) =>
-    a.displayName.localeCompare(b.displayName)
-  );;
-
-  const resetFilters = () => {
-    setDateRange({ startDate: null, endDate: null });
-    setSelectedPerson("");
-    setSelectedStatuses([]);
-    setSearchTerm("");
-  };
-
-  const handleCopyTable = () => {
-    const rows = filteredExpenses.map((expense) => ({
-      Fecha: expense.fecha.toLocaleDateString("es-CR"),
-      Solicitante: expense.createdBy.name,
-      Rubro: expense.rubro,
-      Monto: expense.monto.toLocaleString("es-CR", {
-        style: "currency",
-        currency: "CRC",
-      }),
-      ST: expense.st,
-      Estado: getExpenseStatus(expense),
-    }));
-
-    const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "ST", "Estado"];
-    const csv = [
-      headers.join("\t"),
-      ...rows.map((row) => headers.map((header) => row[header]).join("\t")),
-    ].join("\n");
-
-    navigator.clipboard.writeText(csv);
-  };
-
-  const handleExportCSV = () => {
-    const rows = filteredExpenses.map((expense) => ({
-      Fecha: expense.fecha.toLocaleDateString("es-CR"),
-      Solicitante: expense.createdBy.name,
-      Rubro: expense.rubro,
-      Monto: expense.monto,
-      ST: expense.st,
-      Estado: getExpenseStatus(expense),
-    }));
-
-    const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "ST", "Estado"];
-    const csv = [
-      headers.join(","),
-      ...rows.map((row) =>
-        headers
-          .map((header) => {
-            const value = row[header];
-            return typeof value === "string" && value.includes(",")
-              ? `"${value}"`
-              : value;
-          })
-          .join(",")
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    const filename =
-      dateRange.startDate && dateRange.endDate
-        ? `reporte_gastos_${dateRange.startDate}_${dateRange.endDate}.csv`
-        : "reporte_gastos.csv";
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const getDateRangeLabel = () => {
-    if (!dateRange.startDate || !dateRange.endDate) return "Todos los gastos";
-    return `Gastos del ${new Date(
-      dateRange.startDate
-    ).toLocaleDateString()} al ${new Date(
-      dateRange.endDate
-    ).toLocaleDateString()}`;
-  };
+  ], []);
 
   return (
     <>
-      {/* Print Summary - Hidden during normal view, shown only when printing */}
       <PrintSummary
-        expenses={filteredExpenses}
-        dateRange={dateRange}
-        selectedPerson={selectedPerson}
+        expenses={selectedExpensesData}
+        dateRange={filters.dateRange}
+        selectedPerson={filters.selectedPerson}
         people={people}
       />
 
@@ -341,8 +362,8 @@ const Reports = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {getDateRangeLabel()} • {filteredExpenses.length} gastos
-              encontrados
+              {getDateRangeLabel()} • {filteredExpenses.length} gastos encontrados
+              {selectedExpenses.length > 0 && ` • ${selectedExpenses.length} seleccionados`}
             </p>
           </div>
           <div className="flex gap-2">
@@ -366,9 +387,11 @@ const Reports = () => {
               variant="outline"
               size="small"
               startIcon={<Printer size={16} />}
-              onClick={handlePrint}
+              onClick={() => window.print()}
             >
-              Imprimir
+              {selectedExpenses.length > 0
+                ? `Imprimir (${selectedExpenses.length})`
+                : 'Imprimir todo'}
             </Button>
           </div>
         </div>
@@ -379,22 +402,22 @@ const Reports = () => {
               <Search size={16} className="text-gray-400 mr-2" />
               <input
                 type="text"
-                placeholder="Buscar por ID, rubro, ST o solicitante..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por rubro, ST o solicitante..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full bg-transparent border-none focus:outline-none text-sm"
               />
             </div>
 
             <div className="flex-1">
               <DateRangePicker
-                startDate={dateRange.startDate}
-                endDate={dateRange.endDate}
+                startDate={filters.dateRange.startDate}
+                endDate={filters.dateRange.endDate}
                 onStartDateChange={(date) =>
-                  setDateRange((prev) => ({ ...prev, startDate: date }))
+                  updateFilters({ dateRange: { ...filters.dateRange, startDate: date } })
                 }
                 onEndDateChange={(date) =>
-                  setDateRange((prev) => ({ ...prev, endDate: date }))
+                  updateFilters({ dateRange: { ...filters.dateRange, endDate: date } })
                 }
                 className="w-full"
               />
@@ -403,8 +426,8 @@ const Reports = () => {
             <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
               <Users size={16} className="text-gray-400 mr-2" />
               <select
-                value={selectedPerson}
-                onChange={(e) => setSelectedPerson(e.target.value)}
+                value={filters.selectedPerson}
+                onChange={(e) => updateFilters({ selectedPerson: e.target.value })}
                 className="w-full bg-transparent border-none focus:outline-none text-sm"
               >
                 <option value="">Todos los solicitantes</option>
@@ -430,8 +453,7 @@ const Reports = () => {
                   </div>
                   <X
                     size={16}
-                    className={`transform transition-transform ${isStatusOpen ? "rotate-45" : "rotate-0"
-                      }`}
+                    className={`transform transition-transform ${isStatusOpen ? "rotate-45" : "rotate-0"}`}
                   />
                 </div>
 
@@ -449,7 +471,7 @@ const Reports = () => {
                         className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer"
                       >
                         <span className="text-sm font-medium">{status}</span>
-                        {selectedStatuses.includes(status) && (
+                        {filters.selectedStatuses.includes(status) && (
                           <Check size={16} className="text-primary" />
                         )}
                       </div>
@@ -471,7 +493,7 @@ const Reports = () => {
           </div>
         </Card>
 
-        <ExpenseSummary expenses={filteredExpenses} />
+        {MemoizedExpenseSummary}
 
         <Card>
           <div className="print:shadow-none">
@@ -480,6 +502,9 @@ const Reports = () => {
               data={filteredExpenses}
               onRowClick={handleRowClick}
               isLoading={loading}
+              selectable={true}
+              selectedRows={Array.from(selectedExpenses)}
+              onSelectionChange={(ids) => setSelectedExpenses(new Set(ids))}
               emptyMessage={
                 <div className="flex flex-col items-center justify-center py-12">
                   <FileDown size={48} className="text-gray-400 mb-4" />
@@ -499,4 +524,4 @@ const Reports = () => {
   );
 };
 
-export default Reports;
+export default React.memo(Reports);
