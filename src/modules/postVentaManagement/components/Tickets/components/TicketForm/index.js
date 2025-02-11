@@ -11,6 +11,8 @@ import MultiImageUpload from "../../../../../../components/common/MultiImageUplo
 import { useFileManagement } from "../../hooks/useFileManagement";
 import { useImageManagement } from "../../hooks/useImageManagement";
 import { generateRandomNumber } from "../../../../../../utils/randomUtils";
+import emailConfig from "../../../../../expenseAudit/config/expenseAudit.config";
+
 
 const TicketForm = () => {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ const TicketForm = () => {
     type: "",
   });
 
+  const supportEmail = emailConfig.supportEmail;
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
@@ -207,7 +210,7 @@ const TicketForm = () => {
 
       // Send email with links
       await service.sendEmail({
-        toRecipients: ["inicios@edintel.com"],
+        toRecipients: [supportEmail],
         subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${
           systems.find((s) => s.id === formData.systemId)?.name
         }`,
