@@ -296,7 +296,7 @@ export const useTicketActions = () => {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData]
+    [service, closeModal, loadPostVentaData, supportEmail]
   );
 
   const handleConfirmDate = useCallback(

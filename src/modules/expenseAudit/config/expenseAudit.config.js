@@ -13,5 +13,4 @@ export const expenseAuditConfig = {
 const emailConfig = {
   supportEmail: process.env.REACT_APP_SUPPORT_EMAIL
 };
-
 export default emailConfig;
