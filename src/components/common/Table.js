@@ -1,81 +1,14 @@
-import { React, memo } from 'react';
+import React from 'react';
 import { cn } from '../../utils/cn';
 
-const TableRow = memo(({ row, columns, selectable, isSelected, onSelect, onRowClick }) => {
-  const handleClick = (e) => {
-    if (e.target.type === 'checkbox') return;
-    onRowClick?.(row);
-  };
-
-  return (
-    <tr
-      onClick={handleClick}
-      className={cn(
-        "border-b border-gray-200 transition-colors",
-        onRowClick && "cursor-pointer hover:bg-gray-50",
-        isSelected && "bg-primary/5"
-      )}
-    >
-      {selectable && (
-        <td className="p-4 align-middle">
-          <input
-            type="checkbox"
-            className="rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-            checked={isSelected}
-            onChange={(e) => onSelect(row.id, e)}
-          />
-        </td>
-      )}
-      {columns.map((column, colIndex) => (
-        <td
-          key={colIndex}
-          className={cn("p-4 align-middle text-sm", column.className)}
-        >
-          {column.render ? column.render(row[column.key], row) : row[column.key]}
-        </td>
-      ))}
-    </tr>
-  );
-});
-
-const TableHeader = memo(({ columns, selectable, allSelected, onSelectAll }) => (
-  <tr className="border-b border-gray-200">
-    {selectable && (
-      <th className="h-12 w-12 px-4 text-left align-middle">
-        <input
-          type="checkbox"
-          className="rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-          checked={allSelected}
-          onChange={onSelectAll}
-        />
-      </th>
-    )}
-    {columns.map((column, index) => (
-      <th
-        key={index}
-        className={cn(
-          "h-12 px-4 text-left align-middle text-sm font-medium text-gray-500 bg-gray-50",
-          column.className
-        )}
-      >
-        {column.header}
-      </th>
-    ))}
-  </tr>
-));
-
-const Table = ({
-  columns,
-  data,
+const Table = ({ 
+  columns, 
+  data, 
   onRowClick,
   isLoading = false,
   emptyMessage = 'No hay datos disponibles',
   className = '',
-  // New props for selection
-  selectable = false,
-  selectedRows = [],
-  onSelectionChange,
-  ...props
+  ...props 
 }) => {
   if (isLoading) {
     return (
@@ -98,45 +31,50 @@ const Table = ({
     );
   }
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      onSelectionChange(data.map(row => row.id));
-    } else {
-      onSelectionChange([]);
-    }
-  };
-
-  const handleSelectRow = (rowId, e) => {
-    e.stopPropagation();
-    if (selectedRows.includes(rowId)) {
-      onSelectionChange(selectedRows.filter(id => id !== rowId));
-    } else {
-      onSelectionChange([...selectedRows, rowId]);
-    }
-  };
-
   return (
     <div className={cn("w-full overflow-auto", className)} {...props}>
       <table className="w-full border-collapse min-w-[600px]">
         <thead>
-          <TableHeader
-            columns={columns}
-            selectable={selectable}
-            allSelected={data.length > 0 && selectedRows.length === data.length}
-            onSelectAll={handleSelectAll}
-          />
+          <tr className="border-b border-gray-200">
+            {columns.map((column, index) => (
+              <th 
+                key={index}
+                className={cn(
+                  "h-12 px-4 text-left align-middle text-sm font-medium text-gray-500 bg-gray-50",
+                  column.className
+                )}
+                style={column.style}
+              >
+                {column.header}
+              </th>
+            ))}
+          </tr>
         </thead>
         <tbody>
-          {data.map((row) => (
-            <TableRow
-              key={row.id}
-              row={row}
-              columns={columns}
-              selectable={selectable}
-              isSelected={selectedRows.includes(row.id)}
-              onSelect={handleSelectRow}
-              onRowClick={onRowClick}
-            />
+          {data.map((row, rowIndex) => (
+            <tr 
+              key={rowIndex}
+              onClick={() => onRowClick && onRowClick(row)}
+              className={cn(
+                "border-b border-gray-200 transition-colors",
+                onRowClick && "cursor-pointer hover:bg-gray-50"
+              )}
+            >
+              {columns.map((column, colIndex) => (
+                <td 
+                  key={colIndex}
+                  className={cn(
+                    "p-4 align-middle text-sm",
+                    column.className
+                  )}
+                  style={column.style}
+                >
+                  {column.render 
+                    ? column.render(row[column.key], row) 
+                    : row[column.key]}
+                </td>
+              ))}
+            </tr>
           ))}
         </tbody>
       </table>
