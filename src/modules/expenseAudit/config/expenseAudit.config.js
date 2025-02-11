@@ -9,3 +9,8 @@ export const expenseAuditConfig = {
     roles: "Roles",
   },
 };
+
+const emailConfig = {
+  supportEmail: process.env.REACT_APP_SUPPORT_EMAIL
+};
+export default emailConfig;

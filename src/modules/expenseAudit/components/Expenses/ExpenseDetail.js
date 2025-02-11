@@ -179,17 +179,6 @@ const ExpenseDetail = () => {
     return <Clock size={24} />;
   };
 
-  const getApprovalType = () => {
-    if (!userDepartmentRole) return null;
-
-    const isAccountant = (userDepartmentRole.department?.departamento || "")
-      .toLowerCase()
-      .includes("contabilidad");
-
-    if (isAccountant) return "accounting";
-    return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
-  };
-
   const handleApprove = async () => {
     setConfirmDialog({
       isOpen: true,
@@ -211,7 +200,7 @@ const ExpenseDetail = () => {
 
   const handleConfirmAction = async (notes = "") => {
     try {
-      const type = getApprovalType();
+      const type = service.getApprovalType(userDepartmentRole);
       const status =
         confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
 

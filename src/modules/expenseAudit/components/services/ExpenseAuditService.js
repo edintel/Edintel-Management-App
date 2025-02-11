@@ -224,46 +224,82 @@ class ExpenseAuditService extends BaseGraphService {
   }
 }
 
-  async updateApprovalStatus(id, status, type, notes = "") {
-    await this.initializeGraphClient();
+async updateApprovalStatus(id, status, type, notes = "") {
+  await this.initializeGraphClient();
+  
+  const fields = {
+    Bloqueoedici_x00f3_n: true,
+    Notasrevision: notes,
+  };
 
-    const fields = {
-      Bloqueoedici_x00f3_n: true,
-      Notasrevision: notes,
-    };
+  // First, get the current expense to check the workflow
+  const currentExpense = await this.client
+    .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
+    .expand('fields')
+    .get();
 
-    switch (type) {
-      case "assistant":
-        fields.Aprobaci_x00f3_nAsistente = status;
-        break;
-      case "boss":
-        fields.Aprobaci_x00f3_nJefatura = status;
-        break;
-      case "accounting":
-        fields.Aprobaci_x00f3_nContabilidad = status;
-        break;
-      default:
-        throw new Error("Invalid approval type");
-    }
+  const approvalWorkflow = {
+    assistant: "Aprobaci_x00f3_nAsistente",
+    boss: "Aprobaci_x00f3_nJefatura",
+    accounting_assistant: "Aprobaci_x00f3_nAsistente",
+    accounting_boss: "Aprobaci_x00f3_nJefatura",
+  };
 
-    try {
-      const response = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`
-        )
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .patch({
-          fields: fields,
-        });
+  // Set the appropriate field based on type and workflow state
+  switch (type) {
+    case "accounting_assistant":
+      // Accounting assistant can only give assistant approval
+      fields[approvalWorkflow.assistant] = status;
+      break;
+      
+    case "accounting_boss":
+      // Accounting boss can give boss approval if assistant approval exists
+      if (currentExpense.fields[approvalWorkflow.assistant] === "Aprobada") {
+        fields[approvalWorkflow.boss] = status;
+      }
+      break;
+      
+    case "assistant":
+      fields[approvalWorkflow.assistant] = status;
+      break;
+      
+    case "boss":
+      // Boss can only approve if assistant has approved
+      if (currentExpense.fields[approvalWorkflow.assistant] === "Aprobada") {
+        fields[approvalWorkflow.boss] = status;
+      }
+      break;
 
-      return response;
-    } catch (error) {
-      console.error("Error updating approval status:", error);
-      throw new Error(
-        error.message || "Error al actualizar el estado de aprobación"
-      );
-    }
+    default:
+      throw new Error("Invalid approval type");
   }
+
+  // If the expense is in accounting department and both approvals exist,
+  // automatically set the accounting approval
+  if (
+    currentExpense.fields[approvalWorkflow.assistant] === "Aprobada" &&
+    currentExpense.fields[approvalWorkflow.boss] === "Aprobada"
+  ) {
+    fields.Aprobaci_x00f3_nContabilidad = "Aprobada";
+  }
+
+  try {
+    const response = await this.client
+      .api(
+        `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`
+      )
+      .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+      .patch({
+        fields: fields,
+      });
+    return response;
+  } catch (error) {
+    console.error("Error updating approval status:", error);
+    throw new Error(
+      error.message || "Error al actualizar el estado de aprobación"
+    );
+  }
+}
 
   async getDepartments() {
     const items = await this.getListItems(
@@ -349,55 +385,40 @@ class ExpenseAuditService extends BaseGraphService {
       return false;
     }
 
-    const isAccountingApprover = (department || "")
-      .toLowerCase()
-      .includes("contabilidad");
-
-    if (isAccountingApprover) {
-      return (
-        (expense.aprobacionJefatura === "Aprobada" &&
-          expense.aprobacionContabilidad === "Pendiente") ||
-        expense.aprobacionContabilidad === "No aprobada"
-      );
+    const isAccountingDepartment = (department || "").toLowerCase().includes("contabilidad");
+    if (isAccountingDepartment) {
+      if (role === "Asistente") {
+        return (
+          expense.aprobacionAsistente === "Pendiente" ||
+          expense.aprobacionAsistente === "No aprobada"
+        );
+      }
+      if (role === "Jefe") {
+        return (
+          (expense.aprobacionAsistente === "Aprobada" &&
+           (expense.aprobacionJefatura === "Pendiente" ||
+            expense.aprobacionJefatura === "No aprobada")) ||
+          expense.aprobacionJefatura === "No aprobada"
+        );
+      }
     }
-
     switch (role) {
       case "Asistente":
         return (
           expense.aprobacionAsistente === "Pendiente" ||
           expense.aprobacionAsistente === "No aprobada"
         );
-
       case "Jefe":
         return (
           (expense.aprobacionAsistente === "Aprobada" &&
             expense.aprobacionJefatura === "Pendiente") ||
           expense.aprobacionJefatura === "No aprobada"
         );
-
       default:
         return false;
     }
   }
 
-  getEffectiveRole(userDepartmentRole) {
-    if (
-      !userDepartmentRole ||
-      (userDepartmentRole.role !== "Jefe" &&
-        userDepartmentRole.role !== "Asistente")
-    ) {
-      return null;
-    }
-
-    const isAccountingApprover = (
-      userDepartmentRole.department?.departamento || ""
-    )
-      .toLowerCase()
-      .includes("contabilidad");
-
-    if (isAccountingApprover) return "Contabilidad";
-    return userDepartmentRole.role;
-  }
 
   canViewExpense(expense, userDepartmentRole) {
     if (!userDepartmentRole) return false;
@@ -426,6 +447,20 @@ class ExpenseAuditService extends BaseGraphService {
   filterExpensesByDepartment(expenses, userDepartmentRole) {
     if (!userDepartmentRole) return [];
     return expenses.filter(expense => this.canViewExpense(expense, userDepartmentRole));
+  }
+
+  getApprovalType(userDepartmentRole) {
+    if (!userDepartmentRole) return null;
+    
+    const isAccountant = (userDepartmentRole.department?.departamento || '')
+      .toLowerCase()
+      .includes('contabilidad');
+      
+    if (isAccountant) {
+      return userDepartmentRole.role === "Jefe" ? "accounting_boss" : "accounting_assistant";
+    }
+    
+    return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
   }
 }
 

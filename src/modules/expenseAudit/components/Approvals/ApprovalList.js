@@ -82,17 +82,6 @@ const ApprovalList = () => {
     return true;
   };
 
-  const getApprovalType = () => {
-    if (!userDepartmentRole) return null;
-
-    const isAccountant = (userDepartmentRole.department?.departamento || '')
-      .toLowerCase()
-      .includes('contabilidad');
-
-    if (isAccountant) return "accounting";
-    return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
-  };
-
   const handleApprove = (id, e) => {
     e.stopPropagation();
     setConfirmDialog({
@@ -118,7 +107,7 @@ const ApprovalList = () => {
 
   const handleConfirmAction = async (notes = "") => {
     try {
-      const type = getApprovalType();
+      const type = service.getApprovalType(userDepartmentRole);
       const status =
         confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
 
@@ -331,7 +320,7 @@ const ApprovalList = () => {
           );
 
         case "approved": {
-          const type = getApprovalType();
+          const type = service.getApprovalType(userDepartmentRole);
           if (type === "accounting") {
             return expense.aprobacionContabilidad === "Aprobada";
           }
@@ -342,7 +331,7 @@ const ApprovalList = () => {
         }
 
         case "rejected": {
-          const type = getApprovalType();
+          const type = service.getApprovalType(userDepartmentRole);
           if (type === "accounting") {
             return expense.aprobacionContabilidad === "No aprobada";
           }

@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { usePostVentaManagement } from "../../../context/postVentaManagementContext";
 import { MODAL_TYPES } from "../modals";
+import emailConfig from "../../../../expenseAudit/config/expenseAudit.config";
 
 export const useTicketActions = () => {
   const { service, loadPostVentaData, roles } = usePostVentaManagement();
@@ -11,6 +12,7 @@ export const useTicketActions = () => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const supportEmail = emailConfig.supportEmail;
 
   const openModal = useCallback((type, ticket = null) => {
     setCurrentModal({ type });
@@ -278,7 +280,7 @@ export const useTicketActions = () => {
 </html>`;
 
           await service.sendEmail({
-            toRecipients: ['inicios@edintel.com'],
+            toRecipients: [supportEmail],
             subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
             content: emailContent,
           });
@@ -294,7 +296,7 @@ export const useTicketActions = () => {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData]
+    [service, closeModal, loadPostVentaData, supportEmail]
   );
 
   const handleConfirmDate = useCallback(
