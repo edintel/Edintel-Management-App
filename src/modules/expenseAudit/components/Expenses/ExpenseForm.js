@@ -100,7 +100,6 @@ const ExpenseForm = () => {
           .join(", "),
       };
 
-      // The file is already optimized by CameraUpload
       const newExpense = await service.createExpenseReport(
         expenseData,
         formData.comprobante
@@ -157,7 +156,6 @@ const ExpenseForm = () => {
             {error}
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -183,7 +181,6 @@ const ExpenseForm = () => {
                 ))}
               </select>
             </div>
-
             <div className="space-y-2">
               <label
                 htmlFor="monto"
@@ -208,7 +205,6 @@ const ExpenseForm = () => {
                 />
               </div>
             </div>
-
             <div className="space-y-2">
               <label
                 htmlFor="fecha"
@@ -226,7 +222,6 @@ const ExpenseForm = () => {
                 className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
               />
             </div>
-
             <div className="space-y-2">
               <label
                 htmlFor="st"
@@ -248,58 +243,60 @@ const ExpenseForm = () => {
             </div>
           </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="fondosPropios"
-              name="fondosPropios"
-              checked={formData.fondosPropios}
-              onChange={handleInputChange}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <label
-              htmlFor="fondosPropios"
-              className="ml-2 text-sm text-gray-700"
-            >
-              Fondos propios
-            </label>
-          </div>
-
-          {formData.fondosPropios && (
-            <div className="space-y-2">
-              <label
-                htmlFor="motivo"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Motivo
-              </label>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center">
               <input
-                type="text"
-                id="motivo"
-                name="motivo"
-                value={formData.motivo || ""}
+                type="checkbox"
+                id="fondosPropios"
+                name="fondosPropios"
+                checked={formData.fondosPropios}
                 onChange={handleInputChange}
-                placeholder="Ingrese el motivo"
-                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                className="rounded border-gray-300 text-primary focus:ring-primary"
               />
+              <label
+                htmlFor="fondosPropios"
+                className="ml-2 text-sm text-gray-700"
+              >
+                Fondos propios
+              </label>
             </div>
-          )}
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="facturaDividida"
-              name="facturaDividida"
-              checked={formData.facturaDividida}
-              onChange={handleInputChange}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <label
-              htmlFor="facturaDividida"
-              className="ml-2 text-sm text-gray-700"
-            >
-              ¿La factura es dividida entre varios integrantes?
-            </label>
+            {formData.fondosPropios && (
+              <div className="space-y-2">
+                <label
+                  htmlFor="motivo"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Motivo
+                </label>
+                <input
+                  type="text"
+                  id="motivo"
+                  name="motivo"
+                  value={formData.motivo || ""}
+                  onChange={handleInputChange}
+                  placeholder="Ingrese el motivo"
+                  className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="facturaDividida"
+                name="facturaDividida"
+                checked={formData.facturaDividida}
+                onChange={handleInputChange}
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label
+                htmlFor="facturaDividida"
+                className="ml-2 text-sm text-gray-700"
+              >
+                ¿La factura es dividida entre varios integrantes?
+              </label>
+            </div>
           </div>
 
           {formData.facturaDividida && (
