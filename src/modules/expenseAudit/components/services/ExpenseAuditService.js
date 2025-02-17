@@ -417,5 +417,6 @@ async updateApprovalStatus(id, status, type, notes = "") {
     if (isAccountant) return "accounting";
     return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
   }
-
+}
+  
 export default ExpenseAuditService;
