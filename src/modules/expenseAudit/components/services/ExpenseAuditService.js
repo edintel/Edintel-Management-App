@@ -226,63 +226,23 @@ class ExpenseAuditService extends BaseGraphService {
 
 async updateApprovalStatus(id, status, type, notes = "") {
   await this.initializeGraphClient();
-  
   const fields = {
     Bloqueoedici_x00f3_n: true,
     Notasrevision: notes,
   };
-
-  // First, get the current expense to check the workflow
-  const currentExpense = await this.client
-    .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
-    .expand('fields')
-    .get();
-
-  const approvalWorkflow = {
-    assistant: "Aprobaci_x00f3_nAsistente",
-    boss: "Aprobaci_x00f3_nJefatura",
-    accounting_assistant: "Aprobaci_x00f3_nAsistente",
-    accounting_boss: "Aprobaci_x00f3_nJefatura",
-  };
-
-  // Set the appropriate field based on type and workflow state
   switch (type) {
-    case "accounting_assistant":
-      // Accounting assistant can only give assistant approval
-      fields[approvalWorkflow.assistant] = status;
-      break;
-      
-    case "accounting_boss":
-      // Accounting boss can give boss approval if assistant approval exists
-      if (currentExpense.fields[approvalWorkflow.assistant] === "Aprobada") {
-        fields[approvalWorkflow.boss] = status;
-      }
-      break;
-      
     case "assistant":
-      fields[approvalWorkflow.assistant] = status;
+      fields.Aprobaci_x00f3_nAsistente = status;
       break;
-      
     case "boss":
-      // Boss can only approve if assistant has approved
-      if (currentExpense.fields[approvalWorkflow.assistant] === "Aprobada") {
-        fields[approvalWorkflow.boss] = status;
-      }
+      fields.Aprobaci_x00f3_nJefatura = status;
       break;
-
+    case "accounting":
+      fields.Aprobaci_x00f3_nContabilidad = status;
+      break;
     default:
       throw new Error("Invalid approval type");
   }
-
-  // If the expense is in accounting department and both approvals exist,
-  // automatically set the accounting approval
-  if (
-    currentExpense.fields[approvalWorkflow.assistant] === "Aprobada" &&
-    currentExpense.fields[approvalWorkflow.boss] === "Aprobada"
-  ) {
-    fields.Aprobaci_x00f3_nContabilidad = "Aprobada";
-  }
-
   try {
     const response = await this.client
       .api(
@@ -451,17 +411,11 @@ async updateApprovalStatus(id, status, type, notes = "") {
 
   getApprovalType(userDepartmentRole) {
     if (!userDepartmentRole) return null;
-    
     const isAccountant = (userDepartmentRole.department?.departamento || '')
       .toLowerCase()
       .includes('contabilidad');
-      
-    if (isAccountant) {
-      return userDepartmentRole.role === "Jefe" ? "accounting_boss" : "accounting_assistant";
-    }
-    
+    if (isAccountant) return "accounting";
     return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
   }
-}
 
 export default ExpenseAuditService;
