@@ -345,22 +345,16 @@ async updateApprovalStatus(id, status, type, notes = "") {
       return false;
     }
 
-    const isAccountingDepartment = (department || "").toLowerCase().includes("contabilidad");
-    if (isAccountingDepartment) {
-      if (role === "Asistente") {
-        return (
-          expense.aprobacionAsistente === "Pendiente" ||
-          expense.aprobacionAsistente === "No aprobada"
-        );
-      }
-      if (role === "Jefe") {
-        return (
-          (expense.aprobacionAsistente === "Aprobada" &&
-           (expense.aprobacionJefatura === "Pendiente" ||
-            expense.aprobacionJefatura === "No aprobada")) ||
-          expense.aprobacionJefatura === "No aprobada"
-        );
-      }
+    const isAccountingApprover = (department || "")
+      .toLowerCase()
+      .includes("contabilidad");
+
+    if (isAccountingApprover) {
+      return (
+        (expense.aprobacionJefatura === "Aprobada" &&
+          expense.aprobacionContabilidad === "Pendiente") ||
+        expense.aprobacionContabilidad === "No aprobada"
+      );
     }
     switch (role) {
       case "Asistente":
