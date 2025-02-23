@@ -1,70 +1,254 @@
-# Getting Started with Create React App
+# GERMAN - Edintel Internal Management Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Overview
 
-## Available Scripts
+GERMAN is an enterprise-level internal management platform developed for Edintel S.A., featuring two core modules:
 
-In the project directory, you can run:
+1. **Expense Audit Module**: A comprehensive expense management and approval system for handling employee expense reports, including multi-level approval workflows and document management.
 
-### `npm start`
+2. **Post-Venta Management Module**: A service ticket management system for handling post-sale technical services, including location management, ticket tracking, and technician assignment.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## To be implemented
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+A list of the modules that will be implemented in the future:
 
-### `npm test`
+1. **Overtime Report Module**: This module will allows the workers to upload their overtime to be reviewed and approved.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. **Commercial Management Module**: Pipelined Commercial department module that will allow them to easily do their work without unnecesary extra steps.
 
-### `npm run build`
+3. **In-app Post-Venta Report Forms**: Instead of using Word or Excel docs to fill up the reports, there will be in app forms to easily fill it up.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Technical Architecture
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Core Technologies
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **Frontend**: React 18.3.1
+- **Authentication**: Microsoft Azure AD (MSAL)
+- **API Integration**: Microsoft Graph API
+- **Storage**: SharePoint Lists and Document Libraries
+- **State Management**: React Context API
+- **Styling**: Tailwind CSS with custom design system
+- **File Processing**: PapaCSV, SheetJS
+- **Data Visualization**: Recharts
 
-### `npm run eject`
+### Design Patterns & Architecture
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- **Modular Architecture**: Separate modules for Expense Audit and Post-Venta Management
+- **Context-Provider Pattern**: For state management and module-specific data handling
+- **Custom Hook Pattern**: For reusable business logic and UI behavior
+- **Service Layer Pattern**: For API and data access abstraction
+- **Compound Components**: For building flexible and reusable UI components
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Prerequisites
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- Node.js (v16 or higher)
+- Microsoft Azure AD tenant
+- SharePoint sites with required lists and libraries
+- npm or yarn package manager
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Installation
 
-## Learn More
+1. Clone the repository:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+git clone [repository-url]
+cd german-platform
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+2. Install dependencies:
 
-### Code Splitting
+```bash
+npm install
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+3. Configure environment variables:
 
-### Analyzing the Bundle Size
+```bash
+# .env
+REACT_APP_CLIENT_ID=your_azure_client_id
+REACT_APP_TENANT_ID=your_azure_tenant_id
+REACT_APP_REDIRECT_URI=your_redirect_uri
+REACT_APP_SUPPORT_EMAIL=support@email.com
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+4. Start development server:
 
-### Making a Progressive Web App
+```bash
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Configuration
 
-### Advanced Configuration
+### SharePoint Configuration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+The platform requires the following SharePoint sites and lists:
 
-### Deployment
+#### Expense Audit Module
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+- Site: "Liquidaciones"
+  - Lists:
+    - Desglose liquidaciones
+    - Departamento
+    - Roles
 
-### `npm run build` fails to minify
+#### Post-Venta Module
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Site: "DocumentosTecnicos"
+  - Lists:
+    - Control PV
+    - Edificios
+    - Empresas
+    - Sitios
+    - Sistemas
+    - Roles
+    - Docs
+
+### Azure AD Configuration
+
+1. Register application in Azure AD
+2. Configure required permissions:
+   - User.Read
+   - User.Read.All
+   - Sites.Read.All
+   - Sites.ReadWrite.All
+   - Files.ReadWrite.All
+   - Calendars.ReadWrite
+   - Group.ReadWrite.All
+
+## Features
+
+### Expense Audit Module
+
+#### Core Features
+
+- Multi-level expense approval workflow
+- Document management with image optimization
+- Role-based access control
+- Expense reporting and analysis
+- Real-time status tracking
+
+#### Approval Workflow
+
+1. Initial Submission
+2. Assistant Approval
+3. Department Head Approval
+4. Accounting Approval
+
+### Post-Venta Module
+
+#### Core Features
+
+- Service ticket management
+- Technician assignment and scheduling
+- Location hierarchy management
+- Document and image management
+- Calendar integration
+
+#### Ticket States
+
+1. Initiated
+2. Technician Assigned
+3. Technician Confirmed
+4. Work Started
+5. Completed
+6. Closed
+
+## Security Measures
+
+### Authentication & Authorization
+
+- Azure AD integration for secure authentication
+- Role-based access control
+- Session management with automatic timeout
+- Protected routes and API endpoints
+
+### Data Security
+
+- Token-based API access
+- Secure file uploads with validation
+- Input sanitization and validation
+- XSS protection through React and content security policies
+
+## Performance Optimizations
+
+### Image Processing
+
+- Client-side image optimization
+- Progressive loading for images
+- Lazy loading for components and modules
+- Image compression and format optimization
+
+### Application Performance
+
+- Code splitting using React.lazy
+- Modular architecture for efficient loading
+- Optimized list rendering
+- Memoization of expensive computations
+
+## Known Limitations
+
+- Limited offline functionality
+- Dependency on SharePoint for data storage
+- Calendar integration limited to group calendars
+- File size limitations for uploads (20MB max)
+
+## Troubleshooting
+
+### Common Issues
+
+1. Authentication Errors
+
+```javascript
+// Check if user is authenticated
+if (!isAuthenticated) {
+  navigate("/login", { state: { from: location } });
+}
+```
+
+2. File Upload Issues
+
+```javascript
+// Validate file size and type
+const MAX_SIZE = 20 * 1024 * 1024; // 20MB
+if (file.size > MAX_SIZE) {
+  throw new Error("File size exceeds limit");
+}
+```
+
+3. SharePoint Access Issues
+
+```javascript
+// Verify SharePoint permissions
+const { siteId } = await service.getSiteId(config.siteName);
+if (!siteId) {
+  throw new Error("Unable to access SharePoint site");
+}
+```
+
+## Contributing
+
+### Development Guidelines
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+### Code Style
+
+- Follow React best practices
+- Use ESLint configuration
+- Follow component naming conventions
+- Document complex functions
+- Write unit tests for critical functionality
+
+## License
+
+Proprietary - Copyright © 2024 Edintel S.A. All rights reserved.
+
+## Support
+
+For technical support, contact: support@edintel.com
+
+For documentation updates and more examples, visit the internal documentation portal.
