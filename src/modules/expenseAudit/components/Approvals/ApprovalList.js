@@ -316,7 +316,7 @@ const ApprovalList = () => {
     const userEmail = service.msalInstance.getAllAccounts()[0]?.username;
     
     return expenseReports.filter((expense) => {
-      // Date filter
+      // Apply date filter
       if (startDate && endDate) {
         const expenseDate = expense.fecha.getTime();
         const start = new Date(startDate).getTime();
@@ -324,10 +324,10 @@ const ApprovalList = () => {
         if (expenseDate < start || expenseDate > end) return false;
       }
       
-      // Person filter
+      // Apply person filter
       if (selectedPerson && expense.createdBy.email !== selectedPerson) return false;
       
-      // Search filter
+      // Apply search filter
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
         return (
@@ -337,10 +337,12 @@ const ApprovalList = () => {
         );
       }
       
-      // View mode filter
+      // Apply view mode filter
       switch (viewMode) {
         case "pending":
+          // This is the key part - we directly call canApprove for pending items
           return approvalFlowService && approvalFlowService.canApprove(expense, userEmail);
+          
         case "approved": {
           // Show expenses the user has approved
           const isAssistant = permissionService && permissionService.hasRole(userEmail, "Asistente");
@@ -356,6 +358,7 @@ const ApprovalList = () => {
           
           return false;
         }
+        
         case "rejected": {
           // Show expenses the user has rejected
           const isAssistant = permissionService && permissionService.hasRole(userEmail, "Asistente");
@@ -371,6 +374,7 @@ const ApprovalList = () => {
           
           return false;
         }
+        
         default:
           return true;
       }

@@ -197,7 +197,7 @@ const ExpenseEdit = () => {
                 updatedExpense.fields.Bloqueoedici_x00f3_n
               ),
               aprobacionAsistente:
-                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Departame ||
+                updatedExpense.fields.Aprobaci_x00f3_nAsistente ||
                 report.aprobacionAsistente,
               aprobacionJefatura:
                 updatedExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura ||

@@ -130,7 +130,7 @@ const ExpenseForm = () => {
         motivo: newExpense.fields.Title,
         notasRevision: newExpense.fields.Notasrevision || "",
         bloqueoEdicion: false,
-        aprobacionAsistente: newExpense.fields.Aprobaci_x00f3_n_x0020_Departame || "Pendiente",
+        aprobacionAsistente: newExpense.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
         aprobacionJefatura: newExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura || "Pendiente",
         aprobacionContabilidad: newExpense.fields.Aprobaci_x00f3_n_x0020_Contabili || "Pendiente",
         facturaDividida: Boolean(newExpense.fields.FacturaDividida),

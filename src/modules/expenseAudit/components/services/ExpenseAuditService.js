@@ -34,16 +34,16 @@ class ExpenseAuditService extends BaseGraphService {
     // First get the site and drive IDs
     this.siteId = await this.getSiteId(this.config.siteName);
     this.driveId = this.config.driveId;
-    
+
     // Now load the roles and departments data
     const [departments, roles] = await Promise.all([
       this.getDepartments(),
       this.getRoles()
     ]);
-    
+
     // Finally, initialize the permission service with the data
     await this.permissionService.initialize(roles, departments);
-    
+
   }
 
   /**
@@ -55,7 +55,7 @@ class ExpenseAuditService extends BaseGraphService {
       this.siteId,
       this.config.lists.expenseReports
     );
-    
+
     return items.map((item) => ({
       id: item.id,
       rubro: item.fields.Rubro,
@@ -79,12 +79,12 @@ class ExpenseAuditService extends BaseGraphService {
       },
       notas: item.fields.Notas || "",
       IntegrantesV2: Array.isArray(item.fields.IntegrantesV2)
-      ? item.fields.IntegrantesV2.map(integrante => ({
+        ? item.fields.IntegrantesV2.map(integrante => ({
           email: integrante.Email,
           displayName: integrante.LookupValue,
           id: integrante.LookupId
         }))
-      : [],
+        : [],
     }));
   }
 
@@ -122,19 +122,18 @@ class ExpenseAuditService extends BaseGraphService {
       "IntegrantesV2LookupId@odata.type": "Collection(Edm.String)",
       IntegrantesV2LookupId: expenseData.IntegrantesV2?.map(i => i.id.toString()) || [],
     };
-    
-    // Determine if the department has assistants
+
     const userEmail = this.msalInstance.getAllAccounts()[0]?.username;
     const userRoles = this.permissionService.getUserRoles(userEmail);
-    const userRole = userRoles[0]; // Use first role
+    if (userRoles && userRoles.length > 0) {
+      const userRole = userRoles[0];
+      const isCreatorAssistant = userRoles.some(role => role.roleType === 'Asistente');
 
-    // Set initial approval state
-    if (userRole && userRole.departmentId) {
-      const hasAssistants = this.permissionService.departmentHasAssistants(userRole.departmentId);
-      
-      // If department has no assistants, set assistant approval to "Aprobada"
-      if (!hasAssistants) {
-        fields.Aprobaci_x00f3_nAsistente = "Aprobada";
+      if (userRole && userRole.departmentId) {
+        const hasAssistants = this.permissionService.departmentHasAssistants(userRole.departmentId);
+        if (!hasAssistants || isCreatorAssistant) {
+          fields.Aprobaci_x00f3_nAsistente = "Aprobada";
+        }
       }
     }
 
@@ -283,84 +282,69 @@ class ExpenseAuditService extends BaseGraphService {
    */
   async updateApprovalStatus(id, status, type, notes = "") {
     await this.initializeGraphClient();
+
     const fields = {
       Bloqueoedici_x00f3_n: true,
       Notasrevision: notes,
     };
-    
+
     // First, get the current expense to check the workflow
     const currentExpense = await this.client
       .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
       .expand('fields')
       .get();
-      
+
     // Map approval type to field
     switch (type) {
       case "accounting_assistant":
         fields.Aprobaci_x00f3_nAsistente = status;
         break;
+
       case "accounting_boss":
-        // For accounting bosses, can approve after assistants
         if (currentExpense.fields.Aprobaci_x00f3_nAsistente === "Aprobada") {
           fields.Aprobaci_x00f3_nJefatura = status;
-          
-          // If approved, also set contabilidad approval
           if (status === "Aprobada") {
             fields.Aprobaci_x00f3_nContabilidad = "Aprobada";
           }
         }
         break;
+
       case "assistant":
         fields.Aprobaci_x00f3_nAsistente = status;
         break;
+
       case "boss":
-        // Get creator's department info
         const creatorEmail = currentExpense.createdBy?.user?.email;
-        if (!creatorEmail) break;
-        
+
+        if (!creatorEmail) {
+          break;
+        }
+
         const creatorRole = this.permissionService.roles.find(
           role => role.empleado?.email === creatorEmail
         );
-        
-        if (!creatorRole) break;
-        
+
+        if (!creatorRole) {
+          break;
+        }
+
         const hasAssistants = this.permissionService.departmentHasAssistants(
           creatorRole.departmentId
         );
-        
-        // If department has no assistants or assistant has approved
+
         if (!hasAssistants || currentExpense.fields.Aprobaci_x00f3_nAsistente === "Aprobada") {
           fields.Aprobaci_x00f3_nJefatura = status;
+        } else {
         }
         break;
+
       default:
         throw new Error("Invalid approval type");
     }
 
-    // If both approvals are in place, set Contabilidad approval to Aprobada
-    if (currentExpense.fields.Aprobaci_x00f3_nJefatura === "Aprobada" || 
-        fields.Aprobaci_x00f3_nJefatura === "Aprobada") {
-      
-      // Check if assistant approval is needed
-      const creatorEmail = currentExpense.createdBy?.user?.email;
-      if (creatorEmail) {
-        const creatorRole = this.permissionService.roles.find(
-          role => role.empleado?.email === creatorEmail
-        );
-        
-        if (creatorRole) {
-          const hasAssistants = this.permissionService.departmentHasAssistants(
-            creatorRole.departmentId
-          );
-          
-          // If department has no assistants or assistant has approved
-          if (!hasAssistants || 
-              currentExpense.fields.Aprobaci_x00f3_nAsistente === "Aprobada" || 
-              fields.Aprobaci_x00f3_nAsistente === "Aprobada") {
-            fields.Aprobaci_x00f3_nContabilidad = "Aprobada";
-          }
-        }
-      }
+    // Set contabilidad approval if boss approval is set to Aprobada
+    if (fields.Aprobaci_x00f3_nJefatura === "Aprobada") {
+      fields.Aprobaci_x00f3_nContabilidad = "Aprobada";
     }
 
     try {
@@ -372,6 +356,7 @@ class ExpenseAuditService extends BaseGraphService {
         .patch({
           fields: fields,
         });
+
       return response;
     } catch (error) {
       console.error("Error updating approval status:", error);
@@ -395,17 +380,17 @@ class ExpenseAuditService extends BaseGraphService {
       departamento: item.fields.Departamento,
       asistentes: Array.isArray(item.fields.Asistentes)
         ? item.fields.Asistentes.map((asistente) => ({
-            email: asistente.Email,
-            displayName: asistente.LookupValue,
-            id: asistente.LookupId,
-          }))
+          email: asistente.Email,
+          displayName: asistente.LookupValue,
+          id: asistente.LookupId,
+        }))
         : [],
       jefes: Array.isArray(item.fields.Jefes)
         ? item.fields.Jefes.map((jefe) => ({
-            email: jefe.Email,
-            displayName: jefe.LookupValue,
-            id: jefe.LookupId,
-          }))
+          email: jefe.Email,
+          displayName: jefe.LookupValue,
+          id: jefe.LookupId,
+        }))
         : [],
     }));
   }
@@ -421,10 +406,10 @@ class ExpenseAuditService extends BaseGraphService {
       empleado:
         Array.isArray(item.fields.Empleado) && item.fields.Empleado.length > 0
           ? {
-              email: item.fields.Empleado[0].Email,
-              displayName: item.fields.Empleado[0].LookupValue,
-              id: item.fields.Empleado[0].LookupId,
-            }
+            email: item.fields.Empleado[0].Email,
+            displayName: item.fields.Empleado[0].LookupValue,
+            id: item.fields.Empleado[0].LookupId,
+          }
           : null,
       departamentoId: item.fields["DepartamentoID_x003a__x0020_DepaLookupId"]
         ? parseInt(item.fields["DepartamentoID_x003a__x0020_DepaLookupId"], 10)
@@ -466,16 +451,16 @@ class ExpenseAuditService extends BaseGraphService {
    */
   getUserDepartmentRole(userEmail, departments, roles) {
     const userRoles = this.permissionService.getUserRoles(userEmail);
-    
+
     if (userRoles.length === 0) return null;
-    
+
     // Prioritize administrative roles (Jefe, Asistente) over Empleado
-    const adminRole = userRoles.find(role => 
+    const adminRole = userRoles.find(role =>
       role.roleType === 'Jefe' || role.roleType === 'Asistente'
     );
-    
+
     const selectedRole = adminRole || userRoles[0];
-    
+
     return {
       department: selectedRole.department,
       role: selectedRole.roleType
@@ -502,31 +487,31 @@ class ExpenseAuditService extends BaseGraphService {
    */
   canViewExpense(expense, userDepartmentRole) {
     if (!userDepartmentRole) return false;
-    
+
     const userEmail = this.msalInstance.getAllAccounts()[0]?.username;
-    
+
     // Always allow viewing own expenses
     if (expense.createdBy.email === userEmail) {
       return true;
     }
-    
+
     // Allow contabilidad to view all expenses
     if (userDepartmentRole.department?.departamento.toLowerCase().includes('contabilidad')) {
       return true;
     }
-    
+
     // Allow jefes and asistentes to view expenses from their department
     if (userDepartmentRole.role === 'Jefe' || userDepartmentRole.role === 'Asistente') {
       const expenseCreator = this.permissionService.roles.find(role =>
         role.empleado?.email === expense.createdBy.email
       );
-      
+
       if (!expenseCreator) return false;
-      
-      return userDepartmentRole.department && 
-             expenseCreator.departamentoId === parseInt(userDepartmentRole.department.id);
+
+      return userDepartmentRole.department &&
+        expenseCreator.departamentoId === parseInt(userDepartmentRole.department.id);
     }
-    
+
     return false;
   }
 
@@ -538,10 +523,10 @@ class ExpenseAuditService extends BaseGraphService {
    */
   filterExpensesByDepartment(expenses, userDepartmentRole) {
     if (!userDepartmentRole) return [];
-    
+
     const userEmail = this.msalInstance.getAllAccounts()[0]?.username;
-    
-    return expenses.filter(expense => 
+
+    return expenses.filter(expense =>
       expense.createdBy.email === userEmail || this.canViewExpense(expense, userDepartmentRole)
     );
   }
@@ -553,15 +538,15 @@ class ExpenseAuditService extends BaseGraphService {
    */
   getApprovalType(userDepartmentRole) {
     if (!userDepartmentRole) return null;
-    
+
     const isAccountant = (userDepartmentRole.department?.departamento || '')
       .toLowerCase()
       .includes('contabilidad');
-    
+
     if (isAccountant) {
       return userDepartmentRole.role === "Jefe" ? "accounting_boss" : "accounting_assistant";
     }
-    
+
     return userDepartmentRole.role === "Jefe" ? "boss" : "assistant";
   }
 }

@@ -79,8 +79,15 @@ class PermissionService {
      * @returns {boolean} True if department has assistants
      */
     departmentHasAssistants(departmentId) {
-      const department = this.departments.find(dept => dept.id === departmentId?.toString());
-      return department && department.asistentes && department.asistentes.length > 0;
+      if (!departmentId) return false;
+      
+      const department = this.departments.find(dept => dept.id === departmentId.toString());
+      if (!department) return false;
+      
+      // Check if department has assistant users configured
+      return department.asistentes && 
+             Array.isArray(department.asistentes) && 
+             department.asistentes.length > 0;
     }
   
     /**
