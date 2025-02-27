@@ -13,13 +13,41 @@ const ExpenseList = () => {
   const today = new Date();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const { expenseReports, loading, expenseListFilters, setExpenseListFilters, } = useExpenseAudit();
+  const { 
+    expenseReports, 
+    loading, 
+    expenseListFilters, 
+    setExpenseListFilters 
+  } = useExpenseAudit();
   const { user } = useAuth();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // Restore filters from state if navigating back
+  useEffect(() => {
+    if (location.state?.preserveFilters && expenseListFilters) {
+      setSearchTerm(expenseListFilters.searchTerm || "");
+      setStartDate(expenseListFilters.startDate || "");
+      setEndDate(expenseListFilters.endDate || "");
+    }
+  }, [location.state?.preserveFilters, expenseListFilters]);
+
+  // Save filters to state when they change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setExpenseListFilters({
+        searchTerm,
+        startDate,
+        endDate,
+      });
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, startDate, endDate, setExpenseListFilters]);
+
+  // Table columns configuration
   const columns = [
     {
       key: "fecha",
@@ -46,13 +74,18 @@ const ExpenseList = () => {
       key: "status",
       header: "Estado",
       render: (_, row) => {
-        if (row.aprobacionAsistente === "No aprobada") {
+        // Check for rejection first
+        if (row.aprobacionAsistente === "No aprobada" || 
+            row.aprobacionJefatura === "No aprobada" || 
+            row.aprobacionContabilidad === "No aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
               No aprobada
             </span>
           );
         }
+        
+        // Check for full approval
         if (row.aprobacionContabilidad === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
@@ -60,6 +93,8 @@ const ExpenseList = () => {
             </span>
           );
         }
+        
+        // Check for partially approved statuses
         if (row.aprobacionJefatura === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -67,6 +102,7 @@ const ExpenseList = () => {
             </span>
           );
         }
+        
         if (row.aprobacionAsistente === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -74,6 +110,8 @@ const ExpenseList = () => {
             </span>
           );
         }
+        
+        // Default to pending
         return (
           <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
             Pendiente
@@ -83,26 +121,7 @@ const ExpenseList = () => {
     },
   ];
 
-  useEffect(() => {
-    if (location.state?.preserveFilters && expenseListFilters) {
-      setSearchTerm(expenseListFilters.searchTerm || "");
-      setStartDate(expenseListFilters.startDate || "");
-      setEndDate(expenseListFilters.endDate || "");
-    }
-  }, [location.state?.preserveFilters, expenseListFilters]);
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setExpenseListFilters({
-        searchTerm,
-        startDate,
-        endDate,
-      });
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, startDate, endDate, setExpenseListFilters]);
-
+  // Filter expenses based on current filters
   const filterExpenses = useCallback(() => {
     return expenseReports
       .filter((expense) => expense.createdBy.email === user?.username)
@@ -114,7 +133,7 @@ const ExpenseList = () => {
           const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1); // Include full end date
           if (expenseDate < start || expenseDate > end) return false;
         }
-
+        
         // Search term filter
         if (searchTerm) {
           const search = searchTerm.toLowerCase();
@@ -123,6 +142,7 @@ const ExpenseList = () => {
             expense.st.toLowerCase().includes(search)
           );
         }
+        
         return true;
       });
   }, [expenseReports, user?.username, startDate, endDate, searchTerm]);
@@ -146,7 +166,6 @@ const ExpenseList = () => {
           Nuevo Gasto
         </Button>
       </div>
-
       <Card className="mb-6">
         <div className="flex flex-col md:flex-row gap-4 p-4">
           <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
@@ -159,7 +178,6 @@ const ExpenseList = () => {
               className="w-full bg-transparent border-none focus:outline-none text-sm"
             />
           </div>
-
           <DateRangePicker
             startDate={startDate}
             endDate={endDate}
@@ -170,7 +188,6 @@ const ExpenseList = () => {
           />
         </div>
       </Card>
-
       <Card>
         <Table
           columns={columns}

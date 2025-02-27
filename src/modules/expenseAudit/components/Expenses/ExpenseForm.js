@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
-import { Save, Loader } from "lucide-react";
+import { Save, Loader, AlertTriangle } from "lucide-react";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import CameraUpload from "../../../../components/common/CameraUpload";
 import MultiSelect from "../../../../components/common/MultiSelect";
@@ -15,6 +15,7 @@ const ExpenseForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
+  
   const [formData, setFormData] = useState({
     rubro: "",
     monto: "",
@@ -44,6 +45,7 @@ const ExpenseForm = () => {
     "Transporte público"
   ];
 
+  // Get potential contributors (people who can share expenses with current user)
   const allWorkers = React.useMemo(() => {
     return departmentWorkers
       .reduce((acc, dept) => {
@@ -77,8 +79,9 @@ const ExpenseForm = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+    
     try {
+      // Validate required fields
       if (
         !formData.rubro ||
         !formData.monto ||
@@ -87,11 +90,12 @@ const ExpenseForm = () => {
       ) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
-
+      
       if (!formData.comprobante) {
         throw new Error("Debe adjuntar un comprobante");
       }
-
+      
+      // Prepare expense data
       const expenseData = {
         ...formData,
         facturaDividida: formData.facturaDividida || false,
@@ -99,19 +103,22 @@ const ExpenseForm = () => {
           .map(user => user.displayName)
           .join(", "),
       };
-
+      
+      // Create expense in SharePoint
       const newExpense = await service.createExpenseReport(
         expenseData,
         formData.comprobante
       );
-
+      
       if (newExpense.id) {
+        // Update contributors (if any)
         await service.updateExpenseIntegrantes(
           newExpense.id,
           formData.IntegrantesV2.map(user => user.id)
         );
       }
-
+      
+      // Format the new expense for state update
       const formattedExpense = {
         id: newExpense.id,
         rubro: newExpense.fields.Rubro,
@@ -123,9 +130,9 @@ const ExpenseForm = () => {
         motivo: newExpense.fields.Title,
         notasRevision: newExpense.fields.Notasrevision || "",
         bloqueoEdicion: false,
-        aprobacionAsistente: "Pendiente",
-        aprobacionJefatura: "Pendiente",
-        aprobacionContabilidad: "Pendiente",
+        aprobacionAsistente: newExpense.fields.Aprobaci_x00f3_n_x0020_Departame || "Pendiente",
+        aprobacionJefatura: newExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura || "Pendiente",
+        aprobacionContabilidad: newExpense.fields.Aprobaci_x00f3_n_x0020_Contabili || "Pendiente",
         facturaDividida: Boolean(newExpense.fields.FacturaDividida),
         integrantes: newExpense.fields.Integrantes || "",
         createdBy: {
@@ -135,8 +142,11 @@ const ExpenseForm = () => {
         },
         notas: newExpense.fields.Notas,
       };
-
+      
+      // Update application state
       setExpenseReports((prevReports) => [formattedExpense, ...prevReports]);
+      
+      // Navigate to expense list
       navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST);
     } catch (err) {
       console.error("Error creating expense:", err);
@@ -152,8 +162,9 @@ const ExpenseForm = () => {
     <div className="max-w-3xl mx-auto px-4 py-6">
       <Card title="Nuevo Gasto">
         {error && (
-          <div className="mb-4 p-4 bg-error/10 text-error rounded-lg">
-            {error}
+          <div className="mb-4 p-4 bg-error/10 text-error rounded-lg flex items-center gap-2">
+            <AlertTriangle size={20} />
+            <p>{error}</p>
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -242,7 +253,6 @@ const ExpenseForm = () => {
               />
             </div>
           </div>
-
           <div className="flex flex-col gap-4">
             <div className="flex items-center">
               <input
@@ -260,7 +270,6 @@ const ExpenseForm = () => {
                 Fondos propios
               </label>
             </div>
-
             {formData.fondosPropios && (
               <div className="space-y-2">
                 <label
@@ -280,7 +289,6 @@ const ExpenseForm = () => {
                 />
               </div>
             )}
-
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -298,7 +306,6 @@ const ExpenseForm = () => {
               </label>
             </div>
           </div>
-
           {formData.facturaDividida && (
             <div className="space-y-2">
               <label
@@ -318,7 +325,6 @@ const ExpenseForm = () => {
               />
             </div>
           )}
-
           <div className="space-y-2">
             <label
               htmlFor="notas"
@@ -336,7 +342,6 @@ const ExpenseForm = () => {
               placeholder="Ingrese notas adicionales sobre el gasto"
             />
           </div>
-
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
               Comprobante/Factura *
@@ -352,7 +357,6 @@ const ExpenseForm = () => {
               loading={loading}
             />
           </div>
-
           <div className="flex justify-end gap-4">
             <Button
               type="button"

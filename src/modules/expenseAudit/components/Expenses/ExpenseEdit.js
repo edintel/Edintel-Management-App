@@ -18,16 +18,17 @@ const ExpenseEdit = () => {
     expenseReports,
     setExpenseReports,
     service,
+    permissionService,
     loading: contextLoading,
-    userDepartmentRole,
     departmentWorkers
   } = useExpenseAudit();
+  
   const [formData, setFormData] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isNewFile, setIsNewFile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  
   const rubroOptions = [
     "Almuerzo",
     "Cena",
@@ -42,7 +43,7 @@ const ExpenseEdit = () => {
     "Versatec",
     "Transporte público"
   ];
-
+  
   const allWorkers = React.useMemo(() => {
     return departmentWorkers
       .reduce((acc, dept) => {
@@ -64,6 +65,7 @@ const ExpenseEdit = () => {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [departmentWorkers, user?.username]);
 
+  // Load expense data when component mounts
   useEffect(() => {
     if (!contextLoading) {
       const expense = expenseReports.find((exp) => exp.id === id);
@@ -71,23 +73,30 @@ const ExpenseEdit = () => {
         navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST);
         return;
       }
-
+      
+      // Check if user can edit this expense
       const canEdit = () => {
-        if (!userDepartmentRole || !expense || !user) return false;
-
-        if (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente") {
+        if (!permissionService || !expense || !user) return false;
+        
+        // Administrators can edit
+        if (permissionService.hasRole(user.username, "Jefe") || 
+            permissionService.hasRole(user.username, "Asistente")) {
           return true;
         }
-
+        
+        // Creator can edit if not locked
         return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
       };
-
+      
       if (!canEdit()) {
         navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id));
         return;
       }
-
+      
+      // Format date to YYYY-MM-DD for input
       const formattedDate = expense.fecha.toISOString().split("T")[0];
+      
+      // Set form data
       setFormData({
         rubro: expense.rubro,
         monto: expense.monto,
@@ -105,13 +114,14 @@ const ExpenseEdit = () => {
           email: integrante.email
         })) || []
       });
-
+      
+      // Set preview if there's a comprobante
       if (expense.comprobante) {
         setPreview(expense.comprobante);
         setIsNewFile(false);
       }
     }
-  }, [id, expenseReports, navigate, contextLoading, user, userDepartmentRole]);
+  }, [id, expenseReports, navigate, contextLoading, user, permissionService]);
 
   const handleCancel = () => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id), {
@@ -131,8 +141,9 @@ const ExpenseEdit = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+    
     try {
+      // Validate required fields
       if (
         !formData.rubro ||
         !formData.monto ||
@@ -141,30 +152,33 @@ const ExpenseEdit = () => {
       ) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
-
-      // Check if there's no image (neither existing nor new)
+      
       if (!formData.comprobante && !isNewFile) {
         throw new Error("Debe adjuntar un comprobante");
       }
-
+      
+      // Prepare expense data
       const expenseData = {
         ...formData,
         integrantes: formData.IntegrantesV2
           .map(user => user.displayName)
           .join(", "),
       };
-
+      
+      // Update expense in SharePoint
       const updatedExpense = await service.updateExpenseReport(
         id,
         expenseData,
         isNewFile ? formData.comprobante : undefined
       );
-
+      
+      // Update contributors
       await service.updateExpenseIntegrantes(
         id,
         formData.IntegrantesV2.map(user => user.id)
       );
-
+      
+      // Update state with new data
       setExpenseReports((prevReports) =>
         prevReports.map((report) =>
           report.id === id
@@ -193,11 +207,14 @@ const ExpenseEdit = () => {
                 report.aprobacionContabilidad,
               createdBy: report.createdBy,
               notas: updatedExpense.fields.Notas,
+              // Keep IntegrantesV2 in sync
+              IntegrantesV2: formData.IntegrantesV2
             }
             : report
         )
       );
-
+      
+      // Navigate to detail view
       navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id), {
         state: { from: location.state?.from },
       });
@@ -212,6 +229,7 @@ const ExpenseEdit = () => {
     }
   };
 
+  // Show loading state while waiting for data
   if (!formData || contextLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -229,7 +247,6 @@ const ExpenseEdit = () => {
             <p>{error}</p>
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -251,7 +268,6 @@ const ExpenseEdit = () => {
                 ))}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Monto *
@@ -272,7 +288,6 @@ const ExpenseEdit = () => {
                 />
               </div>
             </div>
-
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Fecha *
@@ -286,7 +301,6 @@ const ExpenseEdit = () => {
                 className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
               />
             </div>
-
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 ST *
@@ -303,7 +317,6 @@ const ExpenseEdit = () => {
               />
             </div>
           </div>
-
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -320,7 +333,6 @@ const ExpenseEdit = () => {
               Fondos propios
             </label>
           </div>
-
           {formData.fondosPropios && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -336,7 +348,6 @@ const ExpenseEdit = () => {
               />
             </div>
           )}
-
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -353,7 +364,6 @@ const ExpenseEdit = () => {
               ¿La factura es dividida entre varios integrantes?
             </label>
           </div>
-
           {formData.facturaDividida && (
             <div className="space-y-2">
               <label
@@ -373,7 +383,6 @@ const ExpenseEdit = () => {
               />
             </div>
           )}
-
           <div className="space-y-2">
             <label
               htmlFor="notas"
@@ -391,7 +400,6 @@ const ExpenseEdit = () => {
               placeholder="Ingrese notas adicionales sobre el gasto"
             />
           </div>
-
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
               Comprobante/Factura *
@@ -412,7 +420,6 @@ const ExpenseEdit = () => {
               loading={loading}
             />
           </div>
-
           <div className="flex justify-end gap-4">
             <Button
               type="button"
