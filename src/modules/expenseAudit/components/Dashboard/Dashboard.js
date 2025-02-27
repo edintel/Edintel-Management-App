@@ -1,4 +1,4 @@
-// src/modules/expenseAudit/components/Dashboard/Dashboard.js
+import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import { useAuth } from "../../../../components/AuthProvider";
@@ -11,42 +11,38 @@ import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { expenseReports, loading, error } = useExpenseAudit();
+  const { expenseReports, loading, error, approvalFlowService } = useExpenseAudit();
   const { user } = useAuth();
 
-  // Get last week's date range
+  // Define date range for the dashboard (last 7 days)
   const getLastWeekRange = () => {
     const today = new Date();
     const lastWeek = new Date(today);
     lastWeek.setDate(today.getDate() - 7);
-
-    // Set to start of day for lastWeek
     lastWeek.setHours(0, 0, 0, 0);
-
-    // Set to end of day for today
     today.setHours(23, 59, 59, 999);
-
     return { start: lastWeek, end: today };
   };
 
   const { start: lastWeekStart, end: lastWeekEnd } = getLastWeekRange();
-
-  // Filter user's expenses
+  
+  // Filter expenses for the current user
   const userExpenses = expenseReports.filter(
     (expense) => expense.createdBy.email === user?.username
   );
-
-  // Filter current week expenses
+  
+  // Filter for expenses created in the last week
   const currentWeekExpenses = userExpenses.filter((expense) => {
     const expenseDate = new Date(expense.fecha);
     return expenseDate >= lastWeekStart && expenseDate <= lastWeekEnd;
   });
-
+  
   // Get recent expenses (last 5)
   const recentExpenses = [...userExpenses]
     .sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
     .slice(0, 5);
 
+  // Table columns configuration
   const expenseColumns = [
     {
       key: "fecha",
@@ -73,13 +69,18 @@ const Dashboard = () => {
       key: "status",
       header: "Estado",
       render: (_, row) => {
-        if (row.aprobacionAsistente === "No aprobada") {
+        // Check for rejection first
+        if (row.aprobacionAsistente === "No aprobada" || 
+            row.aprobacionJefatura === "No aprobada" || 
+            row.aprobacionContabilidad === "No aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
               No aprobada
             </span>
           );
         }
+        
+        // Check for full approval
         if (row.aprobacionContabilidad === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
@@ -87,6 +88,8 @@ const Dashboard = () => {
             </span>
           );
         }
+        
+        // Check for partially approved statuses
         if (row.aprobacionJefatura === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -94,6 +97,7 @@ const Dashboard = () => {
             </span>
           );
         }
+        
         if (row.aprobacionAsistente === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -101,6 +105,8 @@ const Dashboard = () => {
             </span>
           );
         }
+        
+        // Default to pending
         return (
           <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
             Pendiente
@@ -110,6 +116,7 @@ const Dashboard = () => {
     },
   ];
 
+  // Calculate dashboard statistics
   const stats = [
     {
       title: "Total Gastos",
@@ -121,21 +128,25 @@ const Dashboard = () => {
     {
       title: "Pendientes",
       value: currentWeekExpenses.filter(
-        (report) => report.aprobacionAsistente === "Pendiente"
+        (report) => approvalFlowService && 
+                  !approvalFlowService.getApprovalState(report).isFullyApproved && 
+                  !approvalFlowService.getApprovalState(report).isRejected
       ).length,
       icon: <AlertTriangle className="text-warning" size={24} />,
     },
     {
       title: "Aprobados",
       value: currentWeekExpenses.filter(
-        (report) => report.aprobacionContabilidad === "Aprobada"
+        (report) => approvalFlowService && 
+                  approvalFlowService.getApprovalState(report).isFullyApproved
       ).length,
       icon: <Check className="text-success" size={24} />,
     },
     {
       title: "No Aprobados",
       value: currentWeekExpenses.filter(
-        (report) => report.aprobacionAsistente === "No aprobada"
+        (report) => approvalFlowService && 
+                  approvalFlowService.getApprovalState(report).isRejected
       ).length,
       icon: <X className="text-error" size={24} />,
     },
@@ -157,6 +168,7 @@ const Dashboard = () => {
     });
   };
 
+  // Show error state if necessary
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-error">
@@ -187,7 +199,6 @@ const Dashboard = () => {
           Nuevo Gasto
         </Button>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
           <Card key={index} className="p-6">
@@ -201,7 +212,6 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
-
       <Card
         title="Mis Gastos Recientes"
         subtitle={`Últimos ${recentExpenses.length} gastos registrados`}
