@@ -32,30 +32,27 @@ const ExpenseDetail = () => {
     loading: reportsLoading,
     setExpenseReports,
     service,
-    permissionService,
-    approvalFlowService,
+    userDepartmentRole,
   } = useExpenseAudit();
-
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const returnPath = location.state?.from?.pathname || EXPENSE_AUDIT_ROUTES.EXPENSES.LIST;
+  const returnPath =
+    location.state?.from?.pathname || EXPENSE_AUDIT_ROUTES.EXPENSES.LIST;
   const { user } = useAuth();
-
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     type: "approve",
     title: "",
     message: "",
   });
-
   const [deleteDialog, setDeleteDialog] = useState({
     isOpen: false,
     title: "¿Confirmar eliminación?",
-    message: "¿Está seguro que desea eliminar este gasto? Esta acción no se puede deshacer.",
+    message:
+      "¿Está seguro que desea eliminar este gasto? Esta acción no se puede deshacer.",
   });
 
-  // Load expense data
   useEffect(() => {
     if (!reportsLoading && expenseReports.length > 0) {
       const foundExpense = expenseReports.find((exp) => exp.id === id);
@@ -64,7 +61,6 @@ const ExpenseDetail = () => {
     }
   }, [id, expenseReports, reportsLoading]);
 
-  // Navigation handlers
   const handleBack = () => {
     navigate(returnPath, {
       state: {
@@ -80,39 +76,35 @@ const ExpenseDetail = () => {
     });
   };
 
-  // Permission checks
   const canDelete = () => {
-    if (!permissionService || !expense || !user) return false;
+    if (!userDepartmentRole || !expense || !user) return false;
 
-    // Creator can delete if not locked
-    if (expense.createdBy.email === user.username && !expense.bloqueoEdicion) {
+    if (
+      expense.createdBy.email === user.username &&
+      !expense.bloqueoEdicion
+    ) {
+      return true;
+    }
+    if (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente"
+    ) {
       return true;
     }
 
-    // Administrators can delete
-    return permissionService.hasRole(user.username, "Jefe") ||
-      permissionService.hasRole(user.username, "Asistente");
+    return false;
   };
 
   const canEdit = () => {
-    if (!permissionService || !expense || !user) return false;
+    if (!userDepartmentRole || !expense || !user) return false;
 
-    // Administrators can edit
-    if (permissionService.hasRole(user.username, "Jefe") ||
-      permissionService.hasRole(user.username, "Asistente")) {
+    if (userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente") {
       return true;
     }
 
-    // Creator can edit if not locked
-    return expense.createdBy.email === user.username && !expense.bloqueoEdicion;
+    return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
   };
 
-  const canApprove = () => {
-    if (!approvalFlowService || !expense || !user) return false;
-    return approvalFlowService.canApprove(expense, user.username);
-  };
-
-  // Action handlers
   const handleDelete = () => {
     setDeleteDialog((prev) => ({ ...prev, isOpen: true }));
   };
@@ -120,9 +112,11 @@ const ExpenseDetail = () => {
   const handleConfirmDelete = async () => {
     try {
       await service.deleteExpenseReport(id);
+
       setExpenseReports((prevReports) =>
         prevReports.filter((report) => report.id !== id)
       );
+
       navigate(returnPath);
     } catch (error) {
       console.error("Error deleting expense:", error);
@@ -131,82 +125,8 @@ const ExpenseDetail = () => {
     }
   };
 
-  const handleApprove = async () => {
-    setConfirmDialog({
-      isOpen: true,
-      type: "approve",
-      title: "¿Confirmar aprobación?",
-      message: "¿Está seguro que desea aprobar este gasto?",
-    });
-  };
 
-  const handleReject = async () => {
-    setConfirmDialog({
-      isOpen: true,
-      type: "reject",
-      title: "¿Confirmar rechazo?",
-      message: "¿Está seguro que desea rechazar este gasto? Debe proporcionar una nota de revisión.",
-    });
-  };
 
-  // Fix for src/modules/expenseAudit/components/Expenses/ExpenseDetail.js
-  // Specifically the handleConfirmAction function
-
-  const handleConfirmAction = async (notes = "") => {
-    try {
-      if (!expense || !approvalFlowService) return;
-      // Determine the next approval type
-      const approvalType = approvalFlowService.getNextApprovalType(expense, user.username);
-      if (!approvalType) {
-        alert("No se puede determinar el tipo de aprobación. Por favor contacte al administrador del sistema.");
-        console.error("Cannot determine approval type", {
-          expense,
-          user: user.username,
-          userRoles: approvalFlowService.permissionService.getUserRoles(user.username)
-        });
-        return;
-      }
-      const status = confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
-      await service.updateApprovalStatus(id, status, approvalType, notes);
-
-      // Create the updated expense object
-      const updatedExpense = { ...expense };
-      updatedExpense.bloqueoEdicion = true;
-      updatedExpense.notasRevision = notes;
-
-      switch (approvalType) {
-        case "assistant":
-        case "accounting_assistant":
-          updatedExpense.aprobacionAsistente = status;
-          break;
-        case "boss":
-        case "accounting_boss":
-          updatedExpense.aprobacionJefatura = status;
-          if (approvalType === "accounting_boss" && status === "Aprobada") {
-            updatedExpense.aprobacionContabilidad = "Aprobada";
-          }
-          break;
-        default:
-          break;
-      }
-
-      // Update the local expense state
-      setExpense(updatedExpense);
-
-      // Update the expense reports state separately
-      setExpenseReports((prevReports) =>
-        prevReports.map((report) =>
-          report.id === id ? updatedExpense : report
-        )
-      );
-
-      setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-    } catch (error) {
-      console.error("Error updating approval status:", error);
-    }
-  };
-
-  // Loading/error state
   if (loading || reportsLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-gray-500">
@@ -232,7 +152,6 @@ const ExpenseDetail = () => {
     );
   }
 
-  // Approval status display helpers
   const approvalStatus = [
     {
       title: "Revisión de Asistente",
@@ -258,6 +177,78 @@ const ExpenseDetail = () => {
     if (status === "Aprobada") return <CheckCircle size={24} />;
     if (status === "No aprobada") return <XCircle size={24} />;
     return <Clock size={24} />;
+  };
+
+  const handleApprove = async () => {
+    setConfirmDialog({
+      isOpen: true,
+      type: "approve",
+      title: "¿Confirmar aprobación?",
+      message: "¿Está seguro que desea aprobar este gasto?",
+    });
+  };
+
+  const handleReject = async () => {
+    setConfirmDialog({
+      isOpen: true,
+      type: "reject",
+      title: "¿Confirmar rechazo?",
+      message:
+        "¿Está seguro que desea rechazar este gasto? Debe proporcionar una nota de revisión.",
+    });
+  };
+
+  const handleConfirmAction = async (notes = "") => {
+    try {
+      const type = service.getApprovalType(userDepartmentRole);
+      const status =
+        confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
+
+      await service.updateApprovalStatus(id, status, type, notes);
+
+      setExpense((prev) => ({
+        ...prev,
+        bloqueoEdicion: true,
+        notasRevision: notes,
+        aprobacionAsistente:
+          type === "assistant" ? status : prev.aprobacionAsistente,
+        aprobacionJefatura: type === "boss" ? status : prev.aprobacionJefatura,
+        aprobacionContabilidad:
+          type === "accounting" ? status : prev.aprobacionContabilidad,
+      }));
+
+      setExpenseReports((prevReports) =>
+        prevReports.map((report) =>
+          report.id === id
+            ? {
+              ...report,
+              bloqueoEdicion: true,
+              notasRevision: notes,
+              aprobacionAsistente:
+                type === "assistant" ? status : report.aprobacionAsistente,
+              aprobacionJefatura:
+                type === "boss" ? status : report.aprobacionJefatura,
+              aprobacionContabilidad:
+                type === "accounting"
+                  ? status
+                  : report.aprobacionContabilidad,
+            }
+            : report
+        )
+      );
+    } catch (error) {
+      console.error("Error updating approval status:", error);
+    }
+  };
+
+  const canApprove = () => {
+    if (!user || !expense || !service || !userDepartmentRole) return false;
+
+    return service.canApprove(
+      expense,
+      userDepartmentRole.role,
+      userDepartmentRole.department?.departamento
+    );
   };
 
   return (
@@ -291,10 +282,12 @@ const ExpenseDetail = () => {
             </Button>
           )}
         </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <div className="p-6 space-y-6">
               <h2 className="text-2xl font-semibold">Descripción factura</h2>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
                   <span className="text-sm text-gray-500">Rubro</span>
@@ -356,6 +349,7 @@ const ExpenseDetail = () => {
               </div>
             </div>
           </Card>
+
           <Card className="lg:col-span-1">
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4">Solicitante</h3>
@@ -377,6 +371,7 @@ const ExpenseDetail = () => {
               </div>
             </div>
           </Card>
+
           <Card className="lg:col-span-2">
             {expense.notas && (
               <div className="p-6 border-t">
@@ -402,6 +397,7 @@ const ExpenseDetail = () => {
               )}
             </div>
           </Card>
+
           <Card className="lg:col-span-3">
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-6">
@@ -420,6 +416,7 @@ const ExpenseDetail = () => {
                   </div>
                 ))}
               </div>
+
               {expense.notasRevision && (
                 <div className="mt-6 pt-6 border-t">
                   <div className="flex items-center mb-2">
@@ -433,7 +430,7 @@ const ExpenseDetail = () => {
               )}
             </div>
             {canApprove() && (
-              <div className="p-6 flex justify-end gap-4 border-t">
+              <div className="mt-6 flex justify-end gap-4">
                 <Button
                   variant="outline"
                   className="text-success hover:bg-success/10"
@@ -455,6 +452,7 @@ const ExpenseDetail = () => {
           </Card>
         </div>
       </div>
+
       <ConfirmationDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
