@@ -10,6 +10,51 @@ import { Check, X, Eye, Search, Users } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 
+// Helper function to check if user can approve expense
+// This fixes the department comparison issue
+const canUserApproveExpense = (expense, userEmail, permissionService) => {
+  // If already fully approved or rejected, can't approve
+  if (expense.aprobacionContabilidad === "Aprobada" ||
+      expense.aprobacionAsistente === "No aprobada" ||
+      expense.aprobacionJefatura === "No aprobada" ||
+      expense.aprobacionContabilidad === "No aprobada") {
+    return false;
+  }
+  
+  // Get creator role to find their department
+  const creatorRole = permissionService.roles.find(
+    role => role.empleado?.email === expense.createdBy.email
+  );
+  
+  if (!creatorRole) return false;
+  
+  // Get user roles
+  const userRoles = permissionService.getUserRoles(userEmail);
+  
+  // Check if user is in same department using numeric comparison
+  const isInSameDepartment = userRoles.some(role => 
+    Number(role.departmentId) === Number(creatorRole.departamentoId)
+  );
+  
+  if (!isInSameDepartment) return false;
+  
+  // Check user role
+  const isAssistant = permissionService.hasRole(userEmail, "Asistente");
+  const isBoss = permissionService.hasRole(userEmail, "Jefe");
+  
+  // Check approval sequence
+  if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
+    return true;
+  }
+  
+  if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
+      (expense.aprobacionAsistente === "Aprobada" || !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
+    return true;
+  }
+  
+  return false;
+};
+
 const ApprovalList = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,12 +77,11 @@ const ApprovalList = () => {
   
   const [selectedPerson, setSelectedPerson] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState("pending");
+  const [viewMode, setViewMode] = useState("all"); // Default to "all" view
   const [startDate, setStartDate] = useState(
     lastWeek.toISOString().split("T")[0]
   );
   const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
-  
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     type: "approve",
@@ -53,11 +97,10 @@ const ApprovalList = () => {
       setStartDate(approvalFilters.startDate || "");
       setEndDate(approvalFilters.endDate || "");
       setSelectedPerson(approvalFilters.selectedPerson || "");
-      setViewMode(approvalFilters.viewMode || "pending");
+      setViewMode(approvalFilters.viewMode || "all");
     }
   }, [location.state?.preserveFilters, approvalFilters]);
 
-  // Save filters to state when they change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setApprovalFilters({
@@ -68,19 +111,14 @@ const ApprovalList = () => {
         viewMode
       });
     }, 300);
-    
     return () => clearTimeout(timeoutId);
   }, [searchTerm, startDate, endDate, selectedPerson, viewMode, setApprovalFilters]);
 
-  // Check if user can view approvals
   const canViewApprovals = () => {
     if (!userDepartmentRole) return false;
-    
-    // Only Jefe and Asistente can view approvals
     return userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente";
   };
 
-  // Handle approval action
   const handleApprove = (id, e) => {
     e.stopPropagation();
     setConfirmDialog({
@@ -92,7 +130,6 @@ const ApprovalList = () => {
     });
   };
 
-  // Handle rejection action
   const handleReject = (id, e) => {
     e.stopPropagation();
     setConfirmDialog({
@@ -105,14 +142,43 @@ const ApprovalList = () => {
     });
   };
 
-  // Handle confirmation action
   const handleConfirmAction = async (notes = "") => {
     try {
       const expense = expenseReports.find(exp => exp.id === confirmDialog.expenseId);
       if (!expense) return;
       
       const userEmail = service.msalInstance.getAllAccounts()[0]?.username;
-      const approvalType = approvalFlowService.getNextApprovalType(expense, userEmail);
+      
+      // Use fixed approval type detection
+      let approvalType = null;
+      const creatorRole = permissionService.roles.find(
+        role => role.empleado?.email === expense.createdBy.email
+      );
+      
+      if (creatorRole) {
+        const userRoles = permissionService.getUserRoles(userEmail);
+        const isInSameDepartment = userRoles.some(role => 
+          Number(role.departmentId) === Number(creatorRole.departamentoId)
+        );
+        
+        if (isInSameDepartment) {
+          const isAssistant = permissionService.hasRole(userEmail, "Asistente");
+          const isBoss = permissionService.hasRole(userEmail, "Jefe");
+          
+          if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
+            approvalType = "assistant";
+          } else if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
+                    (expense.aprobacionAsistente === "Aprobada" || 
+                     !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
+            approvalType = "boss";
+          }
+        }
+      }
+      
+      // Fallback to service method if we couldn't determine type
+      if (!approvalType) {
+        approvalType = approvalFlowService.getNextApprovalType(expense, userEmail);
+      }
       
       if (!approvalType) {
         console.error("Cannot determine approval type");
@@ -120,7 +186,6 @@ const ApprovalList = () => {
       }
       
       const status = confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
-      
       await service.updateApprovalStatus(
         confirmDialog.expenseId,
         status,
@@ -128,14 +193,11 @@ const ApprovalList = () => {
         notes
       );
       
-      // Update UI state
       setExpenseReports((prevReports) =>
         prevReports.map((report) => {
           if (report.id !== confirmDialog.expenseId) return report;
-          
           const updatedReport = { ...report, bloqueoEdicion: true, notasRevision: notes };
           
-          // Update approval fields based on approval type
           switch (approvalType) {
             case "assistant":
             case "accounting_assistant":
@@ -144,7 +206,6 @@ const ApprovalList = () => {
             case "boss":
             case "accounting_boss":
               updatedReport.aprobacionJefatura = status;
-              // For contabilidad bosses, also update contabilidad approval
               if (approvalType === "accounting_boss" && status === "Aprobada") {
                 updatedReport.aprobacionContabilidad = "Aprobada";
               }
@@ -163,7 +224,6 @@ const ApprovalList = () => {
     }
   };
 
-  // Table columns
   const columns = [
     {
       key: "fecha",
@@ -192,17 +252,16 @@ const ApprovalList = () => {
     },
     { key: "st", header: "ST" },
     {
-      key: "fondosPropios", 
-      header: "F. Propios", 
+      key: "fondosPropios",
+      header: "F. Propios",
       render: (value) => value ? "Si" : "No"
     },
     {
       key: "status",
       header: "Estado",
       render: (_, row) => {
-        // Check for rejection first
-        if (row.aprobacionAsistente === "No aprobada" || 
-            row.aprobacionJefatura === "No aprobada" || 
+        if (row.aprobacionAsistente === "No aprobada" ||
+            row.aprobacionJefatura === "No aprobada" ||
             row.aprobacionContabilidad === "No aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
@@ -210,8 +269,6 @@ const ApprovalList = () => {
             </span>
           );
         }
-        
-        // Check for full approval
         if (row.aprobacionContabilidad === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
@@ -219,8 +276,6 @@ const ApprovalList = () => {
             </span>
           );
         }
-        
-        // Check for partially approved statuses
         if (row.aprobacionJefatura === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -228,7 +283,6 @@ const ApprovalList = () => {
             </span>
           );
         }
-        
         if (row.aprobacionAsistente === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -236,8 +290,6 @@ const ApprovalList = () => {
             </span>
           );
         }
-        
-        // Default to pending
         return (
           <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
             Pendiente
@@ -248,55 +300,55 @@ const ApprovalList = () => {
     {
       key: "actions",
       header: "Acciones",
-      render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="small"
-            className="text-gray-600 hover:text-gray-900"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRowClick(row);
-            }}
-          >
-            <Eye size={16} />
-          </Button>
-          {approvalFlowService && approvalFlowService.canApprove(
-            row, 
-            service.msalInstance.getAllAccounts()[0]?.username
-          ) && viewMode === "pending" && (
-            <>
-              <Button
-                variant="ghost"
-                size="small"
-                className="text-success hover:text-success/90"
-                onClick={(e) => handleApprove(row.id, e)}
-              >
-                <Check size={16} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="small"
-                className="text-error hover:text-error/90"
-                onClick={(e) => handleReject(row.id, e)}
-              >
-                <X size={16} />
-              </Button>
-            </>
-          )}
-        </div>
-      ),
+      render: (_, row) => {
+        const userEmail = service.msalInstance.getAllAccounts()[0]?.username;
+        const canApprove = canUserApproveExpense(row, userEmail, permissionService);
+        
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="small"
+              className="text-gray-600 hover:text-gray-900"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRowClick(row);
+              }}
+            >
+              <Eye size={16} />
+            </Button>
+            {canApprove && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="small"
+                  className="text-success hover:text-success/90"
+                  onClick={(e) => handleApprove(row.id, e)}
+                >
+                  <Check size={16} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="small"
+                  className="text-error hover:text-error/90"
+                  onClick={(e) => handleReject(row.id, e)}
+                >
+                  <X size={16} />
+                </Button>
+              </>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
-  // Handle row click
   const handleRowClick = (expense) => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
       state: { from: location },
     });
   };
 
-  // Get people for filters
   const people = departmentWorkers.reduce((acc, dept) => {
     dept.workers.forEach((worker) => {
       if (
@@ -309,14 +361,13 @@ const ApprovalList = () => {
     return acc;
   }, []).sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-  // Get filtered expenses based on current filters
   const getFilteredExpenses = () => {
     if (!canViewApprovals() || !service) return [];
-    
     const userEmail = service.msalInstance.getAllAccounts()[0]?.username;
     
+    // Get all expenses that match date range, person, and search term filters
     return expenseReports.filter((expense) => {
-      // Apply date filter
+      // Date range filter
       if (startDate && endDate) {
         const expenseDate = expense.fecha.getTime();
         const start = new Date(startDate).getTime();
@@ -324,10 +375,10 @@ const ApprovalList = () => {
         if (expenseDate < start || expenseDate > end) return false;
       }
       
-      // Apply person filter
+      // Person filter
       if (selectedPerson && expense.createdBy.email !== selectedPerson) return false;
       
-      // Apply search filter
+      // Search term filter
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
         return (
@@ -337,42 +388,28 @@ const ApprovalList = () => {
         );
       }
       
-      // Apply view mode filter
+      // Filter based on view mode
       switch (viewMode) {
+        case "all":
+          // Show all expenses that match the filters above
+          return true;
+          
         case "pending":
-          // This is the key part - we directly call canApprove for pending items
-          return approvalFlowService && approvalFlowService.canApprove(expense, userEmail);
+          // Use the fixed approval check function
+          return canUserApproveExpense(expense, userEmail, permissionService);
           
         case "approved": {
-          // Show expenses the user has approved
-          const isAssistant = permissionService && permissionService.hasRole(userEmail, "Asistente");
-          const isBoss = permissionService && permissionService.hasRole(userEmail, "Jefe");
-          
-          if (isAssistant && expense.aprobacionAsistente === "Aprobada") {
-            return true;
-          }
-          
-          if (isBoss && expense.aprobacionJefatura === "Aprobada") {
-            return true;
-          }
-          
-          return false;
+          // Show expenses that have been approved at any stage
+          return expense.aprobacionAsistente === "Aprobada" || 
+                 expense.aprobacionJefatura === "Aprobada" || 
+                 expense.aprobacionContabilidad === "Aprobada";
         }
         
         case "rejected": {
-          // Show expenses the user has rejected
-          const isAssistant = permissionService && permissionService.hasRole(userEmail, "Asistente");
-          const isBoss = permissionService && permissionService.hasRole(userEmail, "Jefe");
-          
-          if (isAssistant && expense.aprobacionAsistente === "No aprobada") {
-            return true;
-          }
-          
-          if (isBoss && expense.aprobacionJefatura === "No aprobada") {
-            return true;
-          }
-          
-          return false;
+          // Show expenses that have been rejected at any stage
+          return expense.aprobacionAsistente === "No aprobada" || 
+                 expense.aprobacionJefatura === "No aprobada" || 
+                 expense.aprobacionContabilidad === "No aprobada";
         }
         
         default:
@@ -385,22 +422,27 @@ const ApprovalList = () => {
 
   return (
     <>
+      {/* Uncomment this to debug department issues */}
+      {/* <DepartmentDebugger /> */}
+      
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Aprobaciones</h1>
           <p className="text-sm text-gray-500 mt-1">
             {filteredExpenses.length} gastos{" "}
-            {viewMode === "pending"
-              ? "pendientes de aprobación"
-              : viewMode === "approved"
-                ? "aprobados"
-                : "rechazados"}
+            {viewMode === "all" 
+              ? "en el sistema" 
+              : viewMode === "pending"
+                ? "pendientes de aprobación"
+                : viewMode === "approved"
+                  ? "aprobados"
+                  : "rechazados"}
           </p>
         </div>
         <Card className="mb-6">
           <div className="space-y-4">
             <div className="flex border-b border-gray-200">
-              {["pending", "approved", "rejected"].map((mode) => (
+              {["all", "pending", "approved", "rejected"].map((mode) => (
                 <button
                   key={mode}
                   className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
@@ -410,6 +452,7 @@ const ApprovalList = () => {
                   }`}
                   onClick={() => setViewMode(mode)}
                 >
+                  {mode === "all" && "Todos"}
                   {mode === "pending" && "Pendientes"}
                   {mode === "approved" && "Aprobados"}
                   {mode === "rejected" && "Rechazados"}
@@ -464,18 +507,22 @@ const ApprovalList = () => {
               <div className="flex flex-col items-center justify-center py-12">
                 <Check size={48} className="text-success mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  {viewMode === "pending"
-                    ? "No hay gastos pendientes"
-                    : viewMode === "approved"
-                      ? "No hay gastos aprobados"
-                      : "No hay gastos rechazados"}
+                  {viewMode === "all"
+                    ? "No hay gastos en el sistema"
+                    : viewMode === "pending"
+                      ? "No hay gastos pendientes"
+                      : viewMode === "approved"
+                        ? "No hay gastos aprobados"
+                        : "No hay gastos rechazados"}
                 </h3>
                 <p className="text-sm text-gray-500">
-                  {viewMode === "pending"
-                    ? "Todos los gastos han sido procesados"
-                    : viewMode === "approved"
-                      ? "Aún no hay gastos aprobados"
-                      : "Aún no hay gastos rechazados"}
+                  {viewMode === "all"
+                    ? "No se encontraron registros con los filtros aplicados"
+                    : viewMode === "pending"
+                      ? "Todos los gastos han sido procesados"
+                      : viewMode === "approved"
+                        ? "Aún no hay gastos aprobados"
+                        : "Aún no hay gastos rechazados"}
                 </p>
               </div>
             }

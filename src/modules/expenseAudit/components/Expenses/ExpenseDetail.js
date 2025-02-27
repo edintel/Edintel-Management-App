@@ -24,6 +24,52 @@ import {
   Trash2,
 } from "lucide-react";
 
+// Helper function to check if user can approve expense - same as in ApprovalList
+const canUserApproveExpense = (expense, userEmail, permissionService) => {
+  if (!expense || !userEmail || !permissionService) return false;
+  
+  // If already fully approved or rejected, can't approve
+  if (expense.aprobacionContabilidad === "Aprobada" ||
+      expense.aprobacionAsistente === "No aprobada" ||
+      expense.aprobacionJefatura === "No aprobada" ||
+      expense.aprobacionContabilidad === "No aprobada") {
+    return false;
+  }
+  
+  // Get creator role to find their department
+  const creatorRole = permissionService.roles.find(
+    role => role.empleado?.email === expense.createdBy.email
+  );
+  
+  if (!creatorRole) return false;
+  
+  // Get user roles
+  const userRoles = permissionService.getUserRoles(userEmail);
+  
+  // Check if user is in same department using numeric comparison
+  const isInSameDepartment = userRoles.some(role => 
+    Number(role.departmentId) === Number(creatorRole.departamentoId)
+  );
+  
+  if (!isInSameDepartment) return false;
+  
+  // Check user role
+  const isAssistant = permissionService.hasRole(userEmail, "Asistente");
+  const isBoss = permissionService.hasRole(userEmail, "Jefe");
+  
+  // Check approval sequence
+  if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
+    return true;
+  }
+  
+  if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
+      (expense.aprobacionAsistente === "Aprobada" || !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
+    return true;
+  }
+  
+  return false;
+};
+
 const ExpenseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -35,20 +81,17 @@ const ExpenseDetail = () => {
     permissionService,
     approvalFlowService,
   } = useExpenseAudit();
-
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   const returnPath = location.state?.from?.pathname || EXPENSE_AUDIT_ROUTES.EXPENSES.LIST;
   const { user } = useAuth();
-
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     type: "approve",
     title: "",
     message: "",
   });
-
   const [deleteDialog, setDeleteDialog] = useState({
     isOpen: false,
     title: "¿Confirmar eliminación?",
@@ -83,12 +126,10 @@ const ExpenseDetail = () => {
   // Permission checks
   const canDelete = () => {
     if (!permissionService || !expense || !user) return false;
-
     // Creator can delete if not locked
     if (expense.createdBy.email === user.username && !expense.bloqueoEdicion) {
       return true;
     }
-
     // Administrators can delete
     return permissionService.hasRole(user.username, "Jefe") ||
       permissionService.hasRole(user.username, "Asistente");
@@ -96,23 +137,18 @@ const ExpenseDetail = () => {
 
   const canEdit = () => {
     if (!permissionService || !expense || !user) return false;
-
-    // Administrators can edit
     if (permissionService.hasRole(user.username, "Jefe") ||
       permissionService.hasRole(user.username, "Asistente")) {
       return true;
     }
-
-    // Creator can edit if not locked
     return expense.createdBy.email === user.username && !expense.bloqueoEdicion;
   };
 
   const canApprove = () => {
-    if (!approvalFlowService || !expense || !user) return false;
-    return approvalFlowService.canApprove(expense, user.username);
+    if (!user || !expense) return false;
+    return canUserApproveExpense(expense, user.username, permissionService);
   };
 
-  // Action handlers
   const handleDelete = () => {
     setDeleteDialog((prev) => ({ ...prev, isOpen: true }));
   };
@@ -149,31 +185,59 @@ const ExpenseDetail = () => {
     });
   };
 
-  // Fix for src/modules/expenseAudit/components/Expenses/ExpenseDetail.js
-  // Specifically the handleConfirmAction function
-
   const handleConfirmAction = async (notes = "") => {
     try {
-      if (!expense || !approvalFlowService) return;
-      // Determine the next approval type
-      const approvalType = approvalFlowService.getNextApprovalType(expense, user.username);
+      if (!expense) return;
+      
+      // Use our fixed approval type detection
+      let approvalType = null;
+      const userEmail = user.username;
+      const creatorRole = permissionService.roles.find(
+        role => role.empleado?.email === expense.createdBy.email
+      );
+      
+      if (creatorRole) {
+        const userRoles = permissionService.getUserRoles(userEmail);
+        const isInSameDepartment = userRoles.some(role => 
+          Number(role.departmentId) === Number(creatorRole.departamentoId)
+        );
+        
+        if (isInSameDepartment) {
+          const isAssistant = permissionService.hasRole(userEmail, "Asistente");
+          const isBoss = permissionService.hasRole(userEmail, "Jefe");
+          
+          if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
+            approvalType = "assistant";
+          } else if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
+                    (expense.aprobacionAsistente === "Aprobada" || 
+                     !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
+            approvalType = "boss";
+          }
+        }
+      }
+      
+      // Fallback to service method if we couldn't determine type
       if (!approvalType) {
-        alert("No se puede determinar el tipo de aprobación. Por favor contacte al administrador del sistema.");
+        approvalType = approvalFlowService.getNextApprovalType(expense, userEmail);
+      }
+      
+      if (!approvalType) {
         console.error("Cannot determine approval type", {
           expense,
-          user: user.username,
-          userRoles: approvalFlowService.permissionService.getUserRoles(user.username)
+          user: userEmail,
+          userRoles: permissionService.getUserRoles(userEmail)
         });
+        alert("No se puede determinar el tipo de aprobación. Por favor contacte al administrador del sistema.");
         return;
       }
+      
       const status = confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
       await service.updateApprovalStatus(id, status, approvalType, notes);
-
-      // Create the updated expense object
+      
       const updatedExpense = { ...expense };
       updatedExpense.bloqueoEdicion = true;
       updatedExpense.notasRevision = notes;
-
+      
       switch (approvalType) {
         case "assistant":
         case "accounting_assistant":
@@ -189,24 +253,20 @@ const ExpenseDetail = () => {
         default:
           break;
       }
-
-      // Update the local expense state
+      
       setExpense(updatedExpense);
-
-      // Update the expense reports state separately
       setExpenseReports((prevReports) =>
         prevReports.map((report) =>
           report.id === id ? updatedExpense : report
         )
       );
-
+      
       setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error("Error updating approval status:", error);
     }
   };
 
-  // Loading/error state
   if (loading || reportsLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-gray-500">
@@ -232,7 +292,6 @@ const ExpenseDetail = () => {
     );
   }
 
-  // Approval status display helpers
   const approvalStatus = [
     {
       title: "Revisión de Asistente",
