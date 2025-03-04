@@ -24,52 +24,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-// Helper function to check if user can approve expense - same as in ApprovalList
-const canUserApproveExpense = (expense, userEmail, permissionService) => {
-  if (!expense || !userEmail || !permissionService) return false;
-  
-  // If already fully approved or rejected, can't approve
-  if (expense.aprobacionContabilidad === "Aprobada" ||
-      expense.aprobacionAsistente === "No aprobada" ||
-      expense.aprobacionJefatura === "No aprobada" ||
-      expense.aprobacionContabilidad === "No aprobada") {
-    return false;
-  }
-  
-  // Get creator role to find their department
-  const creatorRole = permissionService.roles.find(
-    role => role.empleado?.email === expense.createdBy.email
-  );
-  
-  if (!creatorRole) return false;
-  
-  // Get user roles
-  const userRoles = permissionService.getUserRoles(userEmail);
-  
-  // Check if user is in same department using numeric comparison
-  const isInSameDepartment = userRoles.some(role => 
-    Number(role.departmentId) === Number(creatorRole.departamentoId)
-  );
-  
-  if (!isInSameDepartment) return false;
-  
-  // Check user role
-  const isAssistant = permissionService.hasRole(userEmail, "Asistente");
-  const isBoss = permissionService.hasRole(userEmail, "Jefe");
-  
-  // Check approval sequence
-  if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
-    return true;
-  }
-  
-  if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
-      (expense.aprobacionAsistente === "Aprobada" || !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
-    return true;
-  }
-  
-  return false;
-};
-
 const ExpenseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
