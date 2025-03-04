@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 import { X } from 'lucide-react';
-
 const SelectionToolbar = ({
   selectedCount,
   onClearSelection,
@@ -13,11 +12,10 @@ const SelectionToolbar = ({
   if (selectedCount === 0) {
     return null;
   }
-
   return (
-    <div 
+    <div
       className={cn(
-        "fixed inset-x-0 z-40 backdrop-blur-sm animate-in fade-in slide-in-from-bottom",
+        "fixed inset-x-0 z-40 backdrop-blur-sm animate-in fade-in slide-in-from-bottom print:hidden",
         position === 'top' ? 'top-16' : 'bottom-0',
         className
       )}
@@ -37,7 +35,6 @@ const SelectionToolbar = ({
               <span className="text-sm">Limpiar selección</span>
             </button>
           </div>
-          
           <div className="flex items-center gap-2">
             {actions.map((action, index) => (
               <button
@@ -45,10 +42,10 @@ const SelectionToolbar = ({
                 onClick={action.onClick}
                 className={cn(
                   "px-3 py-1.5 rounded-md font-medium text-sm flex items-center gap-1.5 transition-colors",
-                  action.variant === 'default' ? 
-                    "bg-white/10 hover:bg-white/20" : 
-                    action.variant === 'destructive' ? 
-                      "bg-error hover:bg-error/90" : 
+                  action.variant === 'default' ?
+                    "bg-white/10 hover:bg-white/20" :
+                    action.variant === 'destructive' ?
+                      "bg-error hover:bg-error/90" :
                       "bg-white/10 hover:bg-white/20",
                   action.className
                 )}
@@ -64,5 +61,4 @@ const SelectionToolbar = ({
     </div>
   );
 };
-
 export default SelectionToolbar;

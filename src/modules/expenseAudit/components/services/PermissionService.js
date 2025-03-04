@@ -8,9 +8,6 @@ class PermissionService {
   async initialize(roles, departments) {
     this.roles = roles || [];
     this.departments = departments || [];
-    
-    // Log initialization for debugging
-    console.log(`Initialized PermissionService with ${roles?.length || 0} roles and ${departments?.length || 0} departments`);
   }
 
   getUserRoles(userEmail) {

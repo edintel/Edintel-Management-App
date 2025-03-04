@@ -1,6 +1,64 @@
-import React from 'react';
+import React, { memo } from 'react';
 import Table from '../../../../../components/common/Table';
 import Checkbox from '../../../../../components/common/Checkbox';
+
+// Memo-ized status badge component
+const StatusBadge = memo(({ status }) => {
+  if (status === "No aprobada") {
+    return (
+      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
+        No aprobada
+      </span>
+    );
+  }
+  
+  if (status.includes("Contabilidad")) {
+    return (
+      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
+        Aprobado
+      </span>
+    );
+  }
+  
+  if (status.includes("Jefatura")) {
+    return (
+      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
+        En Contabilidad
+      </span>
+    );
+  }
+  
+  if (status.includes("Asistente")) {
+    return (
+      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
+        En Jefatura
+      </span>
+    );
+  }
+  
+  return (
+    <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
+      Pendiente
+    </span>
+  );
+});
+
+// Memoized selection checkbox component
+const SelectionCheckbox = memo(({ checked, onChange, stopPropagation = false }) => {
+  const handleChange = (isChecked, e) => {
+    if (stopPropagation) e.stopPropagation();
+    onChange(isChecked);
+  };
+  
+  return (
+    <div className="flex justify-center" onClick={stopPropagation ? e => e.stopPropagation() : undefined}>
+      <Checkbox
+        checked={checked}
+        onChange={handleChange}
+      />
+    </div>
+  );
+});
 
 const ReportTable = ({
   data,
@@ -12,28 +70,48 @@ const ReportTable = ({
   areAllSelected,
   emptyMessage,
 }) => {
-  // Build columns including selection column
+  // Helper function to determine expense status
+  const getExpenseStatus = (expense) => {
+    if (
+      expense.aprobacionAsistente === "No aprobada" ||
+      expense.aprobacionJefatura === "No aprobada" ||
+      expense.aprobacionContabilidad === "No aprobada"
+    ) {
+      return "No aprobada";
+    }
+    if (expense.aprobacionContabilidad === "Aprobada") {
+      return "Aprobada por Contabilidad";
+    }
+    if (
+      expense.aprobacionJefatura === "Aprobada" &&
+      expense.aprobacionContabilidad === "Pendiente"
+    ) {
+      return "Aprobada por Jefatura";
+    }
+    if (
+      expense.aprobacionAsistente === "Aprobada" &&
+      expense.aprobacionJefatura === "Pendiente"
+    ) {
+      return "Aprobada por Asistente";
+    }
+    return "Pendiente";
+  };
+
   const columns = [
     {
       key: 'selection',
       header: () => (
-        <div className="flex justify-center">
-          <Checkbox 
-            checked={areAllSelected}
-            onChange={onSelectAll}
-          />
-        </div>
+        <SelectionCheckbox
+          checked={areAllSelected}
+          onChange={onSelectAll}
+        />
       ),
       render: (_, row) => (
-        <div 
-          className="flex justify-center"
-          onClick={(e) => e.stopPropagation()} // Prevent row click when clicking checkbox
-        >
-          <Checkbox 
-            checked={selectedExpenses.includes(row.id)}
-            onChange={(checked) => onSelectExpense(row.id, checked)}
-          />
-        </div>
+        <SelectionCheckbox
+          checked={selectedExpenses.includes(row.id)}
+          onChange={(checked) => onSelectExpense(row.id, checked)}
+          stopPropagation={true}
+        />
       ),
       className: 'w-10',
     },
@@ -64,57 +142,16 @@ const ReportTable = ({
     },
     { key: "st", header: "ST" },
     {
-      key: "fondosPropios", 
-      header: "F. Propios", 
+      key: "fondosPropios",
+      header: "F. Propios",
       render: (value) => value ? "Si" : "No"
     },
     {
       key: "status",
       header: "Estado",
       render: (_, row) => {
-        if (
-          row.aprobacionAsistente === "No aprobada" ||
-          row.aprobacionJefatura === "No aprobada" ||
-          row.aprobacionContabilidad === "No aprobada"
-        ) {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
-              No aprobada
-            </span>
-          );
-        }
-        if (row.aprobacionContabilidad === "Aprobada") {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
-              Aprobado
-            </span>
-          );
-        }
-        if (
-          row.aprobacionJefatura === "Aprobada" &&
-          row.aprobacionContabilidad === "Pendiente"
-        ) {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-              En Contabilidad
-            </span>
-          );
-        }
-        if (
-          row.aprobacionAsistente === "Aprobada" &&
-          row.aprobacionJefatura === "Pendiente"
-        ) {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-              En Jefatura
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
-            Pendiente
-          </span>
-        );
+        const status = getExpenseStatus(row);
+        return <StatusBadge status={status} />;
       },
     },
   ];
@@ -130,4 +167,5 @@ const ReportTable = ({
   );
 };
 
-export default ReportTable;
+// Memo-ize the whole component for extra performance
+export default memo(ReportTable);

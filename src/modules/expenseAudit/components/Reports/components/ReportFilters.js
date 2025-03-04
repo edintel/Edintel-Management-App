@@ -1,16 +1,15 @@
 import React from 'react';
-import { Search, XCircle, Users } from 'lucide-react';
+import { Search, XCircle, Users, CheckSquare } from 'lucide-react';
 import Card from '../../../../../components/common/Card';
 import Button from '../../../../../components/common/Button';
 import DateRangePicker from '../../../../../components/common/DateRangePicker';
-import MultiSelect from '../../../../../components/common/MultiSelect';
 
 const EXPENSE_STATUSES = [
-  { id: 'Aprobada por Asistente', displayName: 'Aprobada por Asistente', email: '' },
-  { id: 'Aprobada por Jefatura', displayName: 'Aprobada por Jefatura', email: '' },
-  { id: 'Aprobada por Contabilidad', displayName: 'Aprobada por Contabilidad', email: '' },
-  { id: 'No aprobada', displayName: 'No aprobada', email: '' },
-  { id: 'Pendiente', displayName: 'Pendiente', email: '' }
+  { value: 'Pendiente', label: 'Pendiente' },
+  { value: 'Aprobada por Asistente', label: 'Aprobada por Asistente' },
+  { value: 'Aprobada por Jefatura', label: 'Aprobada por Jefatura' },
+  { value: 'Aprobada por Contabilidad', label: 'Aprobada por Contabilidad' },
+  { value: 'No aprobada', label: 'No aprobada' }
 ];
 
 const ReportFilters = ({
@@ -25,17 +24,10 @@ const ReportFilters = ({
   people,
   onResetFilters
 }) => {
-  // Create mapped version of selected statuses for MultiSelect
-  const mappedSelectedStatuses = selectedStatuses.map(status => ({
-    id: status,
-    displayName: status,
-    email: ''
-  }));
-
   return (
     <Card className="mb-6">
       <div className="flex flex-col md:flex-row gap-4 p-4">
-        {/* Search Input */}
+        {/* Search filter */}
         <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
           <Search size={16} className="text-gray-400 mr-2" />
           <input
@@ -47,12 +39,12 @@ const ReportFilters = ({
           />
         </div>
         
-        {/* Date Range Picker */}
+        {/* Date range filter */}
         <div className="flex-1">
           <DateRangePicker
             startDate={dateRange.startDate}
             endDate={dateRange.endDate}
-            onStartDateChange={(date) => 
+            onStartDateChange={(date) =>
               onDateRangeChange({ ...dateRange, startDate: date })
             }
             onEndDateChange={(date) =>
@@ -62,7 +54,7 @@ const ReportFilters = ({
           />
         </div>
         
-        {/* Person Selector */}
+        {/* Person filter */}
         <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
           <Users size={16} className="text-gray-400 mr-2" />
           <select
@@ -79,18 +71,31 @@ const ReportFilters = ({
           </select>
         </div>
         
-        {/* Status Multi-Select */}
-        <div className="flex-1">
-          <MultiSelect
-            options={EXPENSE_STATUSES}
-            value={mappedSelectedStatuses}
-            onChange={(selected) => onStatusesChange(selected.map(s => s.id))}
-            placeholder="Seleccionar estados..."
-            searchPlaceholder="Buscar estado..."
-          />
+        {/* Status filter - Changed to standard select to match styling */}
+        <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
+          <CheckSquare size={16} className="text-gray-400 mr-2" />
+          <select
+            value={selectedStatuses.length === 1 ? selectedStatuses[0] : ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "") {
+                onStatusesChange([]);
+              } else {
+                onStatusesChange([value]);
+              }
+            }}
+            className="w-full bg-transparent border-none focus:outline-none text-sm"
+          >
+            <option value="">Todos los estados</option>
+            {EXPENSE_STATUSES.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </select>
         </div>
         
-        {/* Reset Button */}
+        {/* Reset button */}
         <Button
           variant="outline"
           size="small"

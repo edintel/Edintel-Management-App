@@ -1,59 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useMemo, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
-import Table from "../../../../components/common/Table";
 import Button from "../../../../components/common/Button";
 import DateRangePicker from "../../../../components/common/DateRangePicker";
 import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
 import { Check, X, Eye, Search, Users } from "lucide-react";
-import { useLocation } from "react-router-dom";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
+import "./VirtualizedTable.css"; // We'll create this file later
 
-// Helper function to check if user can approve expense
-// This fixes the department comparison issue
-const canUserApproveExpense = (expense, userEmail, permissionService) => {
-  // If already fully approved or rejected, can't approve
-  if (expense.aprobacionContabilidad === "Aprobada" ||
-      expense.aprobacionAsistente === "No aprobada" ||
-      expense.aprobacionJefatura === "No aprobada" ||
-      expense.aprobacionContabilidad === "No aprobada") {
-    return false;
-  }
-  
-  // Get creator role to find their department
-  const creatorRole = permissionService.roles.find(
-    role => role.empleado?.email === expense.createdBy.email
-  );
-  
-  if (!creatorRole) return false;
-  
-  // Get user roles
-  const userRoles = permissionService.getUserRoles(userEmail);
-  
-  // Check if user is in same department using numeric comparison
-  const isInSameDepartment = userRoles.some(role => 
-    Number(role.departmentId) === Number(creatorRole.departamentoId)
-  );
-  
-  if (!isInSameDepartment) return false;
-  
-  // Check user role
-  const isAssistant = permissionService.hasRole(userEmail, "Asistente");
-  const isBoss = permissionService.hasRole(userEmail, "Jefe");
-  
-  // Check approval sequence
-  if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
-    return true;
-  }
-  
-  if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
-      (expense.aprobacionAsistente === "Aprobada" || !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
-    return true;
-  }
-  
-  return false;
-};
+// Define maximum rows to render at once
+const PAGE_SIZE = 50;
 
 const ApprovalList = () => {
   const navigate = useNavigate();
@@ -70,18 +27,21 @@ const ApprovalList = () => {
     approvalFilters,
     setApprovalFilters,
   } = useExpenseAudit();
-  
+
+  // Local state for UI controls
   const today = new Date();
   const lastWeek = new Date(today);
   lastWeek.setDate(lastWeek.getDate() - 7);
   
-  const [selectedPerson, setSelectedPerson] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState("all"); // Default to "all" view
+  const [searchTerm, setSearchTerm] = useState(approvalFilters?.searchTerm || "");
+  const [viewMode, setViewMode] = useState(approvalFilters?.viewMode || "pending");
+  const [selectedPerson, setSelectedPerson] = useState(approvalFilters?.selectedPerson || "");
   const [startDate, setStartDate] = useState(
-    lastWeek.toISOString().split("T")[0]
+    approvalFilters?.startDate || lastWeek.toISOString().split("T")[0]
   );
-  const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(
+    approvalFilters?.endDate || today.toISOString().split("T")[0]
+  );
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     type: "approve",
@@ -89,19 +49,12 @@ const ApprovalList = () => {
     message: "",
     expenseId: null,
   });
+  
+  // For virtualization
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Restore filters from state if navigating back
-  useEffect(() => {
-    if (location.state?.preserveFilters && approvalFilters) {
-      setSearchTerm(approvalFilters.searchTerm || "");
-      setStartDate(approvalFilters.startDate || "");
-      setEndDate(approvalFilters.endDate || "");
-      setSelectedPerson(approvalFilters.selectedPerson || "");
-      setViewMode(approvalFilters.viewMode || "all");
-    }
-  }, [location.state?.preserveFilters, approvalFilters]);
-
-  useEffect(() => {
+  // Save filters when they change
+  React.useEffect(() => {
     const timeoutId = setTimeout(() => {
       setApprovalFilters({
         searchTerm,
@@ -114,12 +67,197 @@ const ApprovalList = () => {
     return () => clearTimeout(timeoutId);
   }, [searchTerm, startDate, endDate, selectedPerson, viewMode, setApprovalFilters]);
 
-  const canViewApprovals = () => {
-    if (!userDepartmentRole) return false;
-    return userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente";
-  };
+  // Restore filters when navigating back
+  React.useEffect(() => {
+    if (location.state?.preserveFilters && approvalFilters) {
+      setSearchTerm(approvalFilters.searchTerm || "");
+      setStartDate(approvalFilters.startDate || "");
+      setEndDate(approvalFilters.endDate || "");
+      setSelectedPerson(approvalFilters.selectedPerson || "");
+      setViewMode(approvalFilters.viewMode || "pending");
+    }
+  }, [location.state?.preserveFilters, approvalFilters]);
 
-  const handleApprove = (id, e) => {
+  // Memoize user email
+  const userEmail = useMemo(() => {
+    return service?.msalInstance?.getAllAccounts()[0]?.username;
+  }, [service]);
+
+  // ⚡OPTIMIZATION: Pre-calculate all approval eligibility upfront
+  const approvalEligibility = useMemo(() => {
+    if (!userEmail || !permissionService || !expenseReports) return {};
+    
+    console.time('Calculate approval eligibility');
+    const eligibility = {};
+    
+    for (const expense of expenseReports) {
+      if (expense.aprobacionContabilidad === "Aprobada" ||
+          expense.aprobacionAsistente === "No aprobada" ||
+          expense.aprobacionJefatura === "No aprobada" ||
+          expense.aprobacionContabilidad === "No aprobada") {
+        eligibility[expense.id] = false;
+        continue;
+      }
+      
+      const creatorRole = permissionService.roles.find(
+        role => role.empleado?.email === expense.createdBy.email
+      );
+      
+      if (!creatorRole) {
+        eligibility[expense.id] = false;
+        continue;
+      }
+      
+      const userRoles = permissionService.getUserRoles(userEmail);
+      const isInSameDepartment = userRoles.some(role =>
+        Number(role.departmentId) === Number(creatorRole.departamentoId)
+      );
+      
+      if (!isInSameDepartment) {
+        eligibility[expense.id] = false;
+        continue;
+      }
+      
+      const isAssistant = permissionService.hasRole(userEmail, "Asistente");
+      const isBoss = permissionService.hasRole(userEmail, "Jefe");
+      
+      if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
+        eligibility[expense.id] = true;
+        continue;
+      }
+      
+      if (isBoss && expense.aprobacionJefatura === "Pendiente" &&
+          (expense.aprobacionAsistente === "Aprobada" || 
+           !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
+        eligibility[expense.id] = true;
+        continue;
+      }
+      
+      eligibility[expense.id] = false;
+    }
+    
+    console.timeEnd('Calculate approval eligibility');
+    return eligibility;
+  }, [expenseReports, userEmail, permissionService]);
+
+  // ⚡OPTIMIZATION: Memoized people list
+  const people = useMemo(() => {
+    return departmentWorkers.reduce((acc, dept) => {
+      dept.workers.forEach((worker) => {
+        if (
+          worker.empleado &&
+          !acc.some((p) => p.email === worker.empleado.email)
+        ) {
+          acc.push(worker.empleado);
+        }
+      });
+      return acc;
+    }, []).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [departmentWorkers]);
+
+  // ⚡OPTIMIZATION: Super-efficient filtering with low-level operations
+  const filteredExpenses = useMemo(() => {
+    if (!userDepartmentRole || !service) return [];
+    if (!expenseReports || expenseReports.length === 0) return [];
+    
+    // Reset to first page whenever filters change
+    setCurrentPage(1);
+    
+    console.time('Filter expenses');
+    
+    // Pre-check user role permissions
+    const canView = userDepartmentRole.role === "Jefe" || 
+                    userDepartmentRole.role === "Asistente";
+    if (!canView) return [];
+
+    let result = [];
+    
+    // Convert date strings to timestamps once
+    const startTimestamp = startDate ? new Date(startDate).getTime() : null;
+    const endTimestamp = endDate ? new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1) : null;
+    const searchTermLower = searchTerm ? searchTerm.toLowerCase() : null;
+    
+    // Loop only once through expenses
+    for (let i = 0; i < expenseReports.length; i++) {
+      const expense = expenseReports[i];
+      
+      // Date filter
+      if (startTimestamp && endTimestamp) {
+        const expenseDate = expense.fecha.getTime();
+        if (expenseDate < startTimestamp || expenseDate > endTimestamp) {
+          continue;
+        }
+      }
+      
+      // Person filter
+      if (selectedPerson && expense.createdBy.email !== selectedPerson) {
+        continue;
+      }
+      
+      // Search filter
+      if (searchTermLower) {
+        const matchesRubro = expense.rubro.toLowerCase().includes(searchTermLower);
+        const matchesST = expense.st.toLowerCase().includes(searchTermLower);
+        const matchesName = expense.createdBy.name.toLowerCase().includes(searchTermLower);
+        
+        if (!matchesRubro && !matchesST && !matchesName) {
+          continue;
+        }
+      }
+      
+      // View mode filter - use pre-calculated eligibility
+      switch (viewMode) {
+        case "all":
+          result.push(expense);
+          break;
+        case "pending":
+          if (approvalEligibility[expense.id] === true) {
+            result.push(expense);
+          }
+          break;
+        case "approved":
+          if (expense.aprobacionAsistente === "Aprobada" ||
+              expense.aprobacionJefatura === "Aprobada" ||
+              expense.aprobacionContabilidad === "Aprobada") {
+            result.push(expense);
+          }
+          break;
+        case "rejected":
+          if (expense.aprobacionAsistente === "No aprobada" ||
+              expense.aprobacionJefatura === "No aprobada" ||
+              expense.aprobacionContabilidad === "No aprobada") {
+            result.push(expense);
+          }
+          break;
+        default:
+          result.push(expense);
+      }
+    }
+    
+    console.timeEnd('Filter expenses');
+    return result;
+  }, [expenseReports, viewMode, selectedPerson, searchTerm, startDate, endDate, 
+      service, userDepartmentRole, approvalEligibility]);
+
+  // ⚡OPTIMIZATION: Pagination for virtualization
+  const paginatedExpenses = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    return filteredExpenses.slice(start, end);
+  }, [filteredExpenses, currentPage]);
+  
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredExpenses.length / PAGE_SIZE);
+  }, [filteredExpenses]);
+
+  // Event handlers
+  const handleRowClick = useCallback((expense) => {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
+      state: { from: location, preserveFilters: true },
+    });
+  }, [navigate, location]);
+
+  const handleApprove = useCallback((id, e) => {
     e.stopPropagation();
     setConfirmDialog({
       isOpen: true,
@@ -128,9 +266,9 @@ const ApprovalList = () => {
       message: "¿Está seguro que desea aprobar este gasto?",
       expenseId: id,
     });
-  };
+  }, []);
 
-  const handleReject = (id, e) => {
+  const handleReject = useCallback((id, e) => {
     e.stopPropagation();
     setConfirmDialog({
       isOpen: true,
@@ -140,46 +278,14 @@ const ApprovalList = () => {
         "¿Está seguro que desea rechazar este gasto? Debe proporcionar una nota de revisión.",
       expenseId: id,
     });
-  };
+  }, []);
 
-  const handleConfirmAction = async (notes = "") => {
+  const handleConfirmAction = useCallback(async (notes = "") => {
     try {
       const expense = expenseReports.find(exp => exp.id === confirmDialog.expenseId);
       if (!expense) return;
       
-      const userEmail = service.msalInstance.getAllAccounts()[0]?.username;
-      
-      // Use fixed approval type detection
-      let approvalType = null;
-      const creatorRole = permissionService.roles.find(
-        role => role.empleado?.email === expense.createdBy.email
-      );
-      
-      if (creatorRole) {
-        const userRoles = permissionService.getUserRoles(userEmail);
-        const isInSameDepartment = userRoles.some(role => 
-          Number(role.departmentId) === Number(creatorRole.departamentoId)
-        );
-        
-        if (isInSameDepartment) {
-          const isAssistant = permissionService.hasRole(userEmail, "Asistente");
-          const isBoss = permissionService.hasRole(userEmail, "Jefe");
-          
-          if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
-            approvalType = "assistant";
-          } else if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
-                    (expense.aprobacionAsistente === "Aprobada" || 
-                     !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
-            approvalType = "boss";
-          }
-        }
-      }
-      
-      // Fallback to service method if we couldn't determine type
-      if (!approvalType) {
-        approvalType = approvalFlowService.getNextApprovalType(expense, userEmail);
-      }
-      
+      const approvalType = approvalFlowService.getNextApprovalType(expense, userEmail);
       if (!approvalType) {
         console.error("Cannot determine approval type");
         return;
@@ -196,7 +302,12 @@ const ApprovalList = () => {
       setExpenseReports((prevReports) =>
         prevReports.map((report) => {
           if (report.id !== confirmDialog.expenseId) return report;
-          const updatedReport = { ...report, bloqueoEdicion: true, notasRevision: notes };
+          
+          const updatedReport = {
+            ...report,
+            bloqueoEdicion: true,
+            notasRevision: notes
+          };
           
           switch (approvalType) {
             case "assistant":
@@ -222,216 +333,190 @@ const ApprovalList = () => {
     } catch (error) {
       console.error("Error updating approval status:", error);
     }
-  };
+  }, [confirmDialog, expenseReports, service, approvalFlowService, setExpenseReports, userEmail]);
 
-  const columns = [
-    {
-      key: "fecha",
-      header: "Fecha",
-      render: (value) =>
-        value.toLocaleDateString("es-CR", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-    },
-    {
-      key: "createdBy",
-      header: "Solicitante",
-      render: (value) => value?.name || "N/A",
-    },
-    { key: "rubro", header: "Rubro" },
-    {
-      key: "monto",
-      header: "Monto",
-      render: (value) =>
-        value.toLocaleString("es-CR", {
-          style: "currency",
-          currency: "CRC",
-        }),
-    },
-    { key: "st", header: "ST" },
-    {
-      key: "fondosPropios",
-      header: "F. Propios",
-      render: (value) => value ? "Si" : "No"
-    },
-    {
-      key: "status",
-      header: "Estado",
-      render: (_, row) => {
-        if (row.aprobacionAsistente === "No aprobada" ||
-            row.aprobacionJefatura === "No aprobada" ||
-            row.aprobacionContabilidad === "No aprobada") {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
-              No aprobada
-            </span>
-          );
-        }
-        if (row.aprobacionContabilidad === "Aprobada") {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
-              Aprobado
-            </span>
-          );
-        }
-        if (row.aprobacionJefatura === "Aprobada") {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-              En Contabilidad
-            </span>
-          );
-        }
-        if (row.aprobacionAsistente === "Aprobada") {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-              En Jefatura
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
-            Pendiente
-          </span>
-        );
-      },
-    },
-    {
-      key: "actions",
-      header: "Acciones",
-      render: (_, row) => {
-        const userEmail = service.msalInstance.getAllAccounts()[0]?.username;
-        const canApprove = canUserApproveExpense(row, userEmail, permissionService);
-        
-        return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="small"
-              className="text-gray-600 hover:text-gray-900"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRowClick(row);
-              }}
-            >
-              <Eye size={16} />
-            </Button>
-            {canApprove && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="small"
-                  className="text-success hover:text-success/90"
-                  onClick={(e) => handleApprove(row.id, e)}
-                >
-                  <Check size={16} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="small"
-                  className="text-error hover:text-error/90"
-                  onClick={(e) => handleReject(row.id, e)}
-                >
-                  <X size={16} />
-                </Button>
-              </>
-            )}
+  // Render optimized table with virtualization
+  const renderVirtualizedTable = () => {
+    if (loading) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-gray-500">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+          <span>Cargando datos...</span>
+        </div>
+      );
+    }
+
+    if (filteredExpenses.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Check size={48} className="text-success mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-1">
+            {viewMode === "all"
+              ? "No hay gastos en el sistema"
+              : viewMode === "pending"
+                ? "No hay gastos pendientes"
+                : viewMode === "approved"
+                  ? "No hay gastos aprobados"
+                  : "No hay gastos rechazados"}
+          </h3>
+          <p className="text-sm text-gray-500">
+            {viewMode === "all"
+              ? "No se encontraron registros con los filtros aplicados"
+              : viewMode === "pending"
+                ? "Todos los gastos han sido procesados"
+                : viewMode === "approved"
+                  ? "Aún no hay gastos aprobados"
+                  : "Aún no hay gastos rechazados"}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="virtualized-table">
+          <div className="table-header">
+            <div className="header-cell">Fecha</div>
+            <div className="header-cell">Solicitante</div>
+            <div className="header-cell">Rubro</div>
+            <div className="header-cell">Monto</div>
+            <div className="header-cell">ST</div>
+            <div className="header-cell">F. Propios</div>
+            <div className="header-cell">Estado</div>
+            <div className="header-cell">Acciones</div>
           </div>
-        );
-      },
-    },
-  ];
-
-  const handleRowClick = (expense) => {
-    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
-      state: { from: location },
-    });
+          
+          <div className="table-body">
+            {paginatedExpenses.map((expense) => (
+              <div 
+                key={expense.id} 
+                className="table-row"
+                onClick={() => handleRowClick(expense)}
+              >
+                <div className="table-cell">
+                  {expense.fecha.toLocaleDateString("es-CR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </div>
+                <div className="table-cell">{expense.createdBy.name}</div>
+                <div className="table-cell">{expense.rubro}</div>
+                <div className="table-cell">
+                  {expense.monto.toLocaleString("es-CR", {
+                    style: "currency",
+                    currency: "CRC",
+                  })}
+                </div>
+                <div className="table-cell">{expense.st}</div>
+                <div className="table-cell">{expense.fondosPropios ? "Si" : "No"}</div>
+                <div className="table-cell">
+                  {renderStatusBadge(expense)}
+                </div>
+                <div className="table-cell actions">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRowClick(expense);
+                    }}
+                    className="action-button view-button"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  
+                  {viewMode === "pending" && approvalEligibility[expense.id] && (
+                    <>
+                      <button
+                        onClick={(e) => handleApprove(expense.id, e)}
+                        className="action-button approve-button"
+                      >
+                        <Check size={16} />
+                      </button>
+                      
+                      <button
+                        onClick={(e) => handleReject(expense.id, e)}
+                        className="action-button reject-button"
+                      >
+                        <X size={16} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {filteredExpenses.length > PAGE_SIZE && (
+          <div className="flex justify-between items-center mt-4 p-4 border-t">
+            <div className="text-sm text-gray-500">
+              Mostrando {Math.min(filteredExpenses.length, (currentPage - 1) * PAGE_SIZE + 1)}-
+              {Math.min(filteredExpenses.length, currentPage * PAGE_SIZE)} de {filteredExpenses.length}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="small"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+              
+              <span className="text-sm mx-2">
+                Página {currentPage} de {totalPages}
+              </span>
+              
+              <Button
+                variant="outline"
+                size="small"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
+    );
   };
 
-  const people = departmentWorkers.reduce((acc, dept) => {
-    dept.workers.forEach((worker) => {
-      if (
-        worker.empleado &&
-        !acc.some((p) => p.email === worker.empleado.email)
-      ) {
-        acc.push(worker.empleado);
-      }
-    });
-    return acc;
-  }, []).sort((a, b) => a.displayName.localeCompare(b.displayName));
-
-  const getFilteredExpenses = () => {
-    if (!canViewApprovals() || !service) return [];
-    const userEmail = service.msalInstance.getAllAccounts()[0]?.username;
+  // Helper function to render status badge
+  const renderStatusBadge = (expense) => {
+    if (
+      expense.aprobacionAsistente === "No aprobada" ||
+      expense.aprobacionJefatura === "No aprobada" ||
+      expense.aprobacionContabilidad === "No aprobada"
+    ) {
+      return <span className="status-badge rejected">No aprobada</span>;
+    }
     
-    // Get all expenses that match date range, person, and search term filters
-    return expenseReports.filter((expense) => {
-      // Date range filter
-      if (startDate && endDate) {
-        const expenseDate = expense.fecha.getTime();
-        const start = new Date(startDate).getTime();
-        const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
-        if (expenseDate < start || expenseDate > end) return false;
-      }
-      
-      // Person filter
-      if (selectedPerson && expense.createdBy.email !== selectedPerson) return false;
-      
-      // Search term filter
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        return (
-          expense.rubro.toLowerCase().includes(search) ||
-          expense.st.toLowerCase().includes(search) ||
-          expense.createdBy.name.toLowerCase().includes(search)
-        );
-      }
-      
-      // Filter based on view mode
-      switch (viewMode) {
-        case "all":
-          // Show all expenses that match the filters above
-          return true;
-          
-        case "pending":
-          // Use the fixed approval check function
-          return canUserApproveExpense(expense, userEmail, permissionService);
-          
-        case "approved": {
-          // Show expenses that have been approved at any stage
-          return expense.aprobacionAsistente === "Aprobada" || 
-                 expense.aprobacionJefatura === "Aprobada" || 
-                 expense.aprobacionContabilidad === "Aprobada";
-        }
-        
-        case "rejected": {
-          // Show expenses that have been rejected at any stage
-          return expense.aprobacionAsistente === "No aprobada" || 
-                 expense.aprobacionJefatura === "No aprobada" || 
-                 expense.aprobacionContabilidad === "No aprobada";
-        }
-        
-        default:
-          return true;
-      }
-    });
+    if (expense.aprobacionContabilidad === "Aprobada") {
+      return <span className="status-badge approved">Aprobado</span>;
+    }
+    
+    if (expense.aprobacionJefatura === "Aprobada") {
+      return <span className="status-badge pending">En Contabilidad</span>;
+    }
+    
+    if (expense.aprobacionAsistente === "Aprobada") {
+      return <span className="status-badge pending">En Jefatura</span>;
+    }
+    
+    return <span className="status-badge waiting">Pendiente</span>;
   };
-
-  const filteredExpenses = getFilteredExpenses();
 
   return (
     <>
-      {/* Uncomment this to debug department issues */}
-      {/* <DepartmentDebugger /> */}
-      
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Aprobaciones</h1>
           <p className="text-sm text-gray-500 mt-1">
             {filteredExpenses.length} gastos{" "}
-            {viewMode === "all" 
-              ? "en el sistema" 
+            {viewMode === "all"
+              ? "en el sistema"
               : viewMode === "pending"
                 ? "pendientes de aprobación"
                 : viewMode === "approved"
@@ -439,6 +524,7 @@ const ApprovalList = () => {
                   : "rechazados"}
           </p>
         </div>
+        
         <Card className="mb-6">
           <div className="space-y-4">
             <div className="flex border-b border-gray-200">
@@ -497,38 +583,12 @@ const ApprovalList = () => {
             </div>
           </div>
         </Card>
+        
         <Card>
-          <Table
-            columns={columns}
-            data={filteredExpenses}
-            isLoading={loading}
-            onRowClick={handleRowClick}
-            emptyMessage={
-              <div className="flex flex-col items-center justify-center py-12">
-                <Check size={48} className="text-success mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  {viewMode === "all"
-                    ? "No hay gastos en el sistema"
-                    : viewMode === "pending"
-                      ? "No hay gastos pendientes"
-                      : viewMode === "approved"
-                        ? "No hay gastos aprobados"
-                        : "No hay gastos rechazados"}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {viewMode === "all"
-                    ? "No se encontraron registros con los filtros aplicados"
-                    : viewMode === "pending"
-                      ? "Todos los gastos han sido procesados"
-                      : viewMode === "approved"
-                        ? "Aún no hay gastos aprobados"
-                        : "Aún no hay gastos rechazados"}
-                </p>
-              </div>
-            }
-          />
+          {renderVirtualizedTable()}
         </Card>
       </div>
+      
       <ConfirmationDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
