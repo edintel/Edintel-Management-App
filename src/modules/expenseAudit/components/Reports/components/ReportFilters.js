@@ -15,8 +15,10 @@ const EXPENSE_STATUSES = [
 const ReportFilters = ({
   searchTerm,
   onSearchTermChange,
-  dateRange,
-  onDateRangeChange,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
   selectedPerson,
   onPersonChange,
   selectedStatuses,
@@ -24,21 +26,6 @@ const ReportFilters = ({
   people,
   onResetFilters
 }) => {
-  // Direct handlers for date range changes
-  const handleStartDateChange = (date) => {
-    onDateRangeChange({
-      ...dateRange,
-      startDate: date
-    });
-  };
-
-  const handleEndDateChange = (date) => {
-    onDateRangeChange({
-      ...dateRange,
-      endDate: date
-    });
-  };
-
   return (
     <Card className="mb-6">
       <div className="flex flex-col md:flex-row gap-4 p-4">
@@ -54,10 +41,10 @@ const ReportFilters = ({
         </div>
         <div className="flex-1">
           <DateRangePicker
-            startDate={dateRange.startDate}
-            endDate={dateRange.endDate}
-            onStartDateChange={handleStartDateChange}
-            onEndDateChange={handleEndDateChange}
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={onStartDateChange}
+            onEndDateChange={onEndDateChange}
             className="w-full"
           />
         </div>
