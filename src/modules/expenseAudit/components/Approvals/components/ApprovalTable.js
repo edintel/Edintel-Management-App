@@ -1,9 +1,11 @@
+// components/Approvals/components/ApprovalTable.js
 import React, { memo } from 'react';
 import Table from '../../../../../components/common/Table';
 import { Check, X, Eye } from 'lucide-react';
 import { VIEW_MODES } from '../constants';
+import ExpenseStatusBadge from '../../common/ExpenseStatusBadge';
 
-// Memo-ized row action buttons component to prevent unnecessary re-renders
+// Extracted action buttons component
 const ActionButtons = memo(({ row, handleRowClick, handleApprove, handleReject, canApprove }) => (
   <div className="flex items-center gap-2">
     <button
@@ -12,21 +14,23 @@ const ActionButtons = memo(({ row, handleRowClick, handleApprove, handleReject, 
         e.stopPropagation();
         handleRowClick(row);
       }}
+      aria-label="Ver detalle"
     >
       <Eye size={16} />
     </button>
-    
     {canApprove && (
       <>
         <button
           className="text-success hover:text-success/90 p-1 rounded-lg hover:bg-success/10"
           onClick={(e) => handleApprove(row.id, e)}
+          aria-label="Aprobar"
         >
           <Check size={16} />
         </button>
         <button
           className="text-error hover:text-error/90 p-1 rounded-lg hover:bg-error/10"
           onClick={(e) => handleReject(row.id, e)}
+          aria-label="Rechazar"
         >
           <X size={16} />
         </button>
@@ -35,50 +39,6 @@ const ActionButtons = memo(({ row, handleRowClick, handleApprove, handleReject, 
   </div>
 ));
 
-// Memo-ized status badge component
-const StatusBadge = memo(({ row }) => {
-  if (row.aprobacionAsistente === "No aprobada" ||
-      row.aprobacionJefatura === "No aprobada" ||
-      row.aprobacionContabilidad === "No aprobada") {
-    return (
-      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
-        No aprobada
-      </span>
-    );
-  }
-  
-  if (row.aprobacionContabilidad === "Aprobada") {
-    return (
-      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
-        Aprobado
-      </span>
-    );
-  }
-  
-  if (row.aprobacionJefatura === "Aprobada") {
-    return (
-      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-        En Contabilidad
-      </span>
-    );
-  }
-  
-  if (row.aprobacionAsistente === "Aprobada") {
-    return (
-      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-        En Jefatura
-      </span>
-    );
-  }
-  
-  return (
-    <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
-      Pendiente
-    </span>
-  );
-});
-
-// Main table component
 const ApprovalTable = ({
   expenses,
   loading,
@@ -89,7 +49,7 @@ const ApprovalTable = ({
   approvalEligibility,
   emptyMessage
 }) => {
-  // Define table columns with optimized rendering
+  // Define table columns with responsive considerations
   const columns = [
     {
       key: "fecha",
@@ -100,13 +60,19 @@ const ApprovalTable = ({
           month: "2-digit",
           year: "numeric",
         }),
+      hiddenOnMobile: false, // Always show
     },
     {
       key: "createdBy",
       header: "Solicitante",
       render: (value) => value?.name || "N/A",
+      hiddenOnMobile: false, // Always show
     },
-    { key: "rubro", header: "Rubro" },
+    { 
+      key: "rubro", 
+      header: "Rubro",
+      hiddenOnMobile: false, // Always show
+    },
     {
       key: "monto",
       header: "Monto",
@@ -115,17 +81,24 @@ const ApprovalTable = ({
           style: "currency",
           currency: "CRC",
         }),
+      hiddenOnMobile: false, // Show on mobile
     },
-    { key: "st", header: "ST" },
+    { 
+      key: "st", 
+      header: "ST",
+      hiddenOnMobile: true, // Hide on mobile
+    },
     {
       key: "fondosPropios",
       header: "F. Propios",
-      render: (value) => value ? "Si" : "No"
+      render: (value) => value ? "Si" : "No",
+      hiddenOnMobile: true, // Hide on mobile
     },
     {
       key: "status",
       header: "Estado",
-      render: (_, row) => <StatusBadge row={row} />
+      render: (_, row) => <ExpenseStatusBadge expense={row} />,
+      hiddenOnMobile: false, // Always show
     },
     {
       key: "actions",
@@ -139,31 +112,9 @@ const ApprovalTable = ({
           canApprove={viewMode === VIEW_MODES.PENDING && approvalEligibility[row.id]}
         />
       ),
+      hiddenOnMobile: false, // Always show
     },
   ];
-
-  // Default empty message based on current view mode
-  const getDefaultEmptyMessage = () => {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <Check size={48} className="text-success mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-1">
-          {viewMode === VIEW_MODES.PENDING
-            ? "No hay gastos pendientes"
-            : viewMode === VIEW_MODES.APPROVED
-              ? "No hay gastos aprobados"
-              : "No hay gastos rechazados"}
-        </h3>
-        <p className="text-sm text-gray-500">
-          {viewMode === VIEW_MODES.PENDING
-            ? "Todos los gastos han sido procesados"
-            : viewMode === VIEW_MODES.APPROVED
-              ? "Aún no hay gastos aprobados"
-              : "Aún no hay gastos rechazados"}
-        </p>
-      </div>
-    );
-  };
 
   return (
     <Table
@@ -171,10 +122,20 @@ const ApprovalTable = ({
       data={expenses}
       isLoading={loading}
       onRowClick={onRowClick}
-      emptyMessage={emptyMessage || getDefaultEmptyMessage()}
+      emptyMessage={emptyMessage || (
+        <div className="flex flex-col items-center justify-center py-12">
+          <h3 className="text-lg font-medium text-gray-900 mb-1">
+            No hay gastos para mostrar
+          </h3>
+          <p className="text-sm text-gray-500">
+            Intenta ajustar los filtros para ver más resultados
+          </p>
+        </div>
+      )}
+      className="w-full" // Ensure table takes full width
+      responsive={true} // Enable responsive mode
     />
   );
 };
 
-// Memo-ize the whole component for extra performance
 export default memo(ApprovalTable);

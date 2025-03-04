@@ -15,186 +15,167 @@ class ApprovalFlowService {
   }
 
   canApprove(expense, userEmail) {
-    // If the expense is already fully approved or rejected, return false
+    // Quick disqualifiers
     if (this._isFullyApproved(expense) || this._isRejected(expense)) {
       return false;
     }
-
-    // Get user roles
+    
     const userRoles = this.permissionService.getUserRoles(userEmail);
     if (!userRoles || userRoles.length === 0) {
       return false;
     }
-
-    // Creator as boss special case
+  
+    // Case 1: User is the creator of the expense
     if (expense.createdBy.email === userEmail) {
       const isBoss = userRoles.some(role => role.roleType === 'Jefe');
       if (isBoss && expense.aprobacionJefatura === 'Pendiente') {
-        // Boss can approve their own expense if assistant approval is done or not needed
         const creatorDept = userRoles.find(role => role.department)?.department;
-        const hasAssistants = creatorDept && 
-          creatorDept.asistentes && 
+        const hasAssistants = creatorDept &&
+          creatorDept.asistentes &&
           creatorDept.asistentes.length > 0;
-        
         if (!hasAssistants || expense.aprobacionAsistente === 'Aprobada') {
           return true;
         }
       }
-      // In all other self-approval cases, return false
       return false;
     }
-
-    // Contabilidad special case
+  
+    // Case 2: User is in accounting department
     const isContabilidad = this.permissionService.isInContabilidadDepartment(userEmail);
     if (isContabilidad) {
       const isAssistant = userRoles.some(role => role.roleType === 'Asistente');
       const isBoss = userRoles.some(role => role.roleType === 'Jefe');
-
-      // Contabilidad assistant can approve if pending
       if (isAssistant && expense.aprobacionAsistente === 'Pendiente') {
         return true;
       }
-
-      // Contabilidad boss can approve if assistant is approved
       if (isBoss && expense.aprobacionJefatura === 'Pendiente' &&
           expense.aprobacionAsistente === 'Aprobada') {
         return true;
       }
-
       return false;
     }
-
-    // Get creator's department
+  
+    // Case 3: User is in same department as expense creator
     const creatorRole = this.permissionService.roles.find(role =>
       role.empleado?.email === expense.createdBy.email
     );
-    
     if (!creatorRole) {
       return false;
     }
-
-    // Check if user is in the same department as the creator
+  
     const isInCreatorDepartment = userRoles.some(role =>
-      role.departmentId?.toString() === creatorRole.departmentId?.toString()
+      role.departmentId?.toString() === creatorRole.departamentoId?.toString()
     );
-    
     if (!isInCreatorDepartment) {
       return false;
     }
-
-    // Check if department has assistants
-    const departmentHasAssistants = this.permissionService.departmentHasAssistants(
-      creatorRole.departmentId
-    );
-
-    // Assistant approval logic
+  
+    // Determine user's role
     const isAssistant = userRoles.some(role => role.roleType === 'Asistente');
+    const isBoss = userRoles.some(role => role.roleType === 'Jefe');
+    
+    // For assistants with pending assistant approval
     if (isAssistant && expense.aprobacionAsistente === 'Pendiente') {
       return true;
     }
-
-    // Boss approval logic
-    const isBoss = userRoles.some(role => role.roleType === 'Jefe');
+    
+    // For bosses
     if (isBoss) {
-      // If no assistants, boss can approve directly
+      const departmentHasAssistants = this.permissionService.departmentHasAssistants(
+        creatorRole.departamentoId
+      );
+      
+      // No assistants in department, boss can approve directly
       if (!departmentHasAssistants && expense.aprobacionJefatura === 'Pendiente') {
         return true;
       }
       
-      // If assistant has approved, boss can approve
+      // Assistant already approved, now boss can approve
       if (expense.aprobacionAsistente === 'Aprobada' && expense.aprobacionJefatura === 'Pendiente') {
         return true;
       }
     }
-
+    
     return false;
   }
 
   getNextApprovalType(expense, userEmail) {
-    // Get user roles
     const userRoles = this.permissionService.getUserRoles(userEmail);
     if (!userRoles || userRoles.length === 0) {
       return null;
     }
-
-    // Creator as boss special case
+  
+    // Case 1: User is the creator of the expense
     if (expense.createdBy.email === userEmail) {
       const isBoss = userRoles.some(role => role.roleType === 'Jefe');
       if (isBoss && expense.aprobacionJefatura === 'Pendiente') {
-        // Boss can approve their own expense if assistant approval is done or not needed
         const creatorDept = userRoles.find(role => role.department)?.department;
-        const hasAssistants = creatorDept && 
-          creatorDept.asistentes && 
+        const hasAssistants = creatorDept &&
+          creatorDept.asistentes &&
           creatorDept.asistentes.length > 0;
-        
         if (!hasAssistants || expense.aprobacionAsistente === 'Aprobada') {
           return 'boss';
         }
       }
       return null;
     }
-
-    // Contabilidad special case
+  
+    // Case 2: User is in accounting department
     const isContabilidad = this.permissionService.isInContabilidadDepartment(userEmail);
     if (isContabilidad) {
       const isAssistant = userRoles.some(role => role.roleType === 'Asistente');
       const isBoss = userRoles.some(role => role.roleType === 'Jefe');
-
       if (isAssistant && expense.aprobacionAsistente === 'Pendiente') {
         return 'accounting_assistant';
       }
-      
       if (isBoss && expense.aprobacionJefatura === 'Pendiente' &&
           expense.aprobacionAsistente === 'Aprobada') {
         return 'accounting_boss';
       }
-      
       return null;
     }
-
-    // Get creator's department
+  
+    // Case 3: User is in same department as expense creator
     const creatorRole = this.permissionService.roles.find(role =>
       role.empleado?.email === expense.createdBy.email
     );
-    
     if (!creatorRole) {
       return null;
     }
-
-    // Check if user is in the same department as the creator
+  
     const isInCreatorDepartment = userRoles.some(role =>
-      role.departmentId?.toString() === creatorRole.departmentId?.toString()
+      role.departmentId?.toString() === creatorRole.departamentoId?.toString()
     );
-    
     if (!isInCreatorDepartment) {
       return null;
     }
-
-    // Check if department has assistants
-    const departmentHasAssistants = this.permissionService.departmentHasAssistants(
-      creatorRole.departmentId
-    );
-
-    // Assistant approval logic
+  
+    // Determine user's role
     const isAssistant = userRoles.some(role => role.roleType === 'Asistente');
+    const isBoss = userRoles.some(role => role.roleType === 'Jefe');
+    
+    // For assistants with pending assistant approval
     if (isAssistant && expense.aprobacionAsistente === 'Pendiente') {
       return 'assistant';
     }
-
-    // Boss approval logic
-    const isBoss = userRoles.some(role => role.roleType === 'Jefe');
+    
+    // For bosses
     if (isBoss) {
-      // If no assistants, boss can approve directly
+      const departmentHasAssistants = this.permissionService.departmentHasAssistants(
+        creatorRole.departamentoId
+      );
+      
+      // No assistants in department, boss can approve directly
       if (!departmentHasAssistants && expense.aprobacionJefatura === 'Pendiente') {
         return 'boss';
       }
       
-      // If assistant has approved, boss can approve
+      // Assistant already approved, now boss can approve
       if (expense.aprobacionAsistente === 'Aprobada' && expense.aprobacionJefatura === 'Pendiente') {
         return 'boss';
       }
     }
-
+    
     return null;
   }
 
@@ -207,34 +188,29 @@ class ApprovalFlowService {
   }
 
   _needsBossApproval(expense) {
-    return true; // All expenses need boss approval
+    return true;
   }
 
   _needsContabilidadApproval(expense) {
-    return true; // All expenses need Contabilidad approval
+    return true;
   }
 
   _getCurrentState(expense) {
     if (!expense) return 'unknown';
-    
     if (expense.aprobacionAsistente === 'No aprobada' ||
-        expense.aprobacionJefatura === 'No aprobada' ||
-        expense.aprobacionContabilidad === 'No aprobada') {
+      expense.aprobacionJefatura === 'No aprobada' ||
+      expense.aprobacionContabilidad === 'No aprobada') {
       return 'rejected';
     }
-    
     if (expense.aprobacionContabilidad === 'Aprobada') {
       return 'fully_approved';
     }
-    
     if (expense.aprobacionJefatura === 'Aprobada') {
       return 'pending_contabilidad';
     }
-    
     if (expense.aprobacionAsistente === 'Aprobada') {
       return 'pending_boss';
     }
-    
     return 'pending_assistant';
   }
 
@@ -246,8 +222,8 @@ class ApprovalFlowService {
   _isRejected(expense) {
     if (!expense) return false;
     return expense.aprobacionAsistente === 'No aprobada' ||
-           expense.aprobacionJefatura === 'No aprobada' ||
-           expense.aprobacionContabilidad === 'No aprobada';
+      expense.aprobacionJefatura === 'No aprobada' ||
+      expense.aprobacionContabilidad === 'No aprobada';
   }
 }
 

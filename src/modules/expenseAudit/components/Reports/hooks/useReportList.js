@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useExpenseAudit } from '../../../context/expenseAuditContext';
+import { getExpenseStatus } from '../constants';
 
 export const useReportList = () => {
   const { expenseReports, loading, departmentWorkers } = useExpenseAudit();
@@ -10,33 +11,7 @@ export const useReportList = () => {
     selectedPerson: '',
     selectedStatuses: []
   });
-
-  // Define getExpenseStatus first, before it's used in filteredExpenses
-  const getExpenseStatus = (expense) => {
-    if (
-      expense.aprobacionAsistente === "No aprobada" ||
-      expense.aprobacionJefatura === "No aprobada" ||
-      expense.aprobacionContabilidad === "No aprobada"
-    ) {
-      return "No aprobada";
-    }
-    if (expense.aprobacionContabilidad === "Aprobada") {
-      return "Aprobada por Contabilidad";
-    }
-    if (
-      expense.aprobacionJefatura === "Aprobada" &&
-      expense.aprobacionContabilidad === "Pendiente"
-    ) {
-      return "Aprobada por Jefatura";
-    }
-    if (
-      expense.aprobacionAsistente === "Aprobada" &&
-      expense.aprobacionJefatura === "Pendiente"
-    ) {
-      return "Aprobada por Asistente";
-    }
-    return "Pendiente";
-  };
+  
 
   // Filter expenses based on current filters
   const filteredExpenses = useMemo(() => {

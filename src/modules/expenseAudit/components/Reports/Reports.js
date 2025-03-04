@@ -11,6 +11,7 @@ import ReportFilters from "./components/ReportFilters";
 import PrintSummary from "./components/PrintSummary";
 import ExpenseSummary from "./ExpenseSummary";
 import "./Reports.css";
+import { getExpenseStatus } from "./constants";
 
 // Define page size for pagination
 const PAGE_SIZE = 50;
@@ -30,40 +31,11 @@ const Reports = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Create getExpenseStatus function before it's used
-  const getExpenseStatus = (expense) => {
-    if (
-      expense.aprobacionAsistente === "No aprobada" ||
-      expense.aprobacionJefatura === "No aprobada" ||
-      expense.aprobacionContabilidad === "No aprobada"
-    ) {
-      return "No aprobada";
-    }
-    if (expense.aprobacionContabilidad === "Aprobada") {
-      return "Aprobada por Contabilidad";
-    }
-    if (
-      expense.aprobacionJefatura === "Aprobada" &&
-      expense.aprobacionContabilidad === "Pendiente"
-    ) {
-      return "Aprobada por Jefatura";
-    }
-    if (
-      expense.aprobacionAsistente === "Aprobada" &&
-      expense.aprobacionJefatura === "Pendiente"
-    ) {
-      return "Aprobada por Asistente";
-    }
-    return "Pendiente";
-  };
-
   // Memoize filtered expenses - this is the main performance optimization
   const filteredExpenses = useMemo(() => {
     // Reset to first page whenever filters change
     setCurrentPage(1);
     setSelectedExpenses([]);
-    
-    console.time('Filter expenses');
     const result = expenseReports.filter((expense) => {
       if (filters.dateRange.startDate && filters.dateRange.endDate) {
         const expenseDate = expense.fecha.getTime();
@@ -91,7 +63,6 @@ const Reports = () => {
       }
       return true;
     });
-    console.timeEnd('Filter expenses');
     return result;
   }, [expenseReports, filters]);
 

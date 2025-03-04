@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 
 const Table = ({ 
@@ -8,8 +8,37 @@ const Table = ({
   isLoading = false,
   emptyMessage = 'No hay datos disponibles',
   className = '',
+  responsive = false, // New prop to enable responsive mode
   ...props 
 }) => {
+  // Track screen size for responsive tables
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Setup resize listener if responsive mode is enabled
+  useEffect(() => {
+    if (!responsive) return;
+    
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Initialize on mount
+    checkScreenSize();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Cleanup on unmount
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, [responsive]);
+  
+  // Filter columns based on screen size when responsive is enabled
+  const visibleColumns = responsive && isMobile
+    ? columns.filter(col => 
+        !col.hiddenOnMobile && col.responsive !== false
+      )
+    : columns;
+  
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-gray-500">
@@ -33,10 +62,13 @@ const Table = ({
 
   return (
     <div className={cn("w-full overflow-auto", className)} {...props}>
-      <table className="w-full border-collapse min-w-[600px]">
+      <table className={cn(
+        "w-full border-collapse",
+        !responsive && "min-w-[600px]" // Only apply min-width when not in responsive mode
+      )}>
         <thead>
           <tr className="border-b border-gray-200">
-            {columns.map((column, index) => (
+            {visibleColumns.map((column, index) => (
               <th 
                 key={index}
                 className={cn(
@@ -45,7 +77,7 @@ const Table = ({
                 )}
                 style={column.style}
               >
-                {column.header}
+                {typeof column.header === 'function' ? column.header() : column.header}
               </th>
             ))}
           </tr>
@@ -53,14 +85,14 @@ const Table = ({
         <tbody>
           {data.map((row, rowIndex) => (
             <tr 
-              key={rowIndex}
+              key={row.id || rowIndex}
               onClick={() => onRowClick && onRowClick(row)}
               className={cn(
                 "border-b border-gray-200 transition-colors",
                 onRowClick && "cursor-pointer hover:bg-gray-50"
               )}
             >
-              {columns.map((column, colIndex) => (
+              {visibleColumns.map((column, colIndex) => (
                 <td 
                   key={colIndex}
                   className={cn(
@@ -70,7 +102,7 @@ const Table = ({
                   style={column.style}
                 >
                   {column.render 
-                    ? column.render(row[column.key], row) 
+                    ? column.render(row[column.key], row, rowIndex) 
                     : row[column.key]}
                 </td>
               ))}

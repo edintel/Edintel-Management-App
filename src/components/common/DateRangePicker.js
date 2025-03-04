@@ -53,27 +53,29 @@ const DateRangePicker = ({
   const isDateInRange = (date) => {
     if (!date || !startDate || (!endDate && !hoverDate)) return false;
 
+    // Convert calendar date to UTC timestamp
     const compareDate = Date.UTC(
       date.getFullYear(),
       date.getMonth(),
       date.getDate()
     );
-    const start = Date.UTC(
-      new Date(startDate).getFullYear(),
-      new Date(startDate).getMonth(),
-      new Date(startDate).getDate()
-    );
-    const end = endDate
-      ? Date.UTC(
-          new Date(endDate).getFullYear(),
-          new Date(endDate).getMonth(),
-          new Date(endDate).getDate()
-        )
-      : Date.UTC(
-          hoverDate.getFullYear(),
-          hoverDate.getMonth(),
-          hoverDate.getDate()
-        );
+
+    // Parse startDate string directly to avoid timezone issues
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const start = Date.UTC(startYear, startMonth - 1, startDay); // Month is 0-indexed
+
+    // Get end timestamp (either from endDate or hoverDate)
+    let end;
+    if (endDate) {
+      const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+      end = Date.UTC(endYear, endMonth - 1, endDay);
+    } else {
+      end = Date.UTC(
+        hoverDate.getFullYear(),
+        hoverDate.getMonth(),
+        hoverDate.getDate()
+      );
+    }
 
     return compareDate >= start && compareDate <= end;
   };

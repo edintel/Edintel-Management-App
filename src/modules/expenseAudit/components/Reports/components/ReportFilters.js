@@ -24,10 +24,24 @@ const ReportFilters = ({
   people,
   onResetFilters
 }) => {
+  // Direct handlers for date range changes
+  const handleStartDateChange = (date) => {
+    onDateRangeChange({
+      ...dateRange,
+      startDate: date
+    });
+  };
+
+  const handleEndDateChange = (date) => {
+    onDateRangeChange({
+      ...dateRange,
+      endDate: date
+    });
+  };
+
   return (
     <Card className="mb-6">
       <div className="flex flex-col md:flex-row gap-4 p-4">
-        {/* Search filter */}
         <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
           <Search size={16} className="text-gray-400 mr-2" />
           <input
@@ -38,23 +52,15 @@ const ReportFilters = ({
             className="w-full bg-transparent border-none focus:outline-none text-sm"
           />
         </div>
-        
-        {/* Date range filter */}
         <div className="flex-1">
           <DateRangePicker
             startDate={dateRange.startDate}
             endDate={dateRange.endDate}
-            onStartDateChange={(date) =>
-              onDateRangeChange({ ...dateRange, startDate: date })
-            }
-            onEndDateChange={(date) =>
-              onDateRangeChange({ ...dateRange, endDate: date })
-            }
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
             className="w-full"
           />
         </div>
-        
-        {/* Person filter */}
         <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
           <Users size={16} className="text-gray-400 mr-2" />
           <select
@@ -70,8 +76,6 @@ const ReportFilters = ({
             ))}
           </select>
         </div>
-        
-        {/* Status filter - Changed to standard select to match styling */}
         <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
           <CheckSquare size={16} className="text-gray-400 mr-2" />
           <select
@@ -94,8 +98,6 @@ const ReportFilters = ({
             ))}
           </select>
         </div>
-        
-        {/* Reset button */}
         <Button
           variant="outline"
           size="small"
