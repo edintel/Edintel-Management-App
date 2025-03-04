@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from '../../../../components/common/Alert';
 import { Plus, Pencil, Trash2, Loader2, AlertCircle, Search } from 'lucide-react';
 
 const SystemsManagement = () => {
-  const { systems, sites, service, loading, error, loadPostVentaData } = usePostVentaManagement();
+  const { systems, sites, service, loading, error, loadPostVentaData, userRole } = usePostVentaManagement();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -13,6 +13,12 @@ const SystemsManagement = () => {
   const [formData, setFormData] = useState({ name: '' });
   const [processing, setProcessing] = useState(false);
   const [actionError, setActionError] = useState(null);
+
+  const hasManagementPermission = (userRole) => {
+    return userRole?.role === "Administrativo" || 
+           userRole?.role === "Supervisor" || 
+           userRole?.role === "Comercial";
+  };
 
   // Calculate usage statistics for each system
   const getSystemUsage = (systemName) => {
@@ -123,6 +129,7 @@ const SystemsManagement = () => {
         <button
           onClick={handleAdd}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          disabled={!hasManagementPermission(userRole)}
         >
           <Plus className="h-4 w-4" />
           Agregar Sistema
@@ -143,6 +150,7 @@ const SystemsManagement = () => {
                   onClick={() => handleEdit(system)}
                   className="p-1 text-gray-500 hover:text-primary transition-colors"
                   title="Editar"
+                  disabled={!hasManagementPermission(userRole)}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -150,6 +158,7 @@ const SystemsManagement = () => {
                   onClick={() => handleDelete(system)}
                   className="p-1 text-gray-500 hover:text-error transition-colors"
                   title="Eliminar"
+                  disabled={!hasManagementPermission(userRole)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

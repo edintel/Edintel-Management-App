@@ -382,15 +382,27 @@ export const useTicketActions = () => {
   const handleEditTicket = useCallback(
     async (ticketId, data) => {
       if (!ticketId) return;
-
       setProcessing(true);
       setError(null);
       try {
-        await service.updateTicket(ticketId, data);
+  
+        // Make sure filesToDelete is properly passed
+        const transformedData = {
+          ...data,
+          filesToDelete: data.filesToDelete || [],
+          filesToUpload: data.filesToUpload?.map(file => ({
+            type: file.type,
+            file: file.file?.file || file.file,
+            displayName: file.displayName || file.file?.displayName
+          }))
+        };
+;
+        await service.updateTicket(ticketId, transformedData);
         await loadPostVentaData();
         closeModal();
       } catch (err) {
-        setError(err.message);
+        console.error("Error editing ticket:", err);
+        setError(err.message || "Error al actualizar el ticket");
       } finally {
         setProcessing(false);
       }

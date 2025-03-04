@@ -1,178 +1,36 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Copy, FileDown, Printer, FileText } from "lucide-react";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
-import Card from "../../../../components/common/Card";
-import Table from "../../../../components/common/Table";
-import Button from "../../../../components/common/Button";
-import DateRangePicker from "../../../../components/common/DateRangePicker";
-import ExpenseSummary from "./ExpenseSummary";
-import PrintSummary from "./PrintSummary";
-import { Filter, Search, Users, FileDown, Printer, Copy, XCircle, X, Check } from "lucide-react";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
+import Card from "../../../../components/common/Card";
+import Button from "../../../../components/common/Button";
+import SelectionToolbar from "../../../../components/common/SelectionToolbar";
+import ReportTable from "./components/ReportTable";
+import ReportFilters from "./components/ReportFilters";
+import PrintSummary from "./components/PrintSummary";
+import ExpenseSummary from "./ExpenseSummary";
+import "./Reports.css";
+
+// Define page size for pagination
+const PAGE_SIZE = 50;
 
 const Reports = () => {
-  const { expenseReports, departmentWorkers, loading, reportFilters, setReportFilters } = useExpenseAudit();
-  const [dateRange, setDateRange] = useState({
-    startDate: null,
-    endDate: null,
-  });
-  const [selectedPerson, setSelectedPerson] = useState("");
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-
   const navigate = useNavigate();
   const location = useLocation();
-
-  const columns = [
-    { 
-      key: "id", 
-      header: "ID" 
-    },
-    {
-      key: "fecha",
-      header: "Fecha",
-      render: (value) =>
-        value.toLocaleDateString("es-CR", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-    },
-    {
-      key: "createdBy",
-      header: "Solicitante",
-      render: (value) => value?.name || "N/A",
-    },
-    { key: "rubro", header: "Rubro" },
-    {
-      key: "monto",
-      header: "Monto",
-      render: (value) =>
-        value.toLocaleString("es-CR", {
-          style: "currency",
-          currency: "CRC",
-        }),
-    },
-    { key: "st", header: "ST" },
-    {
-      key: "fondosPropios", header: "F. Propios", render: (value) => {
-        if (value) {
-          return "Si";
-        } else {
-          return "No";
-        }
-      }
-    },
-    {
-      key: "status",
-      header: "Estado",
-      render: (_, row) => {
-        if (
-          row.aprobacionAsistente === "No aprobada" ||
-          row.aprobacionJefatura === "No aprobada" ||
-          row.aprobacionContabilidad === "No aprobada"
-        ) {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
-              No aprobada
-            </span>
-          );
-        }
-        if (row.aprobacionContabilidad === "Aprobada") {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
-              Aprobado
-            </span>
-          );
-        }
-        if (
-          row.aprobacionJefatura === "Aprobada" &&
-          row.aprobacionContabilidad === "Pendiente"
-        ) {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-              En Contabilidad
-            </span>
-          );
-        }
-        if (
-          row.aprobacionAsistente === "Aprobada" &&
-          row.aprobacionJefatura === "Pendiente"
-        ) {
-          return (
-            <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
-              En Jefatura
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
-            Pendiente
-          </span>
-        );
-      },
-    },
-  ];
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isStatusOpen && !event.target.closest('.status-dropdown')) {
-        setIsStatusOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isStatusOpen]);
-
-  const getSelectedStatusDisplay = () => {
-    if (selectedStatuses.length === 0) return "Todos los estados";
-    if (selectedStatuses.length === 1) return selectedStatuses[0];
-    return `${selectedStatuses.length} estados seleccionados`;
-  };
-
-  useEffect(() => {
-    if (location.state?.preserveFilters && Filter) {
-      setSearchTerm(reportFilters.searchTerm || "");
-      setDateRange({
-        startDate: reportFilters.startDate || null,
-        endDate: reportFilters.endDate || null
-      });
-      setSelectedPerson(reportFilters.selectedPerson || "");
-      setSelectedStatuses(reportFilters.selectedStatuses || []);
-    }
-  }, [location.state?.preserveFilters, reportFilters]);
+  const { expenseReports, loading, departmentWorkers } = useExpenseAudit();
+  const [selectedExpenses, setSelectedExpenses] = useState([]);
+  const [filters, setFilters] = useState({
+    searchTerm: '',
+    dateRange: { startDate: null, endDate: null },
+    selectedPerson: '',
+    selectedStatuses: []
+  });
   
-  // Add filter saving effect:
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setReportFilters({
-          searchTerm,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
-          selectedPerson,
-          selectedStatuses
-      });
-    }, 300);
-  
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, dateRange, selectedPerson, selectedStatuses, setReportFilters]);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const handleRowClick = (expense) => {
-    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
-      state: { from: location },
-    });
-  };
-
-  const handleStatusToggle = (status) => {
-    setSelectedStatuses(prev =>
-      prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
-    );
-  };
-
+  // Create getExpenseStatus function before it's used
   const getExpenseStatus = (expense) => {
     if (
       expense.aprobacionAsistente === "No aprobada" ||
@@ -181,79 +39,149 @@ const Reports = () => {
     ) {
       return "No aprobada";
     }
-
     if (expense.aprobacionContabilidad === "Aprobada") {
       return "Aprobada por Contabilidad";
     }
-
     if (
       expense.aprobacionJefatura === "Aprobada" &&
       expense.aprobacionContabilidad === "Pendiente"
     ) {
       return "Aprobada por Jefatura";
     }
-
     if (
       expense.aprobacionAsistente === "Aprobada" &&
       expense.aprobacionJefatura === "Pendiente"
     ) {
       return "Aprobada por Asistente";
     }
+    return "Pendiente";
   };
 
-  const filteredExpenses = expenseReports.filter((expense) => {
-    // Date range filter
-    if (dateRange.startDate && dateRange.endDate) {
-      const expenseDate = new Date(expense.fecha.toISOString().split("T")[0]);
-      const startDate = new Date(dateRange.startDate);
-      const endDate = new Date(dateRange.endDate);
+  // Memoize filtered expenses - this is the main performance optimization
+  const filteredExpenses = useMemo(() => {
+    // Reset to first page whenever filters change
+    setCurrentPage(1);
+    setSelectedExpenses([]);
+    
+    console.time('Filter expenses');
+    const result = expenseReports.filter((expense) => {
+      if (filters.dateRange.startDate && filters.dateRange.endDate) {
+        const expenseDate = expense.fecha.getTime();
+        const start = new Date(filters.dateRange.startDate).getTime();
+        const end = new Date(filters.dateRange.endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
+        if (expenseDate < start || expenseDate > end) return false;
+      }
+      if (filters.selectedPerson && expense.createdBy.email !== filters.selectedPerson) {
+        return false;
+      }
+      if (filters.selectedStatuses.length > 0) {
+        const status = getExpenseStatus(expense);
+        if (!filters.selectedStatuses.includes(status)) {
+          return false;
+        }
+      }
+      if (filters.searchTerm) {
+        const search = filters.searchTerm.toLowerCase();
+        return (
+          expense.rubro.toLowerCase().includes(search) ||
+          expense.st.toLowerCase().includes(search) ||
+          expense.createdBy.name.toLowerCase().includes(search) ||
+          expense.id.toString().includes(search)
+        );
+      }
+      return true;
+    });
+    console.timeEnd('Filter expenses');
+    return result;
+  }, [expenseReports, filters]);
 
-      if (!(expenseDate >= startDate && expenseDate <= endDate)) return false;
+  // Paginate the filtered expenses
+  const paginatedExpenses = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    return filteredExpenses.slice(start, end);
+  }, [filteredExpenses, currentPage]);
+  
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredExpenses.length / PAGE_SIZE);
+  }, [filteredExpenses]);
+
+  const people = useMemo(() => {
+    return departmentWorkers.reduce((acc, dept) => {
+      dept.workers.forEach((worker) => {
+        if (
+          worker.empleado &&
+          !acc.some((p) => p.email === worker.empleado.email)
+        ) {
+          acc.push(worker.empleado);
+        }
+      });
+      return acc;
+    }, []).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [departmentWorkers]);
+
+  const handleSelectAll = useCallback((isSelected) => {
+    if (isSelected) {
+      setSelectedExpenses(paginatedExpenses.map(expense => expense.id));
+    } else {
+      setSelectedExpenses([]);
     }
+  }, [paginatedExpenses]);
 
-    if (selectedPerson && expense.createdBy.email !== selectedPerson)
-      return false;
-
-    if (selectedStatuses.length > 0) {
-      const status = getExpenseStatus(expense);
-      if (!selectedStatuses.includes(status)) return false;
-    }
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      return (
-        expense.rubro.toLowerCase().includes(search) ||
-        expense.st.toLowerCase().includes(search) ||
-        expense.createdBy.name.toLowerCase().includes(search) ||
-        expense.id.toString().includes(search)
-      );
-    }
-    return true;
-  });
-
-  const people = (departmentWorkers.reduce((acc, dept) => {
-    dept.workers.forEach((worker) => {
-      if (
-        worker.empleado &&
-        !acc.some((p) => p.email === worker.empleado.email)
-      ) {
-        acc.push(worker.empleado);
+  const handleSelectExpense = useCallback((expenseId, isSelected) => {
+    setSelectedExpenses(prev => {
+      if (isSelected) {
+        return [...prev, expenseId];
+      } else {
+        return prev.filter(id => id !== expenseId);
       }
     });
-    return acc;
-  }, [])).sort((a, b) =>
-    a.displayName.localeCompare(b.displayName)
-  );;
+  }, []);
 
-  const resetFilters = () => {
-    setDateRange({ startDate: null, endDate: null });
-    setSelectedPerson("");
-    setSelectedStatuses([]);
-    setSearchTerm("");
-  };
+  const handleSearchChange = useCallback((value) => {
+    setFilters(prev => ({ ...prev, searchTerm: value }));
+  }, []);
 
-  const handleCopyTable = () => {
-    const rows = filteredExpenses.map((expense) => ({
+  const handleDateRangeChange = useCallback((range) => {
+    setFilters(prev => ({ ...prev, dateRange: range }));
+  }, []);
+
+  const handlePersonChange = useCallback((person) => {
+    setFilters(prev => ({ ...prev, selectedPerson: person }));
+  }, []);
+
+  const handleStatusesChange = useCallback((statuses) => {
+    setFilters(prev => ({ ...prev, selectedStatuses: statuses }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters({
+      searchTerm: '',
+      dateRange: { startDate: null, endDate: null },
+      selectedPerson: '',
+      selectedStatuses: []
+    });
+  }, []);
+
+  const areAllSelected = useMemo(() => {
+    return paginatedExpenses.length > 0 && selectedExpenses.length === paginatedExpenses.length;
+  }, [paginatedExpenses, selectedExpenses]);
+
+  const getExpensesForExport = useCallback(() => {
+    return selectedExpenses.length > 0
+      ? filteredExpenses.filter(expense => selectedExpenses.includes(expense.id))
+      : filteredExpenses;
+  }, [selectedExpenses, filteredExpenses]);
+
+  const handleRowClick = useCallback((expense) => {
+    navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
+      state: { from: location },
+    });
+  }, [navigate, location]);
+
+  const handleCopyTable = useCallback(() => {
+    const rows = getExpensesForExport().map((expense) => ({
       Fecha: expense.fecha.toLocaleDateString("es-CR"),
       Solicitante: expense.createdBy.name,
       Rubro: expense.rubro,
@@ -264,18 +192,16 @@ const Reports = () => {
       ST: expense.st,
       Estado: getExpenseStatus(expense),
     }));
-
     const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "ST", "Estado"];
     const csv = [
       headers.join("\t"),
       ...rows.map((row) => headers.map((header) => row[header]).join("\t")),
     ].join("\n");
-
     navigator.clipboard.writeText(csv);
-  };
+  }, [getExpensesForExport]);
 
-  const handleExportCSV = () => {
-    const rows = filteredExpenses.map((expense) => ({
+  const handleExportCSV = useCallback(() => {
+    const rows = getExpensesForExport().map((expense) => ({
       Fecha: expense.fecha.toLocaleDateString("es-CR"),
       Solicitante: expense.createdBy.name,
       Rubro: expense.rubro,
@@ -283,7 +209,6 @@ const Reports = () => {
       ST: expense.st,
       Estado: getExpenseStatus(expense),
     }));
-
     const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "ST", "Estado"];
     const csv = [
       headers.join(","),
@@ -298,42 +223,73 @@ const Reports = () => {
           .join(",")
       ),
     ].join("\n");
-
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
     const filename =
-      dateRange.startDate && dateRange.endDate
-        ? `reporte_gastos_${dateRange.startDate}_${dateRange.endDate}.csv`
+      filters.dateRange.startDate && filters.dateRange.endDate
+        ? `reporte_gastos_${filters.dateRange.startDate}_${filters.dateRange.endDate}.csv`
         : "reporte_gastos.csv";
     link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, [filters.dateRange, getExpensesForExport]);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     window.print();
-  };
+  }, []);
 
   const getDateRangeLabel = () => {
-    if (!dateRange.startDate || !dateRange.endDate) return "Todos los gastos";
+    if (!filters.dateRange.startDate || !filters.dateRange.endDate) return "Todos los gastos";
     return `Gastos del ${new Date(
-      dateRange.startDate
+      filters.dateRange.startDate
     ).toLocaleDateString()} al ${new Date(
-      dateRange.endDate
+      filters.dateRange.endDate
     ).toLocaleDateString()}`;
+  };
+
+  // Pagination navigation handlers
+  const handlePrevPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
   };
 
   return (
     <>
-      {/* Print Summary - Hidden during normal view, shown only when printing */}
+      {/* Print view (hidden from normal view) */}
       <PrintSummary
-        expenses={filteredExpenses}
-        dateRange={dateRange}
-        selectedPerson={selectedPerson}
+        expenses={getExpensesForExport()}
+        dateRange={filters.dateRange}
+        selectedPerson={filters.selectedPerson}
         people={people}
+        title={selectedExpenses.length > 0 ?
+          `Reporte de Gastos (${selectedExpenses.length} seleccionados)` :
+          "Reporte de Gastos"}
+      />
+
+      {/* Selection toolbar for bulk actions */}
+      <SelectionToolbar
+        selectedCount={selectedExpenses.length}
+        onClearSelection={() => setSelectedExpenses([])}
+        actions={[
+          {
+            label: "Imprimir selección",
+            icon: <Printer size={16} />,
+            onClick: handlePrint,
+            variant: "default"
+          },
+          {
+            label: "Exportar selección",
+            icon: <FileDown size={16} />,
+            onClick: handleExportCSV,
+            variant: "default"
+          }
+        ]}
       />
 
       <div className="max-w-7xl mx-auto px-4 py-6 print:hidden">
@@ -341,8 +297,8 @@ const Reports = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {getDateRangeLabel()} • {filteredExpenses.length} gastos
-              encontrados
+              {getDateRangeLabel()} • {filteredExpenses.length} gastos encontrados
+              {selectedExpenses.length > 0 && ` (${selectedExpenses.length} seleccionados)`}
             </p>
           </div>
           <div className="flex gap-2">
@@ -373,116 +329,37 @@ const Reports = () => {
           </div>
         </div>
 
-        <Card className="mb-6">
-          <div className="flex flex-col md:flex-row gap-4 p-4">
-            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-              <Search size={16} className="text-gray-400 mr-2" />
-              <input
-                type="text"
-                placeholder="Buscar por ID, rubro, ST o solicitante..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-transparent border-none focus:outline-none text-sm"
-              />
-            </div>
+        {/* Filter controls */}
+        <ReportFilters
+          searchTerm={filters.searchTerm}
+          onSearchTermChange={handleSearchChange}
+          dateRange={filters.dateRange}
+          onDateRangeChange={handleDateRangeChange}
+          selectedPerson={filters.selectedPerson}
+          onPersonChange={handlePersonChange}
+          selectedStatuses={filters.selectedStatuses}
+          onStatusesChange={handleStatusesChange}
+          people={people}
+          onResetFilters={resetFilters}
+        />
 
-            <div className="flex-1">
-              <DateRangePicker
-                startDate={dateRange.startDate}
-                endDate={dateRange.endDate}
-                onStartDateChange={(date) =>
-                  setDateRange((prev) => ({ ...prev, startDate: date }))
-                }
-                onEndDateChange={(date) =>
-                  setDateRange((prev) => ({ ...prev, endDate: date }))
-                }
-                className="w-full"
-              />
-            </div>
+        {/* Data summary */}
+        <ExpenseSummary expenses={getExpensesForExport()} />
 
-            <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-3 py-2">
-              <Users size={16} className="text-gray-400 mr-2" />
-              <select
-                value={selectedPerson}
-                onChange={(e) => setSelectedPerson(e.target.value)}
-                className="w-full bg-transparent border-none focus:outline-none text-sm"
-              >
-                <option value="">Todos los solicitantes</option>
-                {people.map((person) => (
-                  <option key={person.id} value={person.email}>
-                    {person.displayName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex-1 relative status-dropdown">
-              <div className="flex-1 relative">
-                <div
-                  onClick={() => setIsStatusOpen(!isStatusOpen)}
-                  className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 cursor-pointer"
-                >
-                  <div className="flex items-center">
-                    <Filter size={16} className="text-gray-400 mr-2" />
-                    <span className="text-sm truncate">
-                      {getSelectedStatusDisplay()}
-                    </span>
-                  </div>
-                  <X
-                    size={16}
-                    className={`transform transition-transform ${isStatusOpen ? "rotate-45" : "rotate-0"
-                      }`}
-                  />
-                </div>
-
-                {isStatusOpen && (
-                  <div className="absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border max-h-64 overflow-y-auto">
-                    {[
-                      "Aprobada por Asistente",
-                      "Aprobada por Jefatura",
-                      "Aprobada por Contabilidad",
-                      "No aprobada"
-                    ].map((status) => (
-                      <div
-                        key={status}
-                        onClick={() => handleStatusToggle(status)}
-                        className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                      >
-                        <span className="text-sm font-medium">{status}</span>
-                        {selectedStatuses.includes(status) && (
-                          <Check size={16} className="text-primary" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              size="small"
-              startIcon={<XCircle size={16} />}
-              onClick={resetFilters}
-              className="md:self-center"
-            >
-              Limpiar filtros
-            </Button>
-          </div>
-        </Card>
-
-        <ExpenseSummary expenses={filteredExpenses} />
-
+        {/* Main data table */}
         <Card>
           <div className="print:shadow-none">
-            <Table
-              columns={columns}
-              data={filteredExpenses}
+            <ReportTable
+              data={paginatedExpenses}
+              loading={loading}
               onRowClick={handleRowClick}
-              isLoading={loading}
+              selectedExpenses={selectedExpenses}
+              onSelectAll={handleSelectAll}
+              onSelectExpense={handleSelectExpense}
+              areAllSelected={areAllSelected}
               emptyMessage={
                 <div className="flex flex-col items-center justify-center py-12">
-                  <FileDown size={48} className="text-gray-400 mb-4" />
+                  <FileText size={48} className="text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-1">
                     No se encontraron gastos
                   </h3>
@@ -492,6 +369,40 @@ const Reports = () => {
                 </div>
               }
             />
+            
+            {/* Pagination controls */}
+            {filteredExpenses.length > PAGE_SIZE && (
+              <div className="flex justify-between items-center mt-4 p-4 border-t">
+                <div className="text-sm text-gray-500">
+                  Mostrando {Math.min(filteredExpenses.length, (currentPage - 1) * PAGE_SIZE + 1)}-
+                  {Math.min(filteredExpenses.length, currentPage * PAGE_SIZE)} de {filteredExpenses.length}
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="small"
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  
+                  <span className="text-sm mx-2">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  
+                  <Button
+                    variant="outline"
+                    size="small"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       </div>

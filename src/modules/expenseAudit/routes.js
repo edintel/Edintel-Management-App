@@ -11,7 +11,11 @@ import Reports from './components/Reports/Reports';
 import Profile from './components/Profile/Profile';
 import { ApprovalRoute } from './components/ApprovalRoute';
 
-// Navigation configuration for the module
+/**
+ * Expense Audit route definitions
+ * 
+ * These constants define the paths for the expense audit module
+ */
 export const EXPENSE_AUDIT_ROUTES = {
   ROOT: '/expense-audit',
   DASHBOARD: '/expense-audit/dashboard',
@@ -26,71 +30,75 @@ export const EXPENSE_AUDIT_ROUTES = {
   PROFILE: '/expense-audit/profile',
 };
 
-// Main routes component
+/**
+ * Expense Audit Routes component
+ * 
+ * Defines the routes for the expense audit module
+ */
 export const ExpenseAuditRoutes = () => {
   return (
     <Layout>
       <Routes>
-        {/* Default redirect */}
-        <Route 
-          path="/" 
-          element={<Navigate to="dashboard" replace />} 
+        {/* Default route */}
+        <Route
+          path="/"
+          element={<Navigate to="dashboard" replace />}
         />
-
+        
         {/* Dashboard */}
-        <Route 
-          path="dashboard" 
+        <Route
+          path="dashboard"
           element={<Dashboard />}
         />
-
-        {/* Expenses routes */}
-        <Route 
-          path="expenses" 
+        
+        {/* Expense routes */}
+        <Route
+          path="expenses"
           element={<ExpenseList />}
         />
-        <Route 
-          path="expenses/new" 
+        <Route
+          path="expenses/new"
           element={<ExpenseForm />}
         />
-        <Route 
-          path="expenses/:id" 
+        <Route
+          path="expenses/:id"
           element={<ExpenseDetail />}
         />
-        <Route 
-          path="expenses/:id/edit" 
+        <Route
+          path="expenses/:id/edit"
           element={<ExpenseEdit />}
         />
-
-        {/* Protected approval routes */}
-        <Route 
-          path="approvals" 
+        
+        {/* Approval routes - protected */}
+        <Route
+          path="approvals"
           element={
             <ApprovalRoute>
               <ApprovalList />
             </ApprovalRoute>
           }
         />
-
-        {/* Protected reports route */}
-        <Route 
-          path="reports" 
+        
+        {/* Reports routes - protected */}
+        <Route
+          path="reports"
           element={
             <ApprovalRoute>
               <Reports />
             </ApprovalRoute>
           }
         />
-
-        {/* Profile */}
-        <Route 
-          path="profile" 
+        
+        {/* Profile route */}
+        <Route
+          path="profile"
           element={<Profile />}
         />
-
-        {/* Catch-all redirect */}
-        <Route 
-          path="*" 
-          element={<Navigate to="dashboard" replace />} 
+        
+        {/* Fallback route */}
+        <Route
+          path="*"
+          element={<Navigate to="dashboard" replace />}
         />
       </Routes>
     </Layout>

@@ -3,19 +3,30 @@ import { useMsal } from "@azure/msal-react";
 import ExpenseAuditService from "../components/services/ExpenseAuditService";
 import { expenseAuditConfig } from "../config/expenseAudit.config";
 
+/**
+ * App Context for the Expense Audit module
+ * Provides state and services for expense audit components
+ */
 const AppContext = createContext();
 
+/**
+ * Hook to access the app context
+ * @returns {Object} The app context
+ */
 export function useAppContext() {
   return useContext(AppContext);
 }
 
+/**
+ * Provider component for the Expense Audit module
+ * @param {Object} children - The child components
+ */
 export function AppProviderExpenseAudit({ children }) {
   const { instance, accounts } = useMsal();
   const [initialized, setInitialized] = useState(false);
   const [services, setServices] = useState({
     expense: { service: null, initialized: false, initializing: false },
   });
-
   const [expenseState, setExpenseState] = useState({
     expenseReports: [],
     departments: [],
@@ -45,6 +56,10 @@ export function AppProviderExpenseAudit({ children }) {
     }
   });
 
+  /**
+   * Update expense reports state
+   * @param {Function|Array} updaterFn - Function or array to update expense reports
+   */
   const updateExpenseReports = useCallback((updaterFn) => {
     setExpenseState((prev) => ({
       ...prev,
@@ -55,20 +70,27 @@ export function AppProviderExpenseAudit({ children }) {
     }));
   }, []);
 
+  /**
+   * Initialize expense service
+   * @returns {Object|null} The initialized service or null
+   */
   const initializeExpenseService = useCallback(async () => {
     if (!instance || accounts.length === 0) return null;
     if (services.expense.initialized) return services.expense.service;
     if (services.expense.initializing) return null;
-
+    
     try {
       setServices((prev) => ({
         ...prev,
         expense: { ...prev.expense, initializing: true },
       }));
-
+      
+      // Create and initialize the service
       const expenseService = new ExpenseAuditService(instance, expenseAuditConfig);
+      
+      // Important - we must await full initialization of the service and its dependencies
       await expenseService.initialize();
-
+      
       setServices((prev) => ({
         ...prev,
         expense: {
@@ -77,7 +99,7 @@ export function AppProviderExpenseAudit({ children }) {
           initializing: false,
         },
       }));
-
+      
       return expenseService;
     } catch (error) {
       console.error("Error initializing expense service:", error);
@@ -89,65 +111,63 @@ export function AppProviderExpenseAudit({ children }) {
     }
   }, [instance, accounts, services.expense.initialized, services.expense.initializing, services.expense.service]);
 
+  /**
+   * Load expense data
+   */
   const loadExpenseData = useCallback(async () => {
     if (expenseState.loading) return;
     const service = await initializeExpenseService();
     if (!service) return;
-    
     setExpenseState((prev) => ({ ...prev, loading: true, error: null }));
-    
     try {
       const [expenseReportsData, departmentsData, rolesData] = await Promise.all([
         service.getExpenseReports(),
         service.getDepartments(),
         service.getRoles(),
       ]);
-  
       const mappedDepartmentWorkers = service.mapDepartmentWorkers(
         departmentsData,
         rolesData
       );
-  
       const currentUserEmail = accounts[0]?.username;
-      const userDeptRole = service.getUserDepartmentRole(
-        currentUserEmail,
-        departmentsData,
-        rolesData
+      
+      // Get all user roles across departments
+      const userRoles = service.permissionService.getUserRoles(currentUserEmail);
+      
+      // Determine the primary department role
+      let userDeptRole = null;
+      
+      if (userRoles.length > 0) {
+        // Prioritize administrative roles (Jefe, Asistente) over Empleado
+        const adminRole = userRoles.find(role => 
+          role.roleType === 'Jefe' || role.roleType === 'Asistente'
+        );
+        
+        const selectedRole = adminRole || userRoles[0];
+        
+        userDeptRole = {
+          department: selectedRole.department,
+          role: selectedRole.roleType
+        };
+      }
+      
+      // Filter visible expenses based on user's roles and permissions
+      // Filter expenses based on user's role and permissions
+      const filteredExpenses = service.filterExpensesByDepartment(
+        expenseReportsData, 
+        userDeptRole
       );
-  
-      // Filter expenses based on department access
-      const filteredExpenses = expenseReportsData.filter(expense => {
-        // Contabilidad can see everything
-        if (userDeptRole?.department?.departamento.toLowerCase().includes('contabilidad')) {
-          return true;
-        }
-  
-        // Users can always see their own expenses
-        if (expense.createdBy.email === currentUserEmail) {
-          return true;
-        }
-  
-        // Department heads and assistants can see their department's expenses
-        if (userDeptRole?.role === 'Jefe' || userDeptRole?.role === 'Asistente') {
-          const expenseCreator = rolesData.find(role => 
-            role.empleado?.email === expense.createdBy.email
-          );
-          return expenseCreator?.departamentoId === parseInt(userDeptRole.department.id);
-        }
-  
-        // Regular users can only see their own expenses (already covered above)
-        return false;
-      });
-  
-      setExpenseState({
-        expenseReports: filteredExpenses, 
+      
+      setExpenseState(prev => ({
+        ...prev,
+        expenseReports: filteredExpenses,
         departments: departmentsData,
         roles: rolesData,
         departmentWorkers: mappedDepartmentWorkers,
         userDepartmentRole: userDeptRole,
         loading: false,
         error: null,
-      });
+      }));
       setInitialized(true);
     } catch (error) {
       console.error("Error loading expense data:", error);
@@ -160,13 +180,14 @@ export function AppProviderExpenseAudit({ children }) {
     }
   }, [accounts, initializeExpenseService, expenseState.loading]);
 
-  // Single useEffect for initialization
+  // Initialize data when not loaded and user is logged in
   useEffect(() => {
     if (!initialized && !expenseState.loading && accounts.length > 0) {
       loadExpenseData();
     }
   }, [initialized, accounts, loadExpenseData, expenseState.loading]);
 
+  // Context value
   const value = {
     services: { expense: services.expense.service },
     expenseState,
@@ -180,12 +201,16 @@ export function AppProviderExpenseAudit({ children }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
+/**
+ * Hook to access expense audit context
+ * @returns {Object} Expense audit context
+ */
 export function useExpenseAudit() {
   const context = useContext(AppContext);
   if (!context) {
     throw new Error("useExpenseAudit must be used within AppProviderExpenseAudit");
   }
-
+  
   const {
     services: { expense: service },
     expenseState: {
@@ -198,16 +223,18 @@ export function useExpenseAudit() {
       error,
       approvalFilters,
       reportFilters,
-      expenseListFilters    
+      expenseListFilters
     },
     initialized,
     updateExpenseReports,
     loadExpenseData,
-    setExpenseState    
+    setExpenseState
   } = context;
-
+  
   return {
     service,
+    permissionService: service ? service.permissionService : null,
+    approvalFlowService: service ? service.approvalFlowService : null,
     expenseReports,
     departments,
     roles,
@@ -222,7 +249,6 @@ export function useExpenseAudit() {
     setExpenseListFilters: (filters) => setExpenseState(prev => ({ ...prev, expenseListFilters: filters })),
     reportFilters,
     setReportFilters: (filters) => setExpenseState(prev => ({ ...prev, reportFilters: filters })),
-
     setExpenseReports: updateExpenseReports,
     loadExpenseData,
   };

@@ -689,9 +689,7 @@ class PostVentaManagementService extends BaseGraphService {
 
   async updateTicket(ticketId, data) {
     await this.initializeGraphClient();
-
     try {
-      // Prepare update fields
       const fields = {
         Title: data.st,
         SitioIDLookupId: parseInt(data.siteId),
@@ -699,17 +697,17 @@ class PostVentaManagementService extends BaseGraphService {
         alcance: data.scope,
         Tipo: data.type,
       };
-
       const ticket = await this.client
         .api(
           `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
         )
         .expand("fields")
         .get();
-
+      
+      // Handle service ticket and report files from legacy code path
       if (data.serviceTicket) {
         if (ticket.fields.Boleta) {
-          await this.deleteFile(ticket.fields.Boleta);
+          await this.deleteFile(this.siteId, this.driveId, ticket.fields.Boleta);
         }
         const boletaId = await this.uploadServiceTicket(
           ticketId,
@@ -717,16 +715,85 @@ class PostVentaManagementService extends BaseGraphService {
         );
         fields.Boleta = boletaId;
       }
-
       if (data.report) {
         if (ticket.fields.Informe) {
-          await this.deleteFile(ticket.fields.Informe);
+          await this.deleteFile(this.siteId, this.driveId, ticket.fields.Informe);
         }
         const reportId = await this.uploadServiceReport(ticketId, data.report);
         fields.Informe = reportId;
       }
+  
+      // Handle files to delete
+      if (data.filesToDelete && data.filesToDelete.length > 0) {
+        for (const fileId of data.filesToDelete) {
+          try {
+            // First check if file exists in general docs list
+            const generalDocsQuery = await this.client
+              .api(`/sites/${this.siteId}/lists/${this.config.lists.docs}/items`)
+              .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+              .filter(`fields/itemId eq '${fileId}'`)
+              .expand('fields')
+              .get();
+            
+            const generalDocs = generalDocsQuery.value;
+            
+            if (generalDocs.length > 0) {
+              // Delete file from SharePoint
+              await this.deleteFile(this.siteId, this.driveId, fileId);
+              
+              // Delete list item 
+              await this.client
+                .api(`/sites/${this.siteId}/lists/${this.config.lists.docs}/items/${generalDocs[0].id}`)
+                .delete();
+            } else {
+              // Check if it's an admin file
+              try {
+                const adminDocsQuery = await this.client
+                  .api(`/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items`)
+                  .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+                  .filter(`fields/itemId eq '${fileId}'`)
+                  .expand('fields')
+                  .get();
+                
+                const adminDocs = adminDocsQuery.value;
+                
+                if (adminDocs.length > 0) {
+                  // Delete file from SharePoint
+                  await this.deleteFile(this.admins.siteId, this.admins.driveId, fileId);
+                  
+                  // Delete list item
+                  await this.client
+                    .api(`/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items/${adminDocs[0].id}`)
+                    .delete();
 
-      // Update ticket
+                } else {
+                  console.warn(`File ${fileId} not found in any document list`);
+                }
+              } catch (err) {
+                console.error(`Error handling admin doc ${fileId}:`, err);
+                throw err; // Rethrow to be caught by outer catch
+              }
+            }
+          } catch (err) {
+            console.error(`Error deleting file ${fileId}:`, err);
+            throw new Error(`Error deleting files: ${err.message}`);
+          }
+        }
+      }
+  
+      // Handle files to upload
+      if (data.filesToUpload && data.filesToUpload.length > 0) {
+        for (const fileData of data.filesToUpload) {
+          await this.uploadTicketDocument(
+            ticketId,
+            fileData.file,
+            fileData.type,
+            fileData.displayName
+          );
+        }
+      }
+  
+      // Update the ticket in SharePoint
       const response = await this.client
         .api(
           `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
@@ -734,7 +801,6 @@ class PostVentaManagementService extends BaseGraphService {
         .patch({
           fields: fields,
         });
-
       return response;
     } catch (error) {
       console.error("Error updating ticket:", error);
