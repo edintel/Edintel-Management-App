@@ -11,6 +11,7 @@ import ReportFilters from "./components/ReportFilters";
 import PrintSummary from "./components/PrintSummary";
 import ExpenseSummary from "./ExpenseSummary";
 import "./Reports.css";
+import { getExpenseStatus } from "./constants";
 
 // Define page size for pagination
 const PAGE_SIZE = 50;
@@ -20,68 +21,37 @@ const Reports = () => {
   const location = useLocation();
   const { expenseReports, loading, departmentWorkers } = useExpenseAudit();
   const [selectedExpenses, setSelectedExpenses] = useState([]);
-  const [filters, setFilters] = useState({
-    searchTerm: '',
-    dateRange: { startDate: null, endDate: null },
-    selectedPerson: '',
-    selectedStatuses: []
-  });
-  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedPerson, setSelectedPerson] = useState('');
+  const [selectedStatuses, setSelectedStatuses] = useState([]);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Create getExpenseStatus function before it's used
-  const getExpenseStatus = (expense) => {
-    if (
-      expense.aprobacionAsistente === "No aprobada" ||
-      expense.aprobacionJefatura === "No aprobada" ||
-      expense.aprobacionContabilidad === "No aprobada"
-    ) {
-      return "No aprobada";
-    }
-    if (expense.aprobacionContabilidad === "Aprobada") {
-      return "Aprobada por Contabilidad";
-    }
-    if (
-      expense.aprobacionJefatura === "Aprobada" &&
-      expense.aprobacionContabilidad === "Pendiente"
-    ) {
-      return "Aprobada por Jefatura";
-    }
-    if (
-      expense.aprobacionAsistente === "Aprobada" &&
-      expense.aprobacionJefatura === "Pendiente"
-    ) {
-      return "Aprobada por Asistente";
-    }
-    return "Pendiente";
-  };
-
   // Memoize filtered expenses - this is the main performance optimization
   const filteredExpenses = useMemo(() => {
-    // Reset to first page whenever filters change
     setCurrentPage(1);
     setSelectedExpenses([]);
-    
-    console.time('Filter expenses');
     const result = expenseReports.filter((expense) => {
-      if (filters.dateRange.startDate && filters.dateRange.endDate) {
+      if (startDate && endDate) {
         const expenseDate = expense.fecha.getTime();
-        const start = new Date(filters.dateRange.startDate).getTime();
-        const end = new Date(filters.dateRange.endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
+        const start = new Date(startDate).getTime();
+        const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
         if (expenseDate < start || expenseDate > end) return false;
       }
-      if (filters.selectedPerson && expense.createdBy.email !== filters.selectedPerson) {
+      if (selectedPerson && expense.createdBy.email !== selectedPerson) {
         return false;
       }
-      if (filters.selectedStatuses.length > 0) {
+      if (selectedStatuses.length > 0) {
         const status = getExpenseStatus(expense);
-        if (!filters.selectedStatuses.includes(status)) {
+        if (!selectedStatuses.includes(status)) {
           return false;
         }
       }
-      if (filters.searchTerm) {
-        const search = filters.searchTerm.toLowerCase();
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
         return (
           expense.rubro.toLowerCase().includes(search) ||
           expense.st.toLowerCase().includes(search) ||
@@ -91,9 +61,8 @@ const Reports = () => {
       }
       return true;
     });
-    console.timeEnd('Filter expenses');
     return result;
-  }, [expenseReports, filters]);
+  }, [expenseReports, searchTerm, startDate, endDate, selectedPerson, selectedStatuses]);
 
   // Paginate the filtered expenses
   const paginatedExpenses = useMemo(() => {
@@ -101,7 +70,7 @@ const Reports = () => {
     const end = start + PAGE_SIZE;
     return filteredExpenses.slice(start, end);
   }, [filteredExpenses, currentPage]);
-  
+
   // Calculate total pages
   const totalPages = useMemo(() => {
     return Math.ceil(filteredExpenses.length / PAGE_SIZE);
@@ -140,28 +109,31 @@ const Reports = () => {
   }, []);
 
   const handleSearchChange = useCallback((value) => {
-    setFilters(prev => ({ ...prev, searchTerm: value }));
+    setSearchTerm(value);
   }, []);
 
-  const handleDateRangeChange = useCallback((range) => {
-    setFilters(prev => ({ ...prev, dateRange: range }));
+  const handleStartDateChange = useCallback((date) => {
+    setStartDate(date);
+  }, []);
+
+  const handleEndDateChange = useCallback((date) => {
+    setEndDate(date);
   }, []);
 
   const handlePersonChange = useCallback((person) => {
-    setFilters(prev => ({ ...prev, selectedPerson: person }));
+    setSelectedPerson(person);
   }, []);
 
   const handleStatusesChange = useCallback((statuses) => {
-    setFilters(prev => ({ ...prev, selectedStatuses: statuses }));
+    setSelectedStatuses(statuses);
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({
-      searchTerm: '',
-      dateRange: { startDate: null, endDate: null },
-      selectedPerson: '',
-      selectedStatuses: []
-    });
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setSelectedPerson('');
+    setSelectedStatuses([]);
   }, []);
 
   const areAllSelected = useMemo(() => {
@@ -228,26 +200,22 @@ const Reports = () => {
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
     const filename =
-      filters.dateRange.startDate && filters.dateRange.endDate
-        ? `reporte_gastos_${filters.dateRange.startDate}_${filters.dateRange.endDate}.csv`
+      startDate && endDate
+        ? `reporte_gastos_${startDate}_${endDate}.csv`
         : "reporte_gastos.csv";
     link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [filters.dateRange, getExpensesForExport]);
+  }, [endDate, startDate, getExpensesForExport]);
 
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
 
   const getDateRangeLabel = () => {
-    if (!filters.dateRange.startDate || !filters.dateRange.endDate) return "Todos los gastos";
-    return `Gastos del ${new Date(
-      filters.dateRange.startDate
-    ).toLocaleDateString()} al ${new Date(
-      filters.dateRange.endDate
-    ).toLocaleDateString()}`;
+    if (!startDate || !endDate) return "Todos los gastos";
+    return `Gastos del ${new Date(startDate).toLocaleDateString()} al ${new Date(endDate).toLocaleDateString()}`;
   };
 
   // Pagination navigation handlers
@@ -264,8 +232,8 @@ const Reports = () => {
       {/* Print view (hidden from normal view) */}
       <PrintSummary
         expenses={getExpensesForExport()}
-        dateRange={filters.dateRange}
-        selectedPerson={filters.selectedPerson}
+        dateRange={{ startDate, endDate }}
+        selectedPerson={selectedPerson}
         people={people}
         title={selectedExpenses.length > 0 ?
           `Reporte de Gastos (${selectedExpenses.length} seleccionados)` :
@@ -331,13 +299,15 @@ const Reports = () => {
 
         {/* Filter controls */}
         <ReportFilters
-          searchTerm={filters.searchTerm}
+          searchTerm={searchTerm}
           onSearchTermChange={handleSearchChange}
-          dateRange={filters.dateRange}
-          onDateRangeChange={handleDateRangeChange}
-          selectedPerson={filters.selectedPerson}
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={handleStartDateChange}
+          onEndDateChange={handleEndDateChange}
+          selectedPerson={selectedPerson}
           onPersonChange={handlePersonChange}
-          selectedStatuses={filters.selectedStatuses}
+          selectedStatuses={selectedStatuses}
           onStatusesChange={handleStatusesChange}
           people={people}
           onResetFilters={resetFilters}
@@ -369,7 +339,7 @@ const Reports = () => {
                 </div>
               }
             />
-            
+
             {/* Pagination controls */}
             {filteredExpenses.length > PAGE_SIZE && (
               <div className="flex justify-between items-center mt-4 p-4 border-t">
@@ -377,7 +347,7 @@ const Reports = () => {
                   Mostrando {Math.min(filteredExpenses.length, (currentPage - 1) * PAGE_SIZE + 1)}-
                   {Math.min(filteredExpenses.length, currentPage * PAGE_SIZE)} de {filteredExpenses.length}
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -387,11 +357,11 @@ const Reports = () => {
                   >
                     Anterior
                   </Button>
-                  
+
                   <span className="text-sm mx-2">
                     Página {currentPage} de {totalPages}
                   </span>
-                  
+
                   <Button
                     variant="outline"
                     size="small"

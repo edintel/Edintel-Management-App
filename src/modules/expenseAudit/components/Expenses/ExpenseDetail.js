@@ -24,52 +24,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-// Helper function to check if user can approve expense - same as in ApprovalList
-const canUserApproveExpense = (expense, userEmail, permissionService) => {
-  if (!expense || !userEmail || !permissionService) return false;
-  
-  // If already fully approved or rejected, can't approve
-  if (expense.aprobacionContabilidad === "Aprobada" ||
-      expense.aprobacionAsistente === "No aprobada" ||
-      expense.aprobacionJefatura === "No aprobada" ||
-      expense.aprobacionContabilidad === "No aprobada") {
-    return false;
-  }
-  
-  // Get creator role to find their department
-  const creatorRole = permissionService.roles.find(
-    role => role.empleado?.email === expense.createdBy.email
-  );
-  
-  if (!creatorRole) return false;
-  
-  // Get user roles
-  const userRoles = permissionService.getUserRoles(userEmail);
-  
-  // Check if user is in same department using numeric comparison
-  const isInSameDepartment = userRoles.some(role => 
-    Number(role.departmentId) === Number(creatorRole.departamentoId)
-  );
-  
-  if (!isInSameDepartment) return false;
-  
-  // Check user role
-  const isAssistant = permissionService.hasRole(userEmail, "Asistente");
-  const isBoss = permissionService.hasRole(userEmail, "Jefe");
-  
-  // Check approval sequence
-  if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
-    return true;
-  }
-  
-  if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
-      (expense.aprobacionAsistente === "Aprobada" || !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
-    return true;
-  }
-  
-  return false;
-};
-
 const ExpenseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -146,7 +100,7 @@ const ExpenseDetail = () => {
 
   const canApprove = () => {
     if (!user || !expense) return false;
-    return canUserApproveExpense(expense, user.username, permissionService);
+    return approvalFlowService.canApprove(expense, user.username);
   };
 
   const handleDelete = () => {
@@ -189,43 +143,14 @@ const ExpenseDetail = () => {
     try {
       if (!expense) return;
       
-      // Use our fixed approval type detection
-      let approvalType = null;
-      const userEmail = user.username;
-      const creatorRole = permissionService.roles.find(
-        role => role.empleado?.email === expense.createdBy.email
-      );
-      
-      if (creatorRole) {
-        const userRoles = permissionService.getUserRoles(userEmail);
-        const isInSameDepartment = userRoles.some(role => 
-          Number(role.departmentId) === Number(creatorRole.departamentoId)
-        );
-        
-        if (isInSameDepartment) {
-          const isAssistant = permissionService.hasRole(userEmail, "Asistente");
-          const isBoss = permissionService.hasRole(userEmail, "Jefe");
-          
-          if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
-            approvalType = "assistant";
-          } else if (isBoss && expense.aprobacionJefatura === "Pendiente" && 
-                    (expense.aprobacionAsistente === "Aprobada" || 
-                     !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
-            approvalType = "boss";
-          }
-        }
-      }
-      
-      // Fallback to service method if we couldn't determine type
-      if (!approvalType) {
-        approvalType = approvalFlowService.getNextApprovalType(expense, userEmail);
-      }
+      // Use the service to determine approval type
+      const approvalType = approvalFlowService.getNextApprovalType(expense, user.username);
       
       if (!approvalType) {
         console.error("Cannot determine approval type", {
           expense,
-          user: userEmail,
-          userRoles: permissionService.getUserRoles(userEmail)
+          user: user.username,
+          userRoles: permissionService.getUserRoles(user.username)
         });
         alert("No se puede determinar el tipo de aprobación. Por favor contacte al administrador del sistema.");
         return;
@@ -234,6 +159,7 @@ const ExpenseDetail = () => {
       const status = confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
       await service.updateApprovalStatus(id, status, approvalType, notes);
       
+      // Update the local expense object and state
       const updatedExpense = { ...expense };
       updatedExpense.bloqueoEdicion = true;
       updatedExpense.notasRevision = notes;
@@ -260,7 +186,6 @@ const ExpenseDetail = () => {
           report.id === id ? updatedExpense : report
         )
       );
-      
       setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error("Error updating approval status:", error);
