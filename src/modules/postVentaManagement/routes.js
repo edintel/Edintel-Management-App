@@ -17,7 +17,6 @@ const ROLES = {
   COMERCIAL: "Comercial"
 };
 
-// Navigation configuration for the module
 export const POST_VENTA_ROUTES = {
   ROOT: '/post-venta',
   DASHBOARD: '/post-venta/dashboard',
@@ -34,46 +33,42 @@ export const POST_VENTA_ROUTES = {
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { userRole, loading } = usePostVentaManagement();
   const location = useLocation();
-
+  
   if (loading) return <LoadingScreen />;
-
+  
   if (!userRole || !allowedRoles.includes(userRole.role)) {
     return <Navigate to="/post-venta/dashboard" state={{ from: location }} replace />;
   }
-
+  
   return children;
 };
 
-// Main routes component
 export const PostVentaRoutes = () => {
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<PostVentaDashboard />} />
-        
         <Route path="tickets">
           <Route index element={<TicketList />} />
-          <Route 
-            path="new" 
+          <Route
+            path="new"
             element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.COMERCIAL]}>
                 <TicketForm />
               </ProtectedRoute>
-            } 
+            }
           />
           <Route path=":id" element={<TicketDetails />} />
         </Route>
-
-        <Route 
-          path="locations" 
+        <Route
+          path="locations"
           element={
-            <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR]}>
+            <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.COMERCIAL]}>
               <LocationManagementPage />
             </ProtectedRoute>
           }
         />
-
         <Route path="profile" element={<Profile />} />
         <Route path="*" element={<Navigate to="dashboard" replace />} />
       </Routes>

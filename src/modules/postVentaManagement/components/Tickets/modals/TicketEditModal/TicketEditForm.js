@@ -22,7 +22,6 @@ const TicketEditForm = ({
     service,
   } = usePostVentaManagement();
 
-  // Basic form data state
   const [formData, setFormData] = useState({
     st: "",
     scope: "",
@@ -72,16 +71,22 @@ const TicketEditForm = ({
     namePrefix: "image-",
   });
 
+  const getDeleteButtonStyle = (isDeleted) => {
+    return cn(
+      "text-sm font-medium",
+      isDeleted ? "text-primary hover:text-primary/80" : "text-error hover:text-error/80"
+    );
+  };
+
   // Load existing files
   useEffect(() => {
     const loadExistingFiles = async () => {
       if (!initialData?.id) return;
-
       try {
         // Load ticket documents
         const documents = await service.getTicketDocuments(initialData.id);
 
-        // Create object URLs for images
+        // Process existing images to create preview URLs
         const loadedImages = await Promise.all(
           documents
             .filter((doc) => doc.documentType === "image")
@@ -95,7 +100,6 @@ const TicketEditForm = ({
                   image.source === "admin"
                     ? service.admins.driveId
                     : service.driveId;
-
                 const { url, token } = await service.getFile(
                   configSiteId,
                   configDriveId,
@@ -105,7 +109,6 @@ const TicketEditForm = ({
                   headers: { Authorization: `Bearer ${token}` },
                 });
                 const blob = await response.blob();
-
                 return {
                   ...image,
                   preview: URL.createObjectURL(blob),
@@ -120,24 +123,21 @@ const TicketEditForm = ({
             })
         );
 
-        setFileState({
+        // Make sure we don't reset toDelete arrays if they exist
+        setFileState(prev => ({
           serviceTickets: {
-            existing: documents.filter(
-              (doc) => doc.documentType === "serviceTicket"
-            ),
-            toDelete: [],
+            existing: documents.filter(doc => doc.documentType === "serviceTicket"),
+            toDelete: prev.serviceTickets.toDelete || []
           },
           adminDocs: {
-            existing: documents.filter(
-              (doc) => doc.documentType === "administrative"
-            ),
-            toDelete: [],
+            existing: documents.filter(doc => doc.documentType === "administrative"),
+            toDelete: prev.adminDocs.toDelete || []
           },
           images: {
             existing: loadedImages,
-            toDelete: [],
-          },
-        });
+            toDelete: prev.images.toDelete || []
+          }
+        }));
       } catch (error) {
         console.error("Error loading files:", error);
         setErrors((prev) => ({
@@ -147,9 +147,12 @@ const TicketEditForm = ({
       }
     };
 
-    loadExistingFiles();
+    // Only run this effect once when the form is initialized
+    if (initialData?.id && fileState.serviceTickets.existing.length === 0) {
+      loadExistingFiles();
+    }
 
-    // Cleanup function for object URLs
+    // Cleanup function to revoke object URLs
     return () => {
       fileState.images.existing.forEach((image) => {
         if (image.preview) {
@@ -157,16 +160,14 @@ const TicketEditForm = ({
         }
       });
     };
-  }, [initialData?.id, service, fileState.images.existing]);
+  }, [initialData?.id, service, fileState.images.existing, fileState.serviceTickets.existing.length]);
 
-  // Load initial form data
   useEffect(() => {
     if (initialData) {
       const site = sites.find((s) => s.id === initialData.siteId);
       const building = site
         ? buildings.find((b) => b.id === site.buildingId)
         : null;
-
       setFormData({
         st: initialData.stNumber || "",
         scope: initialData.scope || "",
@@ -204,7 +205,6 @@ const TicketEditForm = ({
     const { name, value } = e.target;
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
-
       // Reset dependent fields when parent selection changes
       if (name === "companyId") {
         newData.buildingId = "";
@@ -216,53 +216,54 @@ const TicketEditForm = ({
       } else if (name === "siteId") {
         newData.systemId = "";
       }
-
       return newData;
     });
   };
 
   // File management handlers
-  const handleToggleDeleteExisting = (category, index = null) => {
-    setFileState((prev) => ({
-      ...prev,
-      [category]: {
+  const handleToggleDeleteExisting = (category, index) => {
+    setFileState(prev => {
+      const newState = { ...prev };
+
+      // Create a new array to avoid mutating the previous state
+      newState[category] = {
         ...prev[category],
-        toDelete:
-          index === null
-            ? !prev[category].toDelete // For single files like description
-            : prev[category].toDelete.includes(index)
-            ? prev[category].toDelete.filter((i) => i !== index)
-            : [...prev[category].toDelete, index],
-      },
-    }));
+        toDelete: [...prev[category].toDelete]
+      };
+
+      // Toggle deletion state
+      if (newState[category].toDelete.includes(index)) {
+        // Remove from toDelete array
+        newState[category].toDelete = newState[category].toDelete.filter(i => i !== index);
+      } else {
+        // Add to toDelete array
+        newState[category].toDelete.push(index);
+      }
+
+      return newState;
+    });
   };
 
   // File preview handlers
   const handlePreviewFile = async (file) => {
     if (!file) return;
-
     setPreviewLoading(true);
     try {
       const configSiteId =
         file.source === "admin" ? service.admins.siteId : service.siteId;
       const configDriveId =
         file.source === "admin" ? service.admins.driveId : service.driveId;
-
       const { url, token } = await service.getFile(
         configSiteId,
         configDriveId,
         file.itemId
       );
-
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (!response.ok) throw new Error("Failed to fetch file");
-
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-
       setSelectedPreview({
         name: file.fileName,
         type: file.type,
@@ -287,50 +288,59 @@ const TicketEditForm = ({
     setSelectedPreview(null);
   };
 
-  // Submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (processing) return;
-
     try {
-      // Prepare files data
+      // Collect files to delete
       const filesToDelete = [];
-      const filesToUpload = [];
-
-      // Handle service tickets
+  
+      // Add files marked for deletion by index
       fileState.serviceTickets.toDelete.forEach((index) => {
-        filesToDelete.push(fileState.serviceTickets.existing[index].itemId);
+        const file = fileState.serviceTickets.existing[index];
+        if (file?.itemId) filesToDelete.push(file.itemId);
       });
+  
+      fileState.adminDocs.toDelete.forEach((index) => {
+        const file = fileState.adminDocs.existing[index];
+        if (file?.itemId) filesToDelete.push(file.itemId);
+      });
+  
+      fileState.images.toDelete.forEach((index) => {
+        const file = fileState.images.existing[index];
+        if (file?.itemId) filesToDelete.push(file.itemId);
+      });
+  
+      // Create array of files to upload
+      const filesToUpload = [];
+  
+      // Add new service tickets
       serviceTicketsFiles.files.forEach((file) => {
         filesToUpload.push({
           type: "serviceTicket",
-          file,
+          file: file,
+          displayName: file.displayName
         });
       });
-
-      // Handle admin docs
-      fileState.adminDocs.toDelete.forEach((index) => {
-        filesToDelete.push(fileState.adminDocs.existing[index].itemId);
-      });
+  
+      // Add new admin docs
       adminDocsFiles.files.forEach((file) => {
         filesToUpload.push({
           type: "administrative",
-          file,
+          file: file,
+          displayName: file.displayName
         });
       });
-
-      // Handle images
-      fileState.images.toDelete.forEach((index) => {
-        filesToDelete.push(fileState.images.existing[index].itemId);
-      });
+  
+      // Add new images
       imagesFiles.images.forEach((image) => {
         filesToUpload.push({
           type: "image",
-          file: image.file,
+          file: image.file
         });
       });
-
-      // Submit everything
+  
+      // Submit the form data
       await onSubmit(initialData.id, {
         ...formData,
         filesToDelete,
@@ -349,6 +359,7 @@ const TicketEditForm = ({
 
   return (
     <form id="ticketForm" onSubmit={handleSubmit} className="space-y-6">
+      {/* Basic form fields unchanged ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -367,7 +378,6 @@ const TicketEditForm = ({
             required
           />
         </div>
-
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">
             Tipo de Servicio *
@@ -389,7 +399,6 @@ const TicketEditForm = ({
         </div>
       </div>
 
-      {/* Scope */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700">Alcance *</label>
         <textarea
@@ -406,7 +415,6 @@ const TicketEditForm = ({
         />
       </div>
 
-      {/* Location Selection */}
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Empresa *</label>
@@ -417,7 +425,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
               errors.companyId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -429,7 +437,6 @@ const TicketEditForm = ({
             ))}
           </select>
         </div>
-
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">
             Edificio *
@@ -442,7 +449,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.buildingId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -454,7 +461,6 @@ const TicketEditForm = ({
             ))}
           </select>
         </div>
-
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Sitio *</label>
           <select
@@ -465,7 +471,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.siteId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -477,7 +483,6 @@ const TicketEditForm = ({
             ))}
           </select>
         </div>
-
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Sistema *</label>
           <select
@@ -488,7 +493,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.systemId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -504,7 +509,7 @@ const TicketEditForm = ({
 
       {/* File Management Section */}
       <div className="space-y-6">
-        {/* Service Tickets Section */}
+        {/* Service Tickets */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
             <FileText className="w-4 h-4" />
@@ -512,37 +517,32 @@ const TicketEditForm = ({
           </label>
 
           {/* Existing service tickets */}
-          {fileState.serviceTickets.existing.length > 0 && (
-            <div className="space-y-2">
-              {fileState.serviceTickets.existing.map((ticket, index) => (
-                <div
-                  key={ticket.itemId}
-                  className={cn(
-                    "flex items-center gap-2 p-3 rounded-lg",
-                    fileState.serviceTickets.toDelete.includes(index)
-                      ? "bg-error/5"
-                      : "bg-gray-50"
-                  )}
-                >
-                  <FileText className="w-4 h-4 text-gray-400" />
-                  <span className="flex-1 text-sm">{ticket.fileName}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleToggleDeleteExisting("serviceTickets", index)
-                    }
-                    className="text-sm text-error hover:text-error/80"
-                  >
-                    {fileState.serviceTickets.toDelete.includes(index)
-                      ? "Restaurar"
-                      : "Eliminar"}
-                  </button>
-                </div>
-              ))}
+          {fileState.serviceTickets.existing.map((ticket, index) => (
+            <div
+              key={ticket.itemId}
+              className={cn(
+                "flex items-center gap-2 p-3 rounded-lg",
+                fileState.serviceTickets.toDelete.includes(index)
+                  ? "bg-error/5 text-error"
+                  : "bg-gray-50"
+              )}
+            >
+              <FileText className={cn(
+                "w-4 h-4",
+                fileState.serviceTickets.toDelete.includes(index) ? "text-error" : "text-gray-400"
+              )} />
+              <span className="flex-1 text-sm">{ticket.fileName}</span>
+              <button
+                type="button"
+                onClick={() => handleToggleDeleteExisting("serviceTickets", index)}
+                className={getDeleteButtonStyle(fileState.serviceTickets.toDelete.includes(index))}
+              >
+                {fileState.serviceTickets.toDelete.includes(index) ? "Restaurar" : "Eliminar"}
+              </button>
             </div>
-          )}
+          ))}
 
-          {/* New service tickets upload */}
+          {/* Upload new service tickets */}
           <MultiFileUpload
             files={serviceTicketsFiles.files}
             onFilesChange={serviceTicketsFiles.addFiles}
@@ -553,7 +553,7 @@ const TicketEditForm = ({
           />
         </div>
 
-        {/* Images Section */}
+        {/* Images */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
             <FileText className="w-4 h-4" />
@@ -573,7 +573,10 @@ const TicketEditForm = ({
                       isDeleting && "opacity-50"
                     )}
                   >
-                    <div className="relative w-full h-full bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden border hover:border-primary transition-colors">
+                    <div className={cn(
+                      "relative w-full h-full bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden border transition-colors",
+                      isDeleting ? "border-error" : "hover:border-primary"
+                    )}>
                       <button
                         type="button"
                         onClick={() => !isDeleting && handlePreviewFile(image)}
@@ -597,12 +600,17 @@ const TicketEditForm = ({
                     </div>
                     <button
                       type="button"
-                      onClick={() =>
-                        handleToggleDeleteExisting("images", index)
-                      }
-                      className="absolute -top-2 -right-2 bg-error text-white rounded-full p-1 shadow-lg hover:bg-error/90 transition-colors"
+                      onClick={() => handleToggleDeleteExisting("images", index)}
+                      className={cn(
+                        "absolute -top-2 -right-2 p-1 rounded-full shadow-lg",
+                        isDeleting ? "bg-primary text-white" : "bg-error text-white"
+                      )}
                     >
-                      <X size={16} />
+                      {isDeleting ? (
+                        <X size={16} /> // Show X for restore action
+                      ) : (
+                        <X size={16} /> // Show X for delete action
+                      )}
                     </button>
                   </div>
                 );
@@ -610,7 +618,7 @@ const TicketEditForm = ({
             </div>
           )}
 
-          {/* New images upload */}
+          {/* Upload new images */}
           <MultiImageUpload
             images={imagesFiles.images}
             onImagesChange={imagesFiles.addImages}
@@ -621,7 +629,7 @@ const TicketEditForm = ({
           />
         </div>
 
-        {/* Admin Docs Section - Only visible to admins */}
+        {/* Admin Documents */}
         {isAdmin && (
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -638,29 +646,28 @@ const TicketEditForm = ({
                     className={cn(
                       "flex items-center gap-2 p-3 rounded-lg",
                       fileState.adminDocs.toDelete.includes(index)
-                        ? "bg-error/5"
+                        ? "bg-error/5 text-error"
                         : "bg-gray-50"
                     )}
                   >
-                    <FileText className="w-4 h-4 text-gray-400" />
+                    <FileText className={cn(
+                      "w-4 h-4",
+                      fileState.adminDocs.toDelete.includes(index) ? "text-error" : "text-gray-400"
+                    )} />
                     <span className="flex-1 text-sm">{doc.fileName}</span>
                     <button
                       type="button"
-                      onClick={() =>
-                        handleToggleDeleteExisting("adminDocs", index)
-                      }
-                      className="text-sm text-error hover:text-error/80"
+                      onClick={() => handleToggleDeleteExisting("adminDocs", index)}
+                      className={getDeleteButtonStyle(fileState.adminDocs.toDelete.includes(index))}
                     >
-                      {fileState.adminDocs.toDelete.includes(index)
-                        ? "Restaurar"
-                        : "Eliminar"}
+                      {fileState.adminDocs.toDelete.includes(index) ? "Restaurar" : "Eliminar"}
                     </button>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* New admin docs upload */}
+            {/* Upload new admin docs */}
             <MultiFileUpload
               files={adminDocsFiles.files}
               onFilesChange={adminDocsFiles.addFiles}
@@ -679,7 +686,7 @@ const TicketEditForm = ({
           </div>
         )}
 
-        {/* General error message */}
+        {/* Submit error message */}
         {errors.submit && (
           <div className="p-4 bg-error/10 text-error rounded-lg">
             {errors.submit}
@@ -687,7 +694,7 @@ const TicketEditForm = ({
         )}
       </div>
 
-      {/* Preview Modal */}
+      {/* Image preview modal */}
       {selectedPreview && imageUrl && (
         <ImageModal
           imageUrl={imageUrl}

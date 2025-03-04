@@ -132,6 +132,13 @@ const Reports = () => {
     });
   }, []);
 
+  // Get expenses for export/print - either selected or all filtered
+  const getExpensesForExport = useCallback(() => {
+    return selectedExpenses.length > 0
+      ? filteredExpenses.filter(expense => selectedExpenses.includes(expense.id))
+      : filteredExpenses;
+  }, [selectedExpenses, filteredExpenses]);
+
   // Navigation handler
   const handleRowClick = useCallback((expense) => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
@@ -160,7 +167,7 @@ const Reports = () => {
     ].join("\n");
     
     navigator.clipboard.writeText(csv);
-  }, [selectedExpenses, filteredExpenses]);
+  }, [getExpensesForExport]);
 
   const handleExportCSV = useCallback(() => {
     const rows = getExpensesForExport().map((expense) => ({
@@ -201,7 +208,7 @@ const Reports = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [selectedExpenses, filteredExpenses, filters.dateRange]);
+  }, [filters.dateRange, getExpensesForExport]);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -233,13 +240,6 @@ const Reports = () => {
     }
     return "Pendiente";
   };
-
-  // Get expenses for export/print - either selected or all filtered
-  const getExpensesForExport = useCallback(() => {
-    return selectedExpenses.length > 0
-      ? filteredExpenses.filter(expense => selectedExpenses.includes(expense.id))
-      : filteredExpenses;
-  }, [selectedExpenses, filteredExpenses]);
 
   // Get date range label for display
   const getDateRangeLabel = () => {

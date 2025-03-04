@@ -14,20 +14,27 @@ export const MODAL_TYPES = {
 };
 
 export const useHierarchyActions = () => {
-  const { service, loadPostVentaData } = usePostVentaManagement();
-
-  // Modal state
+  const { service, loadPostVentaData, userRole } = usePostVentaManagement();
   const [currentModal, setCurrentModal] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-  // Modal handlers
+  // Check if user has permissions to perform CRUD actions
+  const hasPermission = userRole?.role === "Administrativo" || 
+                       userRole?.role === "Supervisor" || 
+                       userRole?.role === "Comercial";
+
   const openModal = useCallback((type, item = null, parentId = null) => {
+    if (!hasPermission) {
+      setError("No tienes permisos para realizar esta acción");
+      return;
+    }
+    
     setCurrentModal({ type, parentId });
     setSelectedItem(item);
     setError(null);
-  }, []);
+  }, [hasPermission]);
 
   const closeModal = useCallback(() => {
     setCurrentModal(null);
@@ -36,9 +43,13 @@ export const useHierarchyActions = () => {
     setProcessing(false);
   }, []);
 
-  // Company actions
   const handleAddCompany = useCallback(
     async (data) => {
+      if (!hasPermission) {
+        setError("No tienes permisos para realizar esta acción");
+        return;
+      }
+      
       setProcessing(true);
       setError(null);
       try {
@@ -51,12 +62,16 @@ export const useHierarchyActions = () => {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData]
+    [service, closeModal, loadPostVentaData, hasPermission]
   );
 
   const handleEditCompany = useCallback(
     async (data) => {
-      if (!selectedItem?.id) return;
+      if (!hasPermission || !selectedItem?.id) {
+        setError("No tienes permisos para realizar esta acción");
+        return;
+      }
+      
       setProcessing(true);
       setError(null);
       try {
@@ -69,11 +84,15 @@ export const useHierarchyActions = () => {
         setProcessing(false);
       }
     },
-    [service, selectedItem, closeModal, loadPostVentaData]
+    [service, selectedItem, closeModal, loadPostVentaData, hasPermission]
   );
 
   const handleDeleteCompany = useCallback(async () => {
-    if (!selectedItem?.id) return;
+    if (!hasPermission || !selectedItem?.id) {
+      setError("No tienes permisos para realizar esta acción");
+      return;
+    }
+    
     setProcessing(true);
     setError(null);
     try {
@@ -85,11 +104,15 @@ export const useHierarchyActions = () => {
     } finally {
       setProcessing(false);
     }
-  }, [service, selectedItem, closeModal, loadPostVentaData]);
+  }, [service, selectedItem, closeModal, loadPostVentaData, hasPermission]);
 
-  // Building actions
   const handleAddBuilding = useCallback(
     async (data) => {
+      if (!hasPermission) {
+        setError("No tienes permisos para realizar esta acción");
+        return;
+      }
+      
       setProcessing(true);
       setError(null);
       try {
@@ -102,12 +125,16 @@ export const useHierarchyActions = () => {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData]
+    [service, closeModal, loadPostVentaData, hasPermission]
   );
 
   const handleEditBuilding = useCallback(
     async (data) => {
-      if (!selectedItem?.id) return;
+      if (!hasPermission || !selectedItem?.id) {
+        setError("No tienes permisos para realizar esta acción");
+        return;
+      }
+      
       setProcessing(true);
       setError(null);
       try {
@@ -120,11 +147,15 @@ export const useHierarchyActions = () => {
         setProcessing(false);
       }
     },
-    [service, selectedItem, closeModal, loadPostVentaData]
+    [service, selectedItem, closeModal, loadPostVentaData, hasPermission]
   );
 
   const handleDeleteBuilding = useCallback(async () => {
-    if (!selectedItem?.id) return;
+    if (!hasPermission || !selectedItem?.id) {
+      setError("No tienes permisos para realizar esta acción");
+      return;
+    }
+    
     setProcessing(true);
     setError(null);
     try {
@@ -136,11 +167,15 @@ export const useHierarchyActions = () => {
     } finally {
       setProcessing(false);
     }
-  }, [service, selectedItem, closeModal, loadPostVentaData]);
+  }, [service, selectedItem, closeModal, loadPostVentaData, hasPermission]);
 
-  // Site actions
   const handleAddSite = useCallback(
     async (data) => {
+      if (!hasPermission) {
+        setError("No tienes permisos para realizar esta acción");
+        return;
+      }
+      
       setProcessing(true);
       setError(null);
       try {
@@ -153,12 +188,16 @@ export const useHierarchyActions = () => {
         setProcessing(false);
       }
     },
-    [service, closeModal, loadPostVentaData]
+    [service, closeModal, loadPostVentaData, hasPermission]
   );
 
   const handleEditSite = useCallback(
     async (data) => {
-      if (!selectedItem?.id) return;
+      if (!hasPermission || !selectedItem?.id) {
+        setError("No tienes permisos para realizar esta acción");
+        return;
+      }
+      
       setProcessing(true);
       setError(null);
       try {
@@ -171,11 +210,15 @@ export const useHierarchyActions = () => {
         setProcessing(false);
       }
     },
-    [service, selectedItem, closeModal, loadPostVentaData]
+    [service, selectedItem, closeModal, loadPostVentaData, hasPermission]
   );
 
   const handleDeleteSite = useCallback(async () => {
-    if (!selectedItem?.id) return;
+    if (!hasPermission || !selectedItem?.id) {
+      setError("No tienes permisos para realizar esta acción");
+      return;
+    }
+    
     setProcessing(true);
     setError(null);
     try {
@@ -187,32 +230,24 @@ export const useHierarchyActions = () => {
     } finally {
       setProcessing(false);
     }
-  }, [service, selectedItem, closeModal, loadPostVentaData]);
+  }, [service, selectedItem, closeModal, loadPostVentaData, hasPermission]);
 
   return {
-    // Modal state
     currentModal,
     selectedItem,
     processing,
     error,
-
-    // Modal handlers
     openModal,
     closeModal,
-
-    // Company actions
     handleAddCompany,
     handleEditCompany,
     handleDeleteCompany,
-
-    // Building actions
     handleAddBuilding,
     handleEditBuilding,
     handleDeleteBuilding,
-
-    // Site actions
     handleAddSite,
     handleEditSite,
     handleDeleteSite,
+    hasPermission,
   };
 };
