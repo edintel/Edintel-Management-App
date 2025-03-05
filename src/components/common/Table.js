@@ -8,7 +8,8 @@ const Table = ({
   isLoading = false,
   emptyMessage = 'No hay datos disponibles',
   className = '',
-  responsive = false, // New prop to enable responsive mode
+  responsive = false,
+  minRows = 10, // New prop to define minimum number of rows
   ...props 
 }) => {
   // Track screen size for responsive tables
@@ -38,10 +39,23 @@ const Table = ({
         !col.hiddenOnMobile && col.responsive !== false
       )
     : columns;
+
+  // Generate empty rows if data length is less than minRows
+  const generateEmptyRows = () => {
+    if (!data || data.length >= minRows) return [];
+    
+    const emptyRowsCount = minRows - data.length;
+    return Array(emptyRowsCount).fill({}).map((_, index) => ({ 
+      id: `empty-row-${index}`,
+      isEmpty: true 
+    }));
+  };
+  
+  const emptyRows = generateEmptyRows();
   
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500">
+      <div className="flex flex-col items-center justify-center p-8 text-gray-500 min-h-[400px]">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
         <span>Cargando datos...</span>
       </div>
@@ -50,7 +64,7 @@ const Table = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500">
+      <div className="flex flex-col items-center justify-center p-8 text-gray-500 min-h-[400px]">
         {typeof emptyMessage === 'string' ? (
           <span>{emptyMessage}</span>
         ) : (
@@ -104,6 +118,23 @@ const Table = ({
                   {column.render 
                     ? column.render(row[column.key], row, rowIndex) 
                     : row[column.key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+          
+          {/* Empty rows to maintain height */}
+          {emptyRows.map((emptyRow) => (
+            <tr 
+              key={emptyRow.id}
+              className="border-b border-gray-200 h-[53px]"
+            >
+              {visibleColumns.map((column, colIndex) => (
+                <td 
+                  key={colIndex}
+                  className="p-4 align-middle text-sm"
+                >
+                  &nbsp;
                 </td>
               ))}
             </tr>

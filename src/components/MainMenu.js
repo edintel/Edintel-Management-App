@@ -1,12 +1,15 @@
+// src/components/MainMenu.js (updated with Curso Control)
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { useMsal } from "@azure/msal-react";
 import Card from "./common/Card";
-import { FileText, Ticket, Loader2 } from "lucide-react";
+import { FileText, Ticket, Loader2, BookOpen } from "lucide-react";
 import BaseGraphService from "../services/BaseGraphService";
 import { expenseAuditConfig } from "../modules/expenseAudit/config/expenseAudit.config";
 import { postVentaConfig } from "../modules/postVentaManagement/config/postVentaManagement.config";
+import { cursoControlConfig } from "../modules/cursoControl/config/cursoControl.config";
 
 const MainMenu = () => {
   const navigate = useNavigate();
@@ -15,49 +18,65 @@ const MainMenu = () => {
   const [loading, setLoading] = useState(true);
   const [availableModules, setAvailableModules] = useState({
     expenseAudit: false,
-    postVenta: false
+    postVenta: false,
+    cursoControl: false
   });
 
   useEffect(() => {
     const checkModuleAccess = async () => {
       try {
         const baseService = new BaseGraphService(instance);
-
-        // Check ExpenseAudit access
+        
+        // Check Expense Audit access
         try {
           const expenseSiteId = await baseService.getSiteId(expenseAuditConfig.siteName);
           const roles = await baseService.getListItems(expenseSiteId, expenseAuditConfig.lists.roles);
-          
-          const userHasExpenseRole = roles.some(role => 
+          const userHasExpenseRole = roles.some(role =>
             role.fields.Empleado?.[0]?.Email === user.username
           );
-          
           setAvailableModules(prev => ({ ...prev, expenseAudit: userHasExpenseRole }));
         } catch (error) {
           console.log("No access to ExpenseAudit", error);
         }
-
+        
         // Check PostVenta access
         try {
           const postVentaSiteId = await baseService.getSiteId(postVentaConfig.general.siteName);
           const roles = await baseService.getListItems(postVentaSiteId, postVentaConfig.general.lists.roles);
-          
-          const userHasPostVentaRole = roles.some(role => 
+          const userHasPostVentaRole = roles.some(role =>
             role.fields.Empleado?.[0]?.Email === user.username
           );
-          
           setAvailableModules(prev => ({ ...prev, postVenta: userHasPostVentaRole }));
         } catch (error) {
           console.log("No access to PostVenta", error);
         }
+        
+        // Check Curso Control access
+        try {
 
+          const cursoControlSiteId = await baseService.getSiteId(cursoControlConfig.siteName);
+          
+          try {
+            await baseService.getListItems(
+              cursoControlSiteId, 
+              cursoControlConfig.lists.cursos,
+              { top: 1 }
+            );
+            setAvailableModules(prev => ({ ...prev, cursoControl: true }));
+          } catch (listError) {
+            console.log("No access to Curso Control lists", listError);
+          }
+        } catch (error) {
+          console.log("No access to Curso Control site", error);
+        }
+        
       } catch (error) {
         console.error("Error checking module access:", error);
       } finally {
         setLoading(false);
       }
     };
-
+    
     if (user?.username) {
       checkModuleAccess();
     }
@@ -79,6 +98,14 @@ const MainMenu = () => {
       icon: Ticket,
       path: "/post-venta/dashboard",
       available: availableModules.postVenta
+    },
+    {
+      id: "curso-control",
+      name: "Control de Cursos",
+      description: "Sistema de control de cursos y personas",
+      icon: BookOpen,
+      path: "/curso-control/cursos",
+      available: availableModules.cursoControl
     }
   ];
 
@@ -95,7 +122,6 @@ const MainMenu = () => {
       <div className="h-16 bg-primary flex justify-center items-center">
         <img src="/LogoEdintel.png" alt="Edintel S.A." className="h-10" />
       </div>
-
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {modules.map((module) =>

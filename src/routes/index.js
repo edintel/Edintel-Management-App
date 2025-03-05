@@ -6,6 +6,7 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import MainMenu from '../components/MainMenu';
 import LoadingScreen from '../components/LoadingScreen';
 
+const CursoControlModule = React.lazy(() => import('../modules/cursoControl'));
 const ExpenseAuditModule = React.lazy(() => import('../modules/expenseAudit'));
 const PostVentaModule = React.lazy(() => import('../modules/postVentaManagement'))
 const StyleGuide = React.lazy(() => import('../components/StyleGuide/StyleGuide'));
@@ -17,6 +18,14 @@ const AppRoutes = () => {
       <Route path="/logout" element={<LogoutHandler />} />
 
       <Route path="/" element={<ProtectedRoute><MainMenu /></ProtectedRoute>} />
+
+      <Route path="/curso-control/*" element={
+        <ProtectedRoute>
+          <Suspense fallback={<LoadingScreen />}>
+            <CursoControlModule />
+          </Suspense>
+        </ProtectedRoute>
+      } />
 
       <Route path="/expense-audit/*" element={
         <ProtectedRoute>
