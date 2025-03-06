@@ -200,10 +200,10 @@ const ExpenseEdit = () => {
                 updatedExpense.fields.Aprobaci_x00f3_nAsistente ||
                 report.aprobacionAsistente,
               aprobacionJefatura:
-                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura ||
+                updatedExpense.fields.Aprobaci_x00f3_nJefatura ||
                 report.aprobacionJefatura,
               aprobacionContabilidad:
-                updatedExpense.fields.Aprobaci_x00f3_n_x0020_Contabili ||
+                updatedExpense.fields.Aprobaci_x00f3_nContabilidad ||
                 report.aprobacionContabilidad,
               createdBy: report.createdBy,
               notas: updatedExpense.fields.Notas,

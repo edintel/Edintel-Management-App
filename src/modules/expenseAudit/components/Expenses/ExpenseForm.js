@@ -131,8 +131,8 @@ const ExpenseForm = () => {
         notasRevision: newExpense.fields.Notasrevision || "",
         bloqueoEdicion: false,
         aprobacionAsistente: newExpense.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
-        aprobacionJefatura: newExpense.fields.Aprobaci_x00f3_n_x0020_Jefatura || "Pendiente",
-        aprobacionContabilidad: newExpense.fields.Aprobaci_x00f3_n_x0020_Contabili || "Pendiente",
+        aprobacionJefatura: newExpense.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
+        aprobacionContabilidad: newExpense.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
         facturaDividida: Boolean(newExpense.fields.FacturaDividida),
         integrantes: newExpense.fields.Integrantes || "",
         createdBy: {
