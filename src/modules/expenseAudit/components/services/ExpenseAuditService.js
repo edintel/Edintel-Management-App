@@ -281,25 +281,23 @@ class ExpenseAuditService extends BaseGraphService {
    * @returns {Object} The updated expense report
    */
   async updateApprovalStatus(id, status, type, notes = "") {
+    console.log("xd", type);
     await this.initializeGraphClient();
-
     const fields = {
       Bloqueoedici_x00f3_n: true,
       Notasrevision: notes,
     };
-
     // First, get the current expense to check the workflow
     const currentExpense = await this.client
       .api(`/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items/${id}`)
       .expand('fields')
       .get();
-
+    
     // Map approval type to field
     switch (type) {
       case "accounting_assistant":
         fields.Aprobaci_x00f3_nAsistente = status;
         break;
-
       case "accounting_boss":
         if (currentExpense.fields.Aprobaci_x00f3_nAsistente === "Aprobada") {
           fields.Aprobaci_x00f3_nJefatura = status;
@@ -308,43 +306,29 @@ class ExpenseAuditService extends BaseGraphService {
           }
         }
         break;
-
       case "assistant":
         fields.Aprobaci_x00f3_nAsistente = status;
         break;
-
       case "boss":
         const creatorEmail = currentExpense.createdBy?.user?.email;
-
         if (!creatorEmail) {
           break;
         }
-
         const creatorRole = this.permissionService.roles.find(
           role => role.empleado?.email === creatorEmail
         );
-
         if (!creatorRole) {
           break;
         }
-
         const hasAssistants = this.permissionService.departmentHasAssistants(
           creatorRole.departmentId
         );
-
         if (!hasAssistants || currentExpense.fields.Aprobaci_x00f3_nAsistente === "Aprobada") {
           fields.Aprobaci_x00f3_nJefatura = status;
-        } else {
         }
         break;
-
       default:
         throw new Error("Invalid approval type");
-    }
-
-    // Set contabilidad approval if boss approval is set to Aprobada
-    if (fields.Aprobaci_x00f3_nJefatura === "Aprobada") {
-      fields.Aprobaci_x00f3_nContabilidad = "Aprobada";
     }
 
     try {
@@ -356,7 +340,6 @@ class ExpenseAuditService extends BaseGraphService {
         .patch({
           fields: fields,
         });
-
       return response;
     } catch (error) {
       console.error("Error updating approval status:", error);
