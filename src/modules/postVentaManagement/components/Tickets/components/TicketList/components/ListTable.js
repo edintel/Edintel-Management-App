@@ -6,6 +6,7 @@ import Card from "../../../../../../../components/common/Card";
 import Table from "../../../../../../../components/common/Table";
 import TicketStatusBadge from "../../common/TicketStatusBadge";
 import TicketActionsMenu from "./TicketActionsMenu";
+import QuickActions from "./QuickActions";
 import { POST_VENTA_ROUTES } from "../../../../../routes";
 import { MODAL_TYPES } from "../../../modals";
 import TentativeDate from "../../common/TentativeDate";
@@ -14,8 +15,13 @@ const ListTable = ({
   tickets = [],
   getSiteDetails,
   onOpenModal,
+  onDownloadFile,
   systems = [],
   loading = false,
+  currentPage = 1,
+  itemsPerPage = 10,
+  onPageChange,
+  onItemsPerPageChange,
 }) => {
   const navigate = useNavigate();
 
@@ -29,10 +35,12 @@ const ListTable = ({
     navigate(POST_VENTA_ROUTES.TICKETS.DETAIL(ticket.id));
   };
 
+  // Updated columns with width information for fixed-height table
   const columns = [
     {
       key: "stNumber",
       header: "ST",
+      width: 2, // Relative flex value
       render: (value, row) => (
         <div className="flex items-center gap-4">
           <span className="font-medium">{value}</span>
@@ -60,6 +68,7 @@ const ListTable = ({
     {
       key: "siteId",
       header: "Sitio",
+      width: 3, // Wider column for site info
       render: (value) => {
         const siteDetails = getSiteDetails(value);
         return (
@@ -80,6 +89,7 @@ const ListTable = ({
     {
       key: "systemId",
       header: "Sistema",
+      width: 2,
       render: (value) => {
         const system = systems.find((s) => s.id === value);
         return (
@@ -92,11 +102,13 @@ const ListTable = ({
     {
       key: "type",
       header: "Tipo",
+      width: 1.5,
       render: (value) => value || "N/A",
     },
     {
       key: "scope",
       header: "Alcance",
+      width: 2,
       render: (value) => {
         return (
           <div className="max-w-[150px] truncate" title={value || "N/A"}>
@@ -108,27 +120,37 @@ const ListTable = ({
     {
       key: "state",
       header: "Estado",
+      width: 2,
       render: (value) => <TicketStatusBadge status={value} />,
     },
     {
       key: "tentativeDate",
       header: "Fecha Tentativa",
+      width: 2,
       render: (value) => value ? <TentativeDate date={value} /> : "No programada",
     },
     {
       key: "actions",
       header: "",
-      className: "w-10",
+      width: 1, // Narrower column for actions
+      className: "justify-end", // Align content to the right
       render: (_, row) => (
-        <TicketActionsMenu
-          ticket={row}
-          onAssignTech={() => handleAction(MODAL_TYPES.ASSIGN_TECH, row)}
-          onUpdateStatus={() => handleAction(MODAL_TYPES.UPDATE_STATUS, row)}
-          onScheduleTicket={() => handleAction(MODAL_TYPES.SCHEDULE_DATE, row)}
-          onEdit={() => handleAction(MODAL_TYPES.EDIT_TICKET, row)}
-          onDelete={() => handleAction(MODAL_TYPES.DELETE_TICKET, row)}
-          openModal={onOpenModal}
-        />
+        <div className="flex">
+          <QuickActions 
+            ticket={row}
+            onOpenModal={onOpenModal}
+            onDownloadFile={onDownloadFile}
+          />
+          <TicketActionsMenu
+            ticket={row}
+            onAssignTech={() => handleAction(MODAL_TYPES.ASSIGN_TECH, row)}
+            onUpdateStatus={() => handleAction(MODAL_TYPES.UPDATE_STATUS, row)}
+            onScheduleTicket={() => handleAction(MODAL_TYPES.SCHEDULE_DATE, row)}
+            onEdit={() => handleAction(MODAL_TYPES.EDIT_TICKET, row)}
+            onDelete={() => handleAction(MODAL_TYPES.DELETE_TICKET, row)}
+            openModal={onOpenModal}
+          />
+        </div>
       ),
     },
   ];
@@ -154,6 +176,14 @@ const ListTable = ({
           isLoading={loading}
           onRowClick={handleRowClick}
           emptyMessage={emptyState}
+          paginated={true}
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          onPageChange={onPageChange}
+          onItemsPerPageChange={onItemsPerPageChange}
+          fixedHeight={true}
+          rowHeight={53}
+          className="border-t border-gray-200"
         />
       </div>
     </Card>

@@ -47,7 +47,14 @@ const ApprovalTable = ({
   handleReject,
   viewMode,
   approvalEligibility,
-  emptyMessage
+  emptyMessage,
+  // Add pagination props
+  paginated = false,
+  currentPage = 1,
+  itemsPerPage = 10,
+  onPageChange,
+  onItemsPerPageChange,
+  totalItems
 }) => {
   // Define table columns with responsive considerations
   const columns = [
@@ -134,6 +141,12 @@ const ApprovalTable = ({
       )}
       className="w-full" // Ensure table takes full width
       responsive={true} // Enable responsive mode
+      // Add pagination props
+      paginated={paginated}
+      currentPage={currentPage}
+      itemsPerPage={itemsPerPage}
+      onPageChange={onPageChange}
+      onItemsPerPageChange={onItemsPerPageChange}
     />
   );
 };

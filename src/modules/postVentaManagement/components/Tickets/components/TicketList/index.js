@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
 import { useTicketData } from "../../hooks/useTicketData";
 import { useTicketState } from "../../hooks/useTicketState";
@@ -7,7 +7,6 @@ import { MODAL_TYPES } from "../../modals";
 import ListHeader from "./components/ListHeader";
 import ListFilters from "./components/ListFilters";
 import ListTable from "./components/ListTable";
-import Pagination from "./components/Pagination";
 import {
   AssignTechnicianModal,
   TicketActionsModal,
@@ -70,29 +69,9 @@ const TicketList = () => {
 
   const loading = contextLoading || dataLoading;
   
-  // Calculate pagination values with useMemo for optimization
-  const paginationData = useMemo(() => {
-    const totalItems = filteredTickets.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-    
-    // Get current page of tickets
-    const currentItems = filteredTickets.slice(startIndex, endIndex);
-    
-    return {
-      totalItems,
-      totalPages,
-      currentItems,
-      startIndex,
-      endIndex,
-    };
-  }, [filteredTickets, currentPage, itemsPerPage]);
-  
   // Handle page change
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    // Removed automatic scroll to top to maintain user's current scroll position
   };
   
   // Handle items per page change
@@ -127,57 +106,36 @@ const TicketList = () => {
         hasActiveFilters={hasActiveFilters}
       />
       
-      {/* Table with current page of tickets */}
+      {/* Table with pagination */}
       <ListTable
-        tickets={paginationData.currentItems}
+        tickets={filteredTickets}
         getSiteDetails={getSiteDetails}
         onDownloadFile={handleFileDownload}
         onEditTicket={(ticket) => openModal(MODAL_TYPES.EDIT_TICKET, ticket)}
-        onDeleteTicket={(ticket) =>
-          openModal(MODAL_TYPES.DELETE_TICKET, ticket)
-        }
-        onAssignTechnician={(ticket) =>
-          openModal(MODAL_TYPES.ASSIGN_TECH, ticket)
-        }
-        onUpdateStatus={(ticket) =>
-          openModal(MODAL_TYPES.UPDATE_STATUS, ticket)
-        }
+        onDeleteTicket={(ticket) => openModal(MODAL_TYPES.DELETE_TICKET, ticket)}
+        onAssignTechnician={(ticket) => openModal(MODAL_TYPES.ASSIGN_TECH, ticket)}
+        onUpdateStatus={(ticket) => openModal(MODAL_TYPES.UPDATE_STATUS, ticket)}
         onOpenModal={openModal}
         systems={systems}
         loading={loading}
+        currentPage={currentPage}
+        itemsPerPage={itemsPerPage}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handleItemsPerPageChange}
       />
-      
-      {/* Pagination Component */}
-      {filteredTickets.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={paginationData.totalPages}
-          totalItems={paginationData.totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={handlePageChange}
-          onItemsPerPageChange={handleItemsPerPageChange}
-          startIndex={paginationData.startIndex + 1}
-          endIndex={paginationData.endIndex}
-        />
-      )}
       
       {/* Modals */}
       <AssignTechnicianModal
         isOpen={currentModal?.type === MODAL_TYPES.ASSIGN_TECH}
         onClose={closeModal}
-        onSubmit={(techIds) =>
-          handleAssignTechnicians(selectedTicket?.id, techIds)
-        }
+        onSubmit={(techIds) => handleAssignTechnicians(selectedTicket?.id, techIds)}
         ticket={selectedTicket}
         roles={roles}
         processing={processing}
         error={error}
       />
       <TicketActionsModal
-        isOpen={
-          currentModal?.type === MODAL_TYPES.UPDATE_STATUS ||
-          currentModal?.type === MODAL_TYPES.SCHEDULE_DATE
-        }
+        isOpen={currentModal?.type === MODAL_TYPES.UPDATE_STATUS || currentModal?.type === MODAL_TYPES.SCHEDULE_DATE}
         onClose={closeModal}
         onUpdateStatus={handleUpdateStatus}
         onConfirmDate={handleConfirmDate}

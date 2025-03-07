@@ -6,7 +6,7 @@ import {
   TICKET_ACTIONS,
   isActionAllowed,
 } from "../../../permissions/ticketActionPermissions";
-import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
+import { usePostVentaManagement } from "../../../../../context/postVentaManagementContext";
 
 const QuickActions = ({
   ticket,
