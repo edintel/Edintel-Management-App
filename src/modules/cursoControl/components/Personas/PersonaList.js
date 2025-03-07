@@ -1,5 +1,5 @@
 // components/Personas/PersonaList.js
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, AlertTriangle } from "lucide-react";
 import { useCursoControl } from "../../context/cursoControlContext";
@@ -16,11 +16,14 @@ const PersonaList = () => {
     error,
     getFilteredPersonas,
     refreshData,
-    personasCurrentPage,
     itemsPerPage,
     setState,
     dataLoaded
   } = useCursoControl();
+
+  // State for pagination managed by the Table component
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentItemsPerPage, setCurrentItemsPerPage] = useState(itemsPerPage);
 
   const columns = [
     {
@@ -36,11 +39,6 @@ const PersonaList = () => {
   ];
 
   const filteredPersonas = getFilteredPersonas();
-  const totalPages = Math.ceil(filteredPersonas.length / itemsPerPage);
-  const currentPageData = filteredPersonas.slice(
-    (personasCurrentPage - 1) * itemsPerPage,
-    personasCurrentPage * itemsPerPage
-  );
 
   useEffect(() => {
     // Only refresh if we haven't loaded data yet and we're not currently loading
@@ -54,7 +52,12 @@ const PersonaList = () => {
   };
 
   const handlePageChange = (newPage) => {
-    setState(prev => ({ ...prev, personasCurrentPage: newPage }));
+    setCurrentPage(newPage);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setCurrentItemsPerPage(newItemsPerPage);
+    setState(prev => ({ ...prev, itemsPerPage: newItemsPerPage }));
   };
 
   return (
@@ -84,9 +87,14 @@ const PersonaList = () => {
       <Card>
         <Table
           columns={columns}
-          data={currentPageData}
+          data={filteredPersonas}
           isLoading={loading}
           onRowClick={(persona) => navigate(CURSO_CONTROL_ROUTES.PERSONAS.DETAIL(persona.id))}
+          paginated={true}
+          currentPage={currentPage}
+          itemsPerPage={currentItemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
           emptyMessage={
             <div className="flex flex-col items-center justify-center py-12">
               <h3 className="text-lg font-medium text-gray-900 mb-1">
@@ -98,35 +106,6 @@ const PersonaList = () => {
             </div>
           }
         />
-        {filteredPersonas.length > itemsPerPage && (
-          <div className="flex justify-between items-center p-4 border-t">
-            <div className="text-sm text-gray-500">
-              Mostrando {Math.min(filteredPersonas.length, (personasCurrentPage - 1) * itemsPerPage + 1)}-
-              {Math.min(filteredPersonas.length, personasCurrentPage * itemsPerPage)} de {filteredPersonas.length}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="small"
-                onClick={() => handlePageChange(Math.max(1, personasCurrentPage - 1))}
-                disabled={personasCurrentPage === 1}
-              >
-                Anterior
-              </Button>
-              <span className="text-sm mx-2">
-                Página {personasCurrentPage} de {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="small"
-                onClick={() => handlePageChange(Math.min(totalPages, personasCurrentPage + 1))}
-                disabled={personasCurrentPage === totalPages}
-              >
-                Siguiente
-              </Button>
-            </div>
-          </div>
-        )}
       </Card>
     </div>
   );
