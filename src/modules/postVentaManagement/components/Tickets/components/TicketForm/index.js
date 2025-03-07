@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { POST_VENTA_ROUTES } from "../../../../routes";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
@@ -19,8 +19,7 @@ const TicketForm = () => {
   const { companies, buildings, sites, systems, service, loadPostVentaData } =
     usePostVentaManagement();
 
-  const [stNumberLoading, setStNumberLoading] = useState(false);
-  const initialLoadRef = useRef(false);
+  const [stPreview, setStPreview] = useState("");
 
   const [formData, setFormData] = useState({
     st: "",
@@ -37,29 +36,16 @@ const TicketForm = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const generateSTForCorrectiva = async () => {
-      // Skip if this is the initial mount or if already has an ST number
-      if (!initialLoadRef.current || formData.st) {
-        initialLoadRef.current = true;
-        return;
-      }
-
-      if (formData.type === "Correctiva") {
-        try {
-          setStNumberLoading(true);
-          const stNumber = await service.generateSTNumber("Correctiva");
-          setFormData(prev => ({ ...prev, st: stNumber }));
-        } catch (err) {
-          console.error("Error generating ST number:", err);
-          setError(err.message || "Error al generar número de ST");
-        } finally {
-          setStNumberLoading(false);
-        }
-      }
-    };
-
-    generateSTForCorrectiva();
-  }, [formData.type, service]);
+    if (formData.type === "Correctiva") {
+      // Only show a preview of what the ST number will look like
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2);
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      setStPreview(`${year}${month}-3xxx`);
+    } else {
+      setStPreview("");
+    }
+  }, [formData.type]);
 
   // File management hooks
   const {
@@ -105,31 +91,72 @@ const TicketForm = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
+    // Special handling for type field
     if (name === "type") {
-      setFormData(prev => {
-        const newST = value !== "Correctiva" ? "" : prev.st;
-        return {
+      setFormData((prev) => {
+        const newData = {
           ...prev,
           [name]: value,
-          st: newST
+          // Clear ST field when switching to Correctiva
+          st: value === "Correctiva" ? "" : prev.st
         };
+
+        return newData;
       });
+    } else if (name === "st" && formData.type === "Correctiva") {
+      // Prevent changes to ST field if type is Correctiva
+      return;
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      // Regular field handling with dependent field reset logic
+      setFormData((prev) => {
+        const newData = { ...prev, [name]: value };
+
+        // Reset dependent fields when parent selection changes
+        if (name === "companyId") {
+          newData.buildingId = "";
+          newData.siteId = "";
+          newData.systemId = "";
+        } else if (name === "buildingId") {
+          newData.siteId = "";
+          newData.systemId = "";
+        } else if (name === "siteId") {
+          newData.systemId = "";
+        }
+
+        return newData;
+      });
     }
   };
 
   const validateForm = () => {
-    if (!formData.st.trim()) return "El número de ST es requerido";
-    if (!formData.scope.trim()) return "El alcance es requerido";
-    if (!formData.companyId) return "Seleccione una empresa";
-    if (!formData.buildingId) return "Seleccione un edificio";
-    if (!formData.siteId) return "Seleccione un sitio";
-    if (!formData.systemId) return "Seleccione un sistema";
-    if (!formData.type) return "Seleccione un tipo de servicio";
+    if (formData.type !== "Correctiva" && !formData.st.trim()) {
+      return "El número de ST es requerido";
+    }
+
+    if (!formData.scope.trim()) {
+      return "El alcance es requerido";
+    }
+
+    if (!formData.companyId) {
+      return "La empresa es requerida";
+    }
+
+    if (!formData.buildingId) {
+      return "El edificio es requerido";
+    }
+
+    if (!formData.siteId) {
+      return "El sitio es requerido";
+    }
+
+    if (!formData.systemId) {
+      return "El sistema es requerido";
+    }
+
+    if (!formData.type) {
+      return "El tipo es requerido";
+    }
+
     return null;
   };
 
@@ -145,16 +172,24 @@ const TicketForm = () => {
     setError(null);
 
     try {
-      const site = sites.find((s) => s.id === formData.siteId);
+      // Get next ST number if ticket type is Correctiva
+      let finalFormData = { ...formData };
+
+      if (formData.type === "Correctiva") {
+        const stNumber = await service.getNextSTNumber();
+        finalFormData.st = stNumber;
+      }
+
+      const site = sites.find((s) => s.id === finalFormData.siteId);
       const building = buildings.find((b) => b.id === site.buildingId);
       const company = companies.find((c) => c.id === building.companyId);
 
-
       const trimmedData = {
-        ...formData,
-        st: formData.st.trim(),
-        scope: formData.scope.trim(),
+        ...finalFormData,
+        st: finalFormData.st.trim(),
+        scope: finalFormData.scope.trim(),
       };
+
       // Create ticket with all references
       const response = await service.createServiceTicket({
         ...trimmedData,
@@ -189,7 +224,6 @@ const TicketForm = () => {
       }
 
       // Upload admin docs and create share links
-
       const adminFileLinks = await Promise.all(
         adminDocs.map(async (doc) => {
           let displayName =
@@ -218,10 +252,10 @@ const TicketForm = () => {
 
       // Create email content with admin docs
       const emailContent = generateEmailContent({
-        st: formData.st,
-        type: formData.type,
-        scope: formData.scope,
-        system: systems.find((s) => s.id === formData.systemId)?.name,
+        st: finalFormData.st,
+        type: finalFormData.type,
+        scope: finalFormData.scope,
+        system: systems.find((s) => s.id === finalFormData.systemId)?.name,
         company: company.name,
         building: building.name,
         site: site.name,
@@ -238,7 +272,7 @@ const TicketForm = () => {
       // Send email with links
       await service.sendEmail({
         toRecipients: [supportEmail],
-        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${systems.find((s) => s.id === formData.systemId)?.name
+        subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
           }`,
         content: emailContent,
       });
@@ -284,30 +318,20 @@ const TicketForm = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">ST *</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="st"
-                  value={formData.st}
-                  onChange={handleInputChange}
-                  className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${formData.type === "Correctiva" ? "bg-gray-50" : ""
-                    }`}
-                  placeholder="Número de ST"
-                  readOnly={formData.type === "Correctiva"} // Make readonly for Correctiva
-                  required
-                />
-                {stNumberLoading && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  </div>
-                )}
-              </div>
-              {formData.type === "Correctiva" && (
-                <p className="text-xs text-gray-500">
-                  El número de ST se genera automáticamente para tickets correctivos
-                </p>
-              )}
+              <label className="text-sm font-medium text-gray-700">
+                ST *
+              </label>
+              <input
+                type="text"
+                name="st"
+                value={formData.type === "Correctiva" ? stPreview : formData.st}
+                onChange={handleInputChange}
+                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${formData.type === "Correctiva" ? "bg-gray-100" : ""
+                  }`}
+                placeholder="Número de ST"
+                readOnly={formData.type === "Correctiva"}
+                required
+              />
             </div>
           </div>
 

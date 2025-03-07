@@ -1074,88 +1074,70 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-  async getSequenceNumber(yearMonth) {
-    await this.initializeGraphClient();
-    try {
-      const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .filter(`fields/YearMonth eq '${yearMonth}'`)
-        .expand('fields')
-        .get();
-      
-      if (response.value.length > 0) {
-        return parseInt(response.value[0].fields.LastNumber);
-      }
-      
-      // If no record exists for this year/month, create one starting at 800
-      await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
-        .post({
-          fields: {
-            Title: `Sequence for ${yearMonth}`,
-            YearMonth: yearMonth,
-            LastNumber: "800"
-          }
-        });
-      return 800;
-    } catch (error) {
-      console.error("Error getting sequence number:", error);
-      throw new Error("Error getting sequence number");
-    }
-  }
-  
-  async incrementSequenceNumber(yearMonth, currentNumber) {
-    await this.initializeGraphClient();
-    try {
-      const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
-        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-        .filter(`fields/YearMonth eq '${yearMonth}'`)
-        .expand('fields')
-        .get();
-      
-      if (response.value.length > 0) {
-        const itemId = response.value[0].id;
-        const nextNumber = currentNumber + 1;
-        
-        if (nextNumber > 999) {
-          throw new Error("Sequence number exceeded maximum (999) for this month");
-        }
-        
-        await this.client
-          .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
-          .patch({
-            fields: {
-              LastNumber: nextNumber.toString()
-            }
-          });
-        return nextNumber;
-      }
-      
-      throw new Error("Sequence record not found");
-    } catch (error) {
-      console.error("Error incrementing sequence number:", error);
-      throw error;
-    }
-  }
-  
-  async generateSTNumber(type) {
-    if (type !== "Correctiva") return "";
-    
+  async getNextSTNumber() {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const yearMonth = `${year}${month}`;
     
+    await this.initializeGraphClient();
     try {
-      const currentNumber = await this.getSequenceNumber(yearMonth);
-      const nextNumber = await this.incrementSequenceNumber(yearMonth, currentNumber);
+      const response = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .filter(`fields/YearMonth eq '${yearMonth}'`)
+        .expand('fields')
+        .get();
+      
+      let currentNumber;
+      let itemId;
+      
+      if (response.value.length > 0) {
+        itemId = response.value[0].id;
+        currentNumber = parseInt(response.value[0].fields.LastNumber);
+      } else {
+        const createResponse = await this.client
+          .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+          .post({
+            fields: {
+              Title: `Sequence for ${yearMonth}`,
+              YearMonth: yearMonth,
+              LastNumber: "699"
+            }
+          });
+        itemId = createResponse.id;
+        currentNumber = 699;
+      }
+      
+      // Increment the sequence number
+      const nextNumber = currentNumber + 1;
+      if (nextNumber > 999) {
+        throw new Error("Sequence number exceeded maximum (999) for this month");
+      }
+      
+      // Update in database
+      await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
+        .patch({
+          fields: {
+            LastNumber: nextNumber.toString()
+          }
+        });
+      
+      // Return the formatted ST number
       return `${yearMonth}-3${nextNumber}`;
     } catch (error) {
       console.error("Error generating ST number:", error);
-      throw error;
+      throw new Error("Error al generar número de ST: " + error.message);
     }
+  }
+  
+  // Get a preview of what the ST number would look like without incrementing the counter
+  getSTNumberPreview() {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    return `${year}${month}-3xxx`;
   }
 }
 
