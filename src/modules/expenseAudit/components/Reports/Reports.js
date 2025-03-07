@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo } from "react";
+import React, { useCallback, useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Copy, FileDown, Printer, FileText } from "lucide-react";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
@@ -16,7 +16,14 @@ import { getExpenseStatus } from "./constants";
 const Reports = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { expenseReports, loading, departmentWorkers } = useExpenseAudit();
+  const { 
+    expenseReports, 
+    loading, 
+    departmentWorkers, 
+    reportFilters, 
+    setReportFilters 
+  } = useExpenseAudit();
+  
   const [selectedExpenses, setSelectedExpenses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -27,6 +34,41 @@ const Reports = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  // Restore filters when navigating back
+  useEffect(() => {
+    if (location.state?.preserveFilters && reportFilters) {
+      setSearchTerm(reportFilters.searchTerm || '');
+      setStartDate(reportFilters.startDate || '');
+      setEndDate(reportFilters.endDate || '');
+      setSelectedPerson(reportFilters.selectedPerson || '');
+      setSelectedStatuses(reportFilters.selectedStatuses || []);
+      
+      if (reportFilters.currentPage) {
+        setCurrentPage(reportFilters.currentPage);
+      }
+      if (reportFilters.itemsPerPage) {
+        setItemsPerPage(reportFilters.itemsPerPage);
+      }
+    }
+  }, [location.state?.preserveFilters, reportFilters]);
+
+  // Save filters to context when they change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setReportFilters({
+        searchTerm,
+        startDate,
+        endDate,
+        selectedPerson,
+        selectedStatuses,
+        currentPage,
+        itemsPerPage
+      });
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, startDate, endDate, selectedPerson, selectedStatuses, currentPage, itemsPerPage, setReportFilters]);
 
   // Memoize filtered expenses - this is the main performance optimization
   const filteredExpenses = useMemo(() => {
@@ -159,7 +201,10 @@ const Reports = () => {
 
   const handleRowClick = useCallback((expense) => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
-      state: { from: location },
+      state: { 
+        from: location,
+        preserveFilters: true // Add this flag to preserve filters
+      },
     });
   }, [navigate, location]);
 
@@ -218,7 +263,7 @@ const Reports = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [endDate, startDate, getExpensesForExport]);
+  }, [startDate, endDate, getExpensesForExport]);
 
   const handlePrint = useCallback(() => {
     window.print();

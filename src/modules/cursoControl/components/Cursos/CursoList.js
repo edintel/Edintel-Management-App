@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Plus, AlertTriangle } from "lucide-react";
 import { useCursoControl } from "../../context/cursoControlContext";
 import { CURSO_CONTROL_ROUTES } from "../../routes";
@@ -11,7 +11,6 @@ import ConfirmationDialog from "../../../../components/common/ConfirmationDialog
 
 const CursoList = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const {
     loading,
     error,
