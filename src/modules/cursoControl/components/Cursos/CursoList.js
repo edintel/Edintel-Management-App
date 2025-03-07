@@ -51,14 +51,46 @@ const CursoList = () => {
     {
       key: "fecha",
       header: "Fecha",
-      render: (value) =>
-        value
-          ? value.toLocaleDateString("es-CR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })
-          : "Pendiente",
+      render: (value, row) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+        
+        if (!value) {
+          // Style for "Pendiente" (yellow background)
+          return (
+            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+              Pendiente
+            </span>
+          );
+        } else {
+          // Check if date is in the past
+          const isPastDate = value < today;
+          
+          if (isPastDate) {
+            // Style for outdated dates (red background)
+            return (
+              <span className="px-2 py-1 bg-red-100 text-red-800 rounded">
+                {value.toLocaleDateString("es-CR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </span>
+            );
+          } else {
+            // Style for current/future dates (default)
+            return (
+              <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
+                {value.toLocaleDateString("es-CR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </span>
+            );
+          }
+        }
+      },
     },
   ];
 
