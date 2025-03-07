@@ -24,6 +24,10 @@ const ExpenseList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Restore filters from state if navigating back
   useEffect(() => {
@@ -31,6 +35,14 @@ const ExpenseList = () => {
       setSearchTerm(expenseListFilters.searchTerm || "");
       setStartDate(expenseListFilters.startDate || "");
       setEndDate(expenseListFilters.endDate || "");
+      
+      // Restore pagination state if available
+      if (expenseListFilters.currentPage) {
+        setCurrentPage(expenseListFilters.currentPage);
+      }
+      if (expenseListFilters.itemsPerPage) {
+        setItemsPerPage(expenseListFilters.itemsPerPage);
+      }
     }
   }, [location.state?.preserveFilters, expenseListFilters]);
 
@@ -41,11 +53,13 @@ const ExpenseList = () => {
         searchTerm,
         startDate,
         endDate,
+        currentPage,
+        itemsPerPage
       });
     }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, startDate, endDate, setExpenseListFilters]);
+  }, [searchTerm, startDate, endDate, currentPage, itemsPerPage, setExpenseListFilters]);
 
   // Table columns configuration
   const columns = [
@@ -148,6 +162,17 @@ const ExpenseList = () => {
   }, [expenseReports, user?.username, startDate, endDate, searchTerm]);
 
   const filteredExpenses = filterExpenses();
+  
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+  
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -174,15 +199,24 @@ const ExpenseList = () => {
               type="text"
               placeholder="Buscar por rubro o ST..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when search changes
+              }}
               className="w-full bg-transparent border-none focus:outline-none text-sm"
             />
           </div>
           <DateRangePicker
             startDate={startDate}
             endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
+            onStartDateChange={(date) => {
+              setStartDate(date);
+              setCurrentPage(1); // Reset to first page when date changes
+            }}
+            onEndDateChange={(date) => {
+              setEndDate(date);
+              setCurrentPage(1); // Reset to first page when date changes
+            }}
             maxDate={today.toISOString().split("T")[0]}
             className="flex-1"
           />
@@ -194,7 +228,9 @@ const ExpenseList = () => {
           data={filteredExpenses}
           isLoading={loading}
           onRowClick={(expense) =>
-            navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id))
+            navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
+              state: { preserveFilters: true }
+            })
           }
           emptyMessage={
             <div className="flex flex-col items-center justify-center py-12">
@@ -207,6 +243,13 @@ const ExpenseList = () => {
               </p>
             </div>
           }
+          // Enable pagination
+          paginated={true}
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          responsive={true}
         />
       </Card>
     </div>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const Table = ({ 
@@ -9,138 +10,168 @@ const Table = ({
   emptyMessage = 'No hay datos disponibles',
   className = '',
   responsive = false,
-  minRows = 10, // New prop to define minimum number of rows
+  
+  // Pagination props
+  paginated = false,
+  currentPage = 1,
+  itemsPerPage = 10,
+  onPageChange = null,
+  onItemsPerPageChange = null,
+  
+  // Optional height control
+  minVisibleRows = 10,
   ...props 
 }) => {
-  // Track screen size for responsive tables
-  const [isMobile, setIsMobile] = useState(false);
+  // Simple function to determine if we're on mobile
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   
-  // Setup resize listener if responsive mode is enabled
-  useEffect(() => {
-    if (!responsive) return;
-    
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    // Initialize on mount
-    checkScreenSize();
-    
-    // Add resize listener
-    window.addEventListener('resize', checkScreenSize);
-    
-    // Cleanup on unmount
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, [responsive]);
-  
-  // Filter columns based on screen size when responsive is enabled
+  // Filter columns for mobile if needed
   const visibleColumns = responsive && isMobile
-    ? columns.filter(col => 
-        !col.hiddenOnMobile && col.responsive !== false
-      )
+    ? columns.filter(col => !col.hiddenOnMobile && col.responsive !== false)
     : columns;
-
-  // Generate empty rows if data length is less than minRows
-  const generateEmptyRows = () => {
-    if (!data || data.length >= minRows) return [];
     
-    const emptyRowsCount = minRows - data.length;
-    return Array(emptyRowsCount).fill({}).map((_, index) => ({ 
-      id: `empty-row-${index}`,
-      isEmpty: true 
-    }));
-  };
+  // Pagination calculations
+  const totalItems = data.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   
-  const emptyRows = generateEmptyRows();
+  // Get current page of data
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const currentPageData = paginated ? data.slice(startIndex, endIndex) : data;
+  
+  // Pagination UI
+  const PaginationControls = () => (
+    <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-white border-t">
+      {/* Items per page & info */}
+      <div className="mb-4 sm:mb-0 text-sm text-gray-700">
+        <div className="flex items-center">
+          <span>Mostrar</span>
+          <select
+            className="mx-2 border rounded-lg p-1"
+            value={itemsPerPage}
+            onChange={(e) => onItemsPerPageChange?.(Number(e.target.value))}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+          <span>por página</span>
+        </div>
+      </div>
+      
+      {/* Page info and navigation */}
+      <div className="flex items-center">
+        <span className="mr-4 text-sm text-gray-700">
+          {totalItems > 0 ? `${startIndex + 1}-${endIndex} de ${totalItems}` : '0 resultados'}
+        </span>
+        
+        <button
+          onClick={() => onPageChange?.(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={cn(
+            "px-2 py-1 rounded-md",
+            currentPage === 1 ? "text-gray-400 cursor-not-allowed" : "text-gray-700 hover:bg-gray-50"
+          )}
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        
+        <span className="mx-2 text-sm">
+          Página {currentPage} de {totalPages}
+        </span>
+        
+        <button
+          onClick={() => onPageChange?.(currentPage + 1)}
+          disabled={currentPage === totalPages || totalItems === 0}
+          className={cn(
+            "px-2 py-1 rounded-md",
+            currentPage === totalPages || totalItems === 0 
+              ? "text-gray-400 cursor-not-allowed" 
+              : "text-gray-700 hover:bg-gray-50"
+          )}
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
   
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500 min-h-[400px]">
+      <div className="flex flex-col items-center justify-center p-8 text-gray-500 min-h-[300px]">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
         <span>Cargando datos...</span>
       </div>
     );
   }
 
-  if (!data || data.length === 0) {
+  // For empty state
+  if (!currentPageData.length) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-gray-500 min-h-[400px]">
-        {typeof emptyMessage === 'string' ? (
-          <span>{emptyMessage}</span>
-        ) : (
-          emptyMessage
-        )}
+      <div className={className}>
+        <div className="py-16 flex flex-col items-center justify-center text-gray-500">
+          {typeof emptyMessage === 'string' ? (
+            <span>{emptyMessage}</span>
+          ) : (
+            emptyMessage
+          )}
+        </div>
+        {paginated && <PaginationControls />}
       </div>
     );
   }
 
   return (
-    <div className={cn("w-full overflow-auto", className)} {...props}>
-      <table className={cn(
-        "w-full border-collapse",
-        !responsive && "min-w-[600px]" // Only apply min-width when not in responsive mode
-      )}>
-        <thead>
-          <tr className="border-b border-gray-200">
-            {visibleColumns.map((column, index) => (
-              <th 
-                key={index}
-                className={cn(
-                  "h-12 px-4 text-left align-middle text-sm font-medium text-gray-500 bg-gray-50",
-                  column.className
-                )}
-                style={column.style}
-              >
-                {typeof column.header === 'function' ? column.header() : column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, rowIndex) => (
-            <tr 
-              key={row.id || rowIndex}
-              onClick={() => onRowClick && onRowClick(row)}
-              className={cn(
-                "border-b border-gray-200 transition-colors",
-                onRowClick && "cursor-pointer hover:bg-gray-50"
-              )}
-            >
-              {visibleColumns.map((column, colIndex) => (
-                <td 
-                  key={colIndex}
+    <div className={cn("w-full", className)} {...props}>
+      <div className="overflow-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-gray-200">
+              {visibleColumns.map((column, index) => (
+                <th 
+                  key={index}
                   className={cn(
-                    "p-4 align-middle text-sm",
+                    "h-12 px-4 text-left align-middle text-sm font-medium text-gray-500 bg-gray-50",
                     column.className
                   )}
                   style={column.style}
                 >
-                  {column.render 
-                    ? column.render(row[column.key], row, rowIndex) 
-                    : row[column.key]}
-                </td>
+                  {typeof column.header === 'function' ? column.header() : column.header}
+                </th>
               ))}
             </tr>
-          ))}
-          
-          {/* Empty rows to maintain height */}
-          {emptyRows.map((emptyRow) => (
-            <tr 
-              key={emptyRow.id}
-              className="border-b border-gray-200 h-[53px]"
-            >
-              {visibleColumns.map((column, colIndex) => (
-                <td 
-                  key={colIndex}
-                  className="p-4 align-middle text-sm"
-                >
-                  &nbsp;
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {/* Current page data */}
+            {currentPageData.map((row, rowIndex) => (
+              <tr 
+                key={row.id || rowIndex}
+                onClick={() => onRowClick?.(row)}
+                className={cn(
+                  "border-b border-gray-200 h-[53px]",
+                  onRowClick && "cursor-pointer hover:bg-gray-50"
+                )}
+              >
+                {visibleColumns.map((column, colIndex) => (
+                  <td 
+                    key={colIndex}
+                    className={cn("p-4 align-middle text-sm", column.className)}
+                    style={column.style}
+                  >
+                    {column.render 
+                      ? column.render(row[column.key], row, rowIndex) 
+                      : row[column.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}          
+          </tbody>
+        </table>
+      </div>
+      
+      {/* Pagination controls */}
+      {paginated && <PaginationControls />}
     </div>
   );
 };

@@ -2,14 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useExpenseAudit } from "../../context/expenseAuditContext";
 import Card from "../../../../components/common/Card";
-import Button from "../../../../components/common/Button";
 import ConfirmationDialog from "../../../../components/common/ConfirmationDialog";
 import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import ApprovalFilters from "./components/ApprovalFilters";
 import ApprovalTable from "./components/ApprovalTable";
 import useApprovalList from "./hooks/useApprovalList";
-
-const PAGE_SIZE = 50;
 
 const ApprovalList = () => {
   const navigate = useNavigate();
@@ -41,19 +38,9 @@ const ApprovalList = () => {
     canViewApprovals,
   } = useApprovalList();
 
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-
-  // Calculate paginated expenses
-  const paginatedExpenses = React.useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    return filteredExpenses.slice(start, end);
-  }, [filteredExpenses, currentPage]);
-
-  // Calculate total pages
-  const totalPages = React.useMemo(() => {
-    return Math.ceil(filteredExpenses.length / PAGE_SIZE);
-  }, [filteredExpenses]);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -64,6 +51,15 @@ const ApprovalList = () => {
     navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(expense.id), {
       state: { from: location, preserveFilters: true },
     });
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
   };
 
   if (!canViewApprovals()) {
@@ -116,10 +112,10 @@ const ApprovalList = () => {
           today={new Date()}
         />
 
-        {/* Table */}
+        {/* Table with built-in pagination */}
         <Card>
           <ApprovalTable
-            expenses={paginatedExpenses}
+            expenses={filteredExpenses}
             loading={loading || contextLoading}
             onRowClick={handleRowClick}
             handleApprove={handleApprove}
@@ -148,38 +144,13 @@ const ApprovalList = () => {
                 </p>
               </div>
             }
+            // Pagination props
+            paginated={true}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
           />
-
-          {/* Pagination */}
-          {filteredExpenses.length > PAGE_SIZE && (
-            <div className="flex justify-between items-center mt-4 p-4 border-t">
-              <div className="text-sm text-gray-500">
-                Mostrando {Math.min(filteredExpenses.length, (currentPage - 1) * PAGE_SIZE + 1)}-
-                {Math.min(filteredExpenses.length, currentPage * PAGE_SIZE)} de {filteredExpenses.length}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="small"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Anterior
-                </Button>
-                <span className="text-sm mx-2">
-                  Página {currentPage} de {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="small"
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
-          )}
         </Card>
       </div>
 

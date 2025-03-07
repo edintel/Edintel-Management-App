@@ -69,6 +69,12 @@ const ReportTable = ({
   onSelectExpense,
   areAllSelected,
   emptyMessage,
+  // Add pagination props
+  paginated = false,
+  currentPage = 1,
+  itemsPerPage = 10,
+  onPageChange,
+  onItemsPerPageChange
 }) => {
   // Helper function to determine expense status
   const getExpenseStatus = (expense) => {
@@ -163,6 +169,13 @@ const ReportTable = ({
       onRowClick={onRowClick}
       isLoading={loading}
       emptyMessage={emptyMessage}
+      // Add pagination props
+      paginated={paginated}
+      currentPage={currentPage}
+      itemsPerPage={itemsPerPage}
+      onPageChange={onPageChange}
+      onItemsPerPageChange={onItemsPerPageChange}
+      responsive={true}
     />
   );
 };

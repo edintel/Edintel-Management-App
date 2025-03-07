@@ -13,9 +13,6 @@ import ExpenseSummary from "./ExpenseSummary";
 import "./Reports.css";
 import { getExpenseStatus } from "./constants";
 
-// Define page size for pagination
-const PAGE_SIZE = 50;
-
 const Reports = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,10 +26,10 @@ const Reports = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   // Memoize filtered expenses - this is the main performance optimization
   const filteredExpenses = useMemo(() => {
-    setCurrentPage(1);
     setSelectedExpenses([]);
     const result = expenseReports.filter((expense) => {
       if (startDate && endDate) {
@@ -64,18 +61,6 @@ const Reports = () => {
     return result;
   }, [expenseReports, searchTerm, startDate, endDate, selectedPerson, selectedStatuses]);
 
-  // Paginate the filtered expenses
-  const paginatedExpenses = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    return filteredExpenses.slice(start, end);
-  }, [filteredExpenses, currentPage]);
-
-  // Calculate total pages
-  const totalPages = useMemo(() => {
-    return Math.ceil(filteredExpenses.length / PAGE_SIZE);
-  }, [filteredExpenses]);
-
   const people = useMemo(() => {
     return departmentWorkers.reduce((acc, dept) => {
       dept.workers.forEach((worker) => {
@@ -92,11 +77,15 @@ const Reports = () => {
 
   const handleSelectAll = useCallback((isSelected) => {
     if (isSelected) {
-      setSelectedExpenses(paginatedExpenses.map(expense => expense.id));
+      // We need to select only visible items (current page)
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      const visibleExpenses = filteredExpenses.slice(start, end);
+      setSelectedExpenses(visibleExpenses.map(expense => expense.id));
     } else {
       setSelectedExpenses([]);
     }
-  }, [paginatedExpenses]);
+  }, [filteredExpenses, currentPage, itemsPerPage]);
 
   const handleSelectExpense = useCallback((expenseId, isSelected) => {
     setSelectedExpenses(prev => {
@@ -110,22 +99,27 @@ const Reports = () => {
 
   const handleSearchChange = useCallback((value) => {
     setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when search changes
   }, []);
 
   const handleStartDateChange = useCallback((date) => {
     setStartDate(date);
+    setCurrentPage(1); // Reset to first page when date changes
   }, []);
 
   const handleEndDateChange = useCallback((date) => {
     setEndDate(date);
+    setCurrentPage(1); // Reset to first page when date changes
   }, []);
 
   const handlePersonChange = useCallback((person) => {
     setSelectedPerson(person);
+    setCurrentPage(1); // Reset to first page when person changes
   }, []);
 
   const handleStatusesChange = useCallback((statuses) => {
     setSelectedStatuses(statuses);
+    setCurrentPage(1); // Reset to first page when statuses change
   }, []);
 
   const resetFilters = useCallback(() => {
@@ -134,11 +128,28 @@ const Reports = () => {
     setEndDate('');
     setSelectedPerson('');
     setSelectedStatuses([]);
+    setCurrentPage(1); // Reset to first page when filters are reset
   }, []);
 
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
   const areAllSelected = useMemo(() => {
-    return paginatedExpenses.length > 0 && selectedExpenses.length === paginatedExpenses.length;
-  }, [paginatedExpenses, selectedExpenses]);
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const visibleExpenses = filteredExpenses.slice(start, end);
+    
+    return visibleExpenses.length > 0 && 
+      visibleExpenses.every(expense => selectedExpenses.includes(expense.id));
+  }, [filteredExpenses, selectedExpenses, currentPage, itemsPerPage]);
 
   const getExpensesForExport = useCallback(() => {
     return selectedExpenses.length > 0
@@ -216,15 +227,6 @@ const Reports = () => {
   const getDateRangeLabel = () => {
     if (!startDate || !endDate) return "Todos los gastos";
     return `Gastos del ${new Date(startDate).toLocaleDateString()} al ${new Date(endDate).toLocaleDateString()}`;
-  };
-
-  // Pagination navigation handlers
-  const handlePrevPage = () => {
-    setCurrentPage(prev => Math.max(1, prev - 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage(prev => Math.min(totalPages, prev + 1));
   };
 
   return (
@@ -316,11 +318,11 @@ const Reports = () => {
         {/* Data summary */}
         <ExpenseSummary expenses={getExpensesForExport()} />
 
-        {/* Main data table */}
+        {/* Main data table with built-in pagination */}
         <Card>
           <div className="print:shadow-none">
             <ReportTable
-              data={paginatedExpenses}
+              data={filteredExpenses}
               loading={loading}
               onRowClick={handleRowClick}
               selectedExpenses={selectedExpenses}
@@ -338,41 +340,13 @@ const Reports = () => {
                   </p>
                 </div>
               }
+              // Pagination props
+              paginated={true}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
             />
-
-            {/* Pagination controls */}
-            {filteredExpenses.length > PAGE_SIZE && (
-              <div className="flex justify-between items-center mt-4 p-4 border-t">
-                <div className="text-sm text-gray-500">
-                  Mostrando {Math.min(filteredExpenses.length, (currentPage - 1) * PAGE_SIZE + 1)}-
-                  {Math.min(filteredExpenses.length, currentPage * PAGE_SIZE)} de {filteredExpenses.length}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="small"
-                    onClick={handlePrevPage}
-                    disabled={currentPage === 1}
-                  >
-                    Anterior
-                  </Button>
-
-                  <span className="text-sm mx-2">
-                    Página {currentPage} de {totalPages}
-                  </span>
-
-                  <Button
-                    variant="outline"
-                    size="small"
-                    onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </Card>
       </div>
