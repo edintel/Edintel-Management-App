@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { POST_VENTA_ROUTES } from "../../../../routes";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
 import { Loader2, AlertCircle, Image } from "lucide-react";
-
 import Card from "../../../../../../components/common/Card";
 import Button from "../../../../../../components/common/Button";
 import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
@@ -13,14 +12,11 @@ import { useImageManagement } from "../../hooks/useImageManagement";
 import { generateRandomNumber } from "../../../../../../utils/randomUtils";
 import emailConfig from "../../../../../expenseAudit/config/expenseAudit.config";
 
-
 const TicketForm = () => {
   const navigate = useNavigate();
   const { companies, buildings, sites, systems, service, loadPostVentaData } =
     usePostVentaManagement();
-
   const [stPreview, setStPreview] = useState("");
-
   const [formData, setFormData] = useState({
     st: "",
     scope: "",
@@ -30,14 +26,12 @@ const TicketForm = () => {
     systemId: "",
     type: "",
   });
-
   const supportEmail = emailConfig.supportEmail;
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (formData.type === "Correctiva") {
-      // Only show a preview of what the ST number will look like
       const now = new Date();
       const year = now.getFullYear().toString().slice(-2);
       const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -55,7 +49,6 @@ const TicketForm = () => {
     updateDisplayName: updateAdminDocName,
     error: adminDocsError,
   } = useFileManagement();
-
   const {
     images,
     processing: processingImages,
@@ -67,51 +60,58 @@ const TicketForm = () => {
     namePrefix: "image - ",
   });
 
-  // Filter buildings based on selected company
-  const filteredBuildings = buildings.filter(
-    (building) => building.companyId === formData.companyId
-  );
+  // Sort companies alphabetically
+  const sortedCompanies = useMemo(() => {
+    return [...companies].sort((a, b) => a.name.localeCompare(b.name));
+  }, [companies]);
 
-  // Filter sites based on selected building
-  const filteredSites = sites.filter(
-    (site) => site.buildingId === formData.buildingId
-  );
+  // Filter buildings based on selected company and sort alphabetically
+  const filteredBuildings = useMemo(() => {
+    return buildings
+      .filter((building) => building.companyId === formData.companyId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [buildings, formData.companyId]);
 
-  // Get available systems for selected site
-  const availableSystems = formData.siteId
-    ? sites.find((site) => site.id === formData.siteId)?.systems || []
-    : [];
+  // Filter sites based on selected building and sort alphabetically
+  const filteredSites = useMemo(() => {
+    return sites
+      .filter((site) => site.buildingId === formData.buildingId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [sites, formData.buildingId]);
 
-  const filteredSystems = systems.filter((system) =>
-    availableSystems.some(
-      (availableSystem) => availableSystem.LookupValue === system.name
-    )
-  );
+  // Get available systems for selected site and sort alphabetically
+  const availableSystems = useMemo(() => {
+    if (!formData.siteId) return [];
+    return sites.find((site) => site.id === formData.siteId)?.systems || [];
+  }, [sites, formData.siteId]);
+
+  const filteredSystems = useMemo(() => {
+    return systems
+      .filter((system) =>
+        availableSystems.some(
+          (availableSystem) => availableSystem.LookupValue === system.name
+        )
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [systems, availableSystems]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
     // Special handling for type field
     if (name === "type") {
       setFormData((prev) => {
         const newData = {
           ...prev,
           [name]: value,
-          // Clear ST field when switching to Correctiva
           st: value === "Correctiva" ? "" : prev.st
         };
-
         return newData;
       });
     } else if (name === "st" && formData.type === "Correctiva") {
-      // Prevent changes to ST field if type is Correctiva
       return;
     } else {
-      // Regular field handling with dependent field reset logic
       setFormData((prev) => {
         const newData = { ...prev, [name]: value };
-
-        // Reset dependent fields when parent selection changes
         if (name === "companyId") {
           newData.buildingId = "";
           newData.siteId = "";
@@ -122,7 +122,6 @@ const TicketForm = () => {
         } else if (name === "siteId") {
           newData.systemId = "";
         }
-
         return newData;
       });
     }
@@ -132,31 +131,24 @@ const TicketForm = () => {
     if (formData.type !== "Correctiva" && !formData.st.trim()) {
       return "El número de ST es requerido";
     }
-
     if (!formData.scope.trim()) {
       return "El alcance es requerido";
     }
-
     if (!formData.companyId) {
       return "La empresa es requerida";
     }
-
     if (!formData.buildingId) {
       return "El edificio es requerido";
     }
-
     if (!formData.siteId) {
       return "El sitio es requerido";
     }
-
     if (!formData.systemId) {
       return "El sistema es requerido";
     }
-
     if (!formData.type) {
       return "El tipo es requerido";
     }
-
     return null;
   };
 
@@ -167,35 +159,25 @@ const TicketForm = () => {
       setError(validationError);
       return;
     }
-
     setProcessing(true);
     setError(null);
-
     try {
-      // Get next ST number if ticket type is Correctiva
       let finalFormData = { ...formData };
-
       if (formData.type === "Correctiva") {
         const stNumber = await service.getNextSTNumber();
         finalFormData.st = stNumber;
       }
-
       const site = sites.find((s) => s.id === finalFormData.siteId);
       const building = buildings.find((b) => b.id === site.buildingId);
       const company = companies.find((c) => c.id === building.companyId);
-
       const trimmedData = {
         ...finalFormData,
         st: finalFormData.st.trim(),
         scope: finalFormData.scope.trim(),
       };
-
-      // Create ticket with all references
       const response = await service.createServiceTicket({
         ...trimmedData,
       });
-
-      //Upload images
       let imageLinks = [];
       if (images.length > 0) {
         imageLinks = await Promise.all(
@@ -206,14 +188,12 @@ const TicketForm = () => {
               "image",
               image.name
             );
-
             const shareLink = await service.createShareLink(
               service.siteId,
               uploadResponse.itemId,
               "view",
               "organization"
             );
-
             return {
               name: image.name,
               link: shareLink.webUrl,
@@ -222,8 +202,6 @@ const TicketForm = () => {
           })
         );
       }
-
-      // Upload admin docs and create share links
       const adminFileLinks = await Promise.all(
         adminDocs.map(async (doc) => {
           let displayName =
@@ -234,14 +212,12 @@ const TicketForm = () => {
             "administrative",
             `${displayName} - ${generateRandomNumber(16).toString()}`
           );
-
           const shareLink = await service.createShareLink(
             service.admins.siteId,
             uploadResponse.itemId,
             "view",
             "organization"
           );
-
           return {
             name: doc.displayName || doc.file.name,
             link: shareLink.webUrl,
@@ -249,8 +225,6 @@ const TicketForm = () => {
           };
         })
       );
-
-      // Create email content with admin docs
       const emailContent = generateEmailContent({
         st: finalFormData.st,
         type: finalFormData.type,
@@ -268,15 +242,12 @@ const TicketForm = () => {
         images: imageLinks,
         adminDocs: adminFileLinks,
       });
-
-      // Send email with links
       await service.sendEmail({
         toRecipients: [supportEmail],
         subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
           }`,
         content: emailContent,
       });
-
       await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {
@@ -296,9 +267,8 @@ const TicketForm = () => {
             <span>{error}</span>
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
+          {/* Ticket Type and Number */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
@@ -316,7 +286,6 @@ const TicketForm = () => {
                 <option value="Preventiva">Preventiva</option>
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
                 ST *
@@ -334,7 +303,6 @@ const TicketForm = () => {
               />
             </div>
           </div>
-
           {/* Scope */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
@@ -350,8 +318,7 @@ const TicketForm = () => {
               required
             />
           </div>
-
-          {/* Location Selection */}
+          {/* Location Fields */}
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
@@ -365,14 +332,13 @@ const TicketForm = () => {
                 required
               >
                 <option value="">Seleccione una empresa</option>
-                {companies.map((company) => (
+                {sortedCompanies.map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
                   </option>
                 ))}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
                 Edificio *
@@ -393,7 +359,6 @@ const TicketForm = () => {
                 ))}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
                 Sitio *
@@ -414,7 +379,6 @@ const TicketForm = () => {
                 ))}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
                 Sistema *
@@ -436,7 +400,6 @@ const TicketForm = () => {
               </select>
             </div>
           </div>
-
           {/* Images Files */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -452,8 +415,7 @@ const TicketForm = () => {
               error={imagesError}
             />
           </div>
-
-          {/* Administrative Documents */}
+          {/* Admin Docs */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
               Documentos Administrativos
@@ -470,7 +432,6 @@ const TicketForm = () => {
               disabled={processing}
             />
           </div>
-
           {/* Form Actions */}
           <div className="flex justify-end gap-4">
             <Button
@@ -571,7 +532,6 @@ const generateEmailContent = ({
             <div class="header">
                 <h1>Nueva ST Ingresada</h1>
             </div>
-            
             <div class="section">
                 <div class="section-title">Información del Ticket</div>
                 <div class="info-row">
@@ -607,7 +567,6 @@ const generateEmailContent = ({
       : ""
     }
             </div>
-
             <div class="section">
                 <div class="section-title">Ubicación</div>
                 <div class="info-row">
@@ -632,7 +591,6 @@ const generateEmailContent = ({
       : ""
     }
             </div>
-
             <div class="section">
                 <div class="section-title">Sistema</div>
                 <div class="info-row">
@@ -640,7 +598,6 @@ const generateEmailContent = ({
                     <span class="value">${system}</span>
                 </div>
             </div>
-
             ${siteDetails.contactName ||
       siteDetails.contactEmail ||
       siteDetails.contactPhone
@@ -678,7 +635,6 @@ const generateEmailContent = ({
             `
       : ""
     }
-
             ${adminDocs.length > 0
       ? `
             <div class="section">

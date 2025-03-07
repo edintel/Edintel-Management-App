@@ -1,16 +1,13 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
 import { useTicketData } from "../../hooks/useTicketData";
 import { useTicketState } from "../../hooks/useTicketState";
 import { useTicketActions } from "../../hooks/useTicketActions";
 import { MODAL_TYPES } from "../../modals";
-
-// Components
 import ListHeader from "./components/ListHeader";
 import ListFilters from "./components/ListFilters";
 import ListTable from "./components/ListTable";
-
-// Modals
+import Pagination from "./components/Pagination";
 import {
   AssignTechnicianModal,
   TicketActionsModal,
@@ -20,7 +17,6 @@ import {
 
 const TicketList = () => {
   const { systems, roles, loading: contextLoading } = usePostVentaManagement();
-
   const {
     searchTerm,
     setSearchTerm,
@@ -35,7 +31,11 @@ const TicketList = () => {
     resetFilters,
     hasActiveFilters,
   } = useTicketState();
-
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const {
     filteredTickets,
     getSiteDetails,
@@ -47,7 +47,7 @@ const TicketList = () => {
     selectedState,
     selectedUsers,
   });
-
+  
   const {
     currentModal = null,
     selectedTicket,
@@ -63,7 +63,43 @@ const TicketList = () => {
     handleFileDownload,
   } = useTicketActions();
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, startDate, endDate, selectedState, selectedUsers]);
+
   const loading = contextLoading || dataLoading;
+  
+  // Calculate pagination values with useMemo for optimization
+  const paginationData = useMemo(() => {
+    const totalItems = filteredTickets.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    
+    // Get current page of tickets
+    const currentItems = filteredTickets.slice(startIndex, endIndex);
+    
+    return {
+      totalItems,
+      totalPages,
+      currentItems,
+      startIndex,
+      endIndex,
+    };
+  }, [filteredTickets, currentPage, itemsPerPage]);
+  
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Removed automatic scroll to top to maintain user's current scroll position
+  };
+  
+  // Handle items per page change
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value);
+    setCurrentPage(1); // Reset to first page
+  };
 
   useEffect(() => {
     closeModal();
@@ -73,7 +109,7 @@ const TicketList = () => {
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <ListHeader total={filteredTickets.length} />
-
+      
       {/* Filters */}
       <ListFilters
         searchTerm={searchTerm}
@@ -90,10 +126,10 @@ const TicketList = () => {
         onResetFilters={resetFilters}
         hasActiveFilters={hasActiveFilters}
       />
-
-      {/* Table */}
+      
+      {/* Table with current page of tickets */}
       <ListTable
-        tickets={filteredTickets}
+        tickets={paginationData.currentItems}
         getSiteDetails={getSiteDetails}
         onDownloadFile={handleFileDownload}
         onEditTicket={(ticket) => openModal(MODAL_TYPES.EDIT_TICKET, ticket)}
@@ -110,7 +146,21 @@ const TicketList = () => {
         systems={systems}
         loading={loading}
       />
-
+      
+      {/* Pagination Component */}
+      {filteredTickets.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginationData.totalPages}
+          totalItems={paginationData.totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          startIndex={paginationData.startIndex + 1}
+          endIndex={paginationData.endIndex}
+        />
+      )}
+      
       {/* Modals */}
       <AssignTechnicianModal
         isOpen={currentModal?.type === MODAL_TYPES.ASSIGN_TECH}
@@ -123,7 +173,6 @@ const TicketList = () => {
         processing={processing}
         error={error}
       />
-
       <TicketActionsModal
         isOpen={
           currentModal?.type === MODAL_TYPES.UPDATE_STATUS ||
@@ -137,7 +186,6 @@ const TicketList = () => {
         processing={processing}
         error={error}
       />
-
       <TicketEditModal
         isOpen={currentModal?.type === MODAL_TYPES.EDIT_TICKET}
         onClose={closeModal}
@@ -146,7 +194,6 @@ const TicketList = () => {
         processing={processing}
         error={error}
       />
-
       <DeleteTicketModal
         isOpen={currentModal?.type === MODAL_TYPES.DELETE_TICKET}
         onClose={closeModal}
@@ -159,4 +206,4 @@ const TicketList = () => {
   );
 };
 
-export default TicketList;
+export default React.memo(TicketList);

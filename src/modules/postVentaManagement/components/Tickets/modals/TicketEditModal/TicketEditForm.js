@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
 import { Loader2, FileText, X } from "lucide-react";
 import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
@@ -21,7 +21,6 @@ const TicketEditForm = ({
     userRole,
     service,
   } = usePostVentaManagement();
-
   const [formData, setFormData] = useState({
     st: "",
     scope: "",
@@ -31,7 +30,6 @@ const TicketEditForm = ({
     systemId: "",
     type: "",
   });
-
   // File management state structure
   const [fileState, setFileState] = useState({
     serviceTickets: {
@@ -47,29 +45,59 @@ const TicketEditForm = ({
       toDelete: [],
     },
   });
-
   const [errors, setErrors] = useState({});
-
   // Preview states
   const [selectedPreview, setSelectedPreview] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-
   // File management hooks for new files
   const serviceTicketsFiles = useFileManagement({
     generateNames: true,
     namePrefix: "service-ticket-",
   });
-
   const adminDocsFiles = useFileManagement({
     generateNames: true,
     namePrefix: "admin-doc-",
   });
-
   const imagesFiles = useImageManagement({
     generateNames: true,
     namePrefix: "image-",
   });
+
+  // Sort companies alphabetically
+  const sortedCompanies = useMemo(() => {
+    return [...companies].sort((a, b) => a.name.localeCompare(b.name));
+  }, [companies]);
+
+  // Filter buildings based on selected company and sort alphabetically
+  const filteredBuildings = useMemo(() => {
+    return buildings
+      .filter((building) => building.companyId === formData.companyId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [buildings, formData.companyId]);
+
+  // Filter sites based on selected building and sort alphabetically
+  const filteredSites = useMemo(() => {
+    return sites
+      .filter((site) => site.buildingId === formData.buildingId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [sites, formData.buildingId]);
+
+  // Get available systems for selected site and sort alphabetically
+  const availableSystems = useMemo(() => {
+    if (!formData.siteId) return [];
+    return sites.find((site) => site.id === formData.siteId)?.systems || [];
+  }, [sites, formData.siteId]);
+
+  const filteredSystems = useMemo(() => {
+    return systems
+      .filter((system) =>
+        availableSystems.some(
+          (availableSystem) => availableSystem.LookupValue === system.name
+        )
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [systems, availableSystems]);
 
   const getDeleteButtonStyle = (isDeleted) => {
     return cn(
@@ -78,15 +106,11 @@ const TicketEditForm = ({
     );
   };
 
-  // Load existing files
   useEffect(() => {
     const loadExistingFiles = async () => {
       if (!initialData?.id) return;
       try {
-        // Load ticket documents
         const documents = await service.getTicketDocuments(initialData.id);
-
-        // Process existing images to create preview URLs
         const loadedImages = await Promise.all(
           documents
             .filter((doc) => doc.documentType === "image")
@@ -122,8 +146,6 @@ const TicketEditForm = ({
               }
             })
         );
-
-        // Make sure we don't reset toDelete arrays if they exist
         setFileState(prev => ({
           serviceTickets: {
             existing: documents.filter(doc => doc.documentType === "serviceTicket"),
@@ -146,13 +168,9 @@ const TicketEditForm = ({
         }));
       }
     };
-
-    // Only run this effect once when the form is initialized
     if (initialData?.id && fileState.serviceTickets.existing.length === 0) {
       loadExistingFiles();
     }
-
-    // Cleanup function to revoke object URLs
     return () => {
       fileState.images.existing.forEach((image) => {
         if (image.preview) {
@@ -180,27 +198,6 @@ const TicketEditForm = ({
     }
   }, [initialData, buildings, sites]);
 
-  // Filter buildings based on selected company
-  const filteredBuildings = buildings.filter(
-    (building) => building.companyId === formData.companyId
-  );
-
-  // Filter sites based on selected building
-  const filteredSites = sites.filter(
-    (site) => site.buildingId === formData.buildingId
-  );
-
-  // Get available systems for selected site
-  const availableSystems = formData.siteId
-    ? sites.find((site) => site.id === formData.siteId)?.systems || []
-    : [];
-
-  const filteredSystems = systems.filter((system) =>
-    availableSystems.some(
-      (availableSystem) => availableSystem.LookupValue === system.name
-    )
-  );
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
@@ -224,13 +221,11 @@ const TicketEditForm = ({
   const handleToggleDeleteExisting = (category, index) => {
     setFileState(prev => {
       const newState = { ...prev };
-
       // Create a new array to avoid mutating the previous state
       newState[category] = {
         ...prev[category],
         toDelete: [...prev[category].toDelete]
       };
-
       // Toggle deletion state
       if (newState[category].toDelete.includes(index)) {
         // Remove from toDelete array
@@ -239,7 +234,6 @@ const TicketEditForm = ({
         // Add to toDelete array
         newState[category].toDelete.push(index);
       }
-
       return newState;
     });
   };
@@ -292,29 +286,20 @@ const TicketEditForm = ({
     e.preventDefault();
     if (processing) return;
     try {
-      // Collect files to delete
       const filesToDelete = [];
-  
-      // Add files marked for deletion by index
       fileState.serviceTickets.toDelete.forEach((index) => {
         const file = fileState.serviceTickets.existing[index];
         if (file?.itemId) filesToDelete.push(file.itemId);
       });
-  
       fileState.adminDocs.toDelete.forEach((index) => {
         const file = fileState.adminDocs.existing[index];
         if (file?.itemId) filesToDelete.push(file.itemId);
       });
-  
       fileState.images.toDelete.forEach((index) => {
         const file = fileState.images.existing[index];
         if (file?.itemId) filesToDelete.push(file.itemId);
       });
-  
-      // Create array of files to upload
       const filesToUpload = [];
-  
-      // Add new service tickets
       serviceTicketsFiles.files.forEach((file) => {
         filesToUpload.push({
           type: "serviceTicket",
@@ -322,8 +307,6 @@ const TicketEditForm = ({
           displayName: file.displayName
         });
       });
-  
-      // Add new admin docs
       adminDocsFiles.files.forEach((file) => {
         filesToUpload.push({
           type: "administrative",
@@ -331,16 +314,12 @@ const TicketEditForm = ({
           displayName: file.displayName
         });
       });
-  
-      // Add new images
       imagesFiles.images.forEach((image) => {
         filesToUpload.push({
           type: "image",
           file: image.file
         });
       });
-  
-      // Submit the form data
       await onSubmit(initialData.id, {
         ...formData,
         filesToDelete,
@@ -359,7 +338,7 @@ const TicketEditForm = ({
 
   return (
     <form id="ticketForm" onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic form fields unchanged ... */}
+      {/* Basic Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -398,7 +377,6 @@ const TicketEditForm = ({
           </select>
         </div>
       </div>
-
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700">Alcance *</label>
         <textarea
@@ -414,7 +392,6 @@ const TicketEditForm = ({
           required
         />
       </div>
-
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Empresa *</label>
@@ -425,12 +402,12 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
               errors.companyId &&
-              "border-error focus:border-error focus:ring-error"
+                "border-error focus:border-error focus:ring-error"
             )}
             required
           >
             <option value="">Seleccione una empresa</option>
-            {companies.map((company) => (
+            {sortedCompanies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
               </option>
@@ -449,7 +426,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.buildingId &&
-              "border-error focus:border-error focus:ring-error"
+                "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -471,7 +448,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.siteId &&
-              "border-error focus:border-error focus:ring-error"
+                "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -493,7 +470,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.systemId &&
-              "border-error focus:border-error focus:ring-error"
+                "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -506,7 +483,6 @@ const TicketEditForm = ({
           </select>
         </div>
       </div>
-
       {/* File Management Section */}
       <div className="space-y-6">
         {/* Service Tickets */}
@@ -515,8 +491,7 @@ const TicketEditForm = ({
             <FileText className="w-4 h-4" />
             Boletas de Servicio
           </label>
-
-          {/* Existing service tickets */}
+          {/* Existing Service Tickets */}
           {fileState.serviceTickets.existing.map((ticket, index) => (
             <div
               key={ticket.itemId}
@@ -541,8 +516,7 @@ const TicketEditForm = ({
               </button>
             </div>
           ))}
-
-          {/* Upload new service tickets */}
+          {/* Upload New Service Tickets */}
           <MultiFileUpload
             files={serviceTicketsFiles.files}
             onFilesChange={serviceTicketsFiles.addFiles}
@@ -552,15 +526,13 @@ const TicketEditForm = ({
             error={errors.serviceTickets}
           />
         </div>
-
         {/* Images */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Imágenes
           </label>
-
-          {/* Existing images */}
+          {/* Existing Images */}
           {fileState.images.existing.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {fileState.images.existing.map((image, index) => {
@@ -607,9 +579,9 @@ const TicketEditForm = ({
                       )}
                     >
                       {isDeleting ? (
-                        <X size={16} /> // Show X for restore action
+                        <X size={16} />
                       ) : (
-                        <X size={16} /> // Show X for delete action
+                        <X size={16} />
                       )}
                     </button>
                   </div>
@@ -617,8 +589,7 @@ const TicketEditForm = ({
               })}
             </div>
           )}
-
-          {/* Upload new images */}
+          {/* Upload New Images */}
           <MultiImageUpload
             images={imagesFiles.images}
             onImagesChange={imagesFiles.addImages}
@@ -628,16 +599,14 @@ const TicketEditForm = ({
             error={errors.images}
           />
         </div>
-
-        {/* Admin Documents */}
+        {/* Admin Documents (only for admins) */}
         {isAdmin && (
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Documentos Administrativos
             </label>
-
-            {/* Existing admin docs */}
+            {/* Existing Admin Docs */}
             {fileState.adminDocs.existing.length > 0 && (
               <div className="space-y-2">
                 {fileState.adminDocs.existing.map((doc, index) => (
@@ -666,8 +635,7 @@ const TicketEditForm = ({
                 ))}
               </div>
             )}
-
-            {/* Upload new admin docs */}
+            {/* Upload New Admin Docs */}
             <MultiFileUpload
               files={adminDocsFiles.files}
               onFilesChange={adminDocsFiles.addFiles}
@@ -685,16 +653,14 @@ const TicketEditForm = ({
             />
           </div>
         )}
-
-        {/* Submit error message */}
+        {/* Error Messages */}
         {errors.submit && (
           <div className="p-4 bg-error/10 text-error rounded-lg">
             {errors.submit}
           </div>
         )}
       </div>
-
-      {/* Image preview modal */}
+      {/* Image Preview Modal */}
       {selectedPreview && imageUrl && (
         <ImageModal
           imageUrl={imageUrl}
