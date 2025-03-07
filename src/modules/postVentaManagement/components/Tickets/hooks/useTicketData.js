@@ -21,7 +21,7 @@ export const useTicketData = ({
     error,
   } = usePostVentaManagement();
 
-  // Get tickets assigned to current user
+  // Get tickets assigned to current user - memoized
   const getTicketsAssignedToMe = useMemo(() => {
     if (!userRole?.employee?.LookupId) return [];
     return serviceTickets.filter((ticket) =>
@@ -31,17 +31,21 @@ export const useTicketData = ({
     );
   }, [serviceTickets, userRole]);
 
-  // Filter and sort tickets based on criteria
+  // Filter and sort tickets based on criteria - memoized
   const filteredTickets = useMemo(() => {
     let tickets = [];
+    
+    // Get appropriate tickets based on user role
     if (userRole?.role === "Técnico") {
       tickets = getTicketsAssignedToMe;
     } else {
       tickets = serviceTickets;
     }
+
+    // Apply filters
     return tickets
       .filter((ticket) => {
-        // Date range filter
+        // Date filter
         if (startDate && endDate) {
           const ticketDate = ticket.tentativeDate
             ? new Date(ticket.tentativeDate).getTime()
@@ -50,29 +54,23 @@ export const useTicketData = ({
           const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
           if (ticketDate < start || ticketDate > end) return false;
         }
-
+        
         // Status filter
         if (selectedState.length > 0 && !selectedState.includes(ticket.state)) return false;
-
-        // Users filter
+        
+        // User filter
         if (selectedUsers.length > 0) {
-          // Check if any selected user is involved with the ticket
           const isUserInvolved = selectedUsers.some((userId) => {
-            // Check if user is assigned as technician
             const isAssignedTech = ticket.technicians.some(
               (tech) => tech.LookupId === userId
             );
-
-            // Get site details to check supervisor
             const siteDetails = getSiteDetails(ticket.siteId);
             const isSupervisor = siteDetails?.site?.supervisorId === userId;
-
             return isAssignedTech || isSupervisor;
           });
-
           if (!isUserInvolved) return false;
         }
-
+        
         // Search term filter
         if (searchTerm) {
           const search = searchTerm.toLowerCase();
@@ -85,10 +83,10 @@ export const useTicketData = ({
             ticket.type?.toLowerCase().includes(search)
           );
         }
-
+        
         return true;
       })
-      .sort((a, b) =>  new Date(b.created) - new Date(a.created));
+      .sort((a, b) => new Date(b.created) - new Date(a.created));
   }, [
     serviceTickets,
     searchTerm,
@@ -101,7 +99,7 @@ export const useTicketData = ({
     userRole?.role,
   ]);
 
-  // Get all possible ticket states
+  // Memoize ticket states
   const ticketStates = useMemo(
     () => [
       "Iniciada",
@@ -114,7 +112,7 @@ export const useTicketData = ({
     []
   );
 
-  // Get all users from roles
+  // Memoize technicians list
   const technicians = useMemo(() => {
     return roles
       .filter((role) => role.role === "Técnico" && role.employee)
@@ -125,7 +123,7 @@ export const useTicketData = ({
       }));
   }, [roles]);
 
-  // Get available systems for a site
+  // Memoize available systems function
   const getAvailableSystems = useMemo(
     () => (siteId) => {
       const site = sites.find((s) => s.id === siteId);
@@ -134,7 +132,7 @@ export const useTicketData = ({
     [sites]
   );
 
-  // Get hierarchical location data
+  // Memoize location data
   const locationData = useMemo(() => {
     return companies.map((company) => ({
       ...company,
@@ -148,11 +146,8 @@ export const useTicketData = ({
   }, [companies, buildings, sites]);
 
   return {
-    // Filtered data
     filteredTickets,
     getTicketsAssignedToMe,
-
-    // Reference data
     ticketStates,
     technicians,
     locationData,
@@ -160,8 +155,6 @@ export const useTicketData = ({
     getAvailableSystems,
     getSiteDetails,
     roles,
-
-    // State
     loading,
     error,
   };
