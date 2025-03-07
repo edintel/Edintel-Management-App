@@ -11,7 +11,8 @@ export const postVentaConfig = {
       sites: "Sitios",
       systems: "Sistemas",
       roles: "Roles",
-      docs: "Docs"
+      docs: "Docs",
+      sequenceNumbers: "SequenceNumber"
     }
   },
   admins: {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { POST_VENTA_ROUTES } from "../../../../routes";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
@@ -19,6 +19,9 @@ const TicketForm = () => {
   const { companies, buildings, sites, systems, service, loadPostVentaData } =
     usePostVentaManagement();
 
+  const [stNumberLoading, setStNumberLoading] = useState(false);
+  const initialLoadRef = useRef(false);
+
   const [formData, setFormData] = useState({
     st: "",
     scope: "",
@@ -32,6 +35,31 @@ const TicketForm = () => {
   const supportEmail = emailConfig.supportEmail;
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const generateSTForCorrectiva = async () => {
+      // Skip if this is the initial mount or if already has an ST number
+      if (!initialLoadRef.current || formData.st) {
+        initialLoadRef.current = true;
+        return;
+      }
+
+      if (formData.type === "Correctiva") {
+        try {
+          setStNumberLoading(true);
+          const stNumber = await service.generateSTNumber("Correctiva");
+          setFormData(prev => ({ ...prev, st: stNumber }));
+        } catch (err) {
+          console.error("Error generating ST number:", err);
+          setError(err.message || "Error al generar número de ST");
+        } finally {
+          setStNumberLoading(false);
+        }
+      }
+    };
+
+    generateSTForCorrectiva();
+  }, [formData.type, service]);
 
   // File management hooks
   const {
@@ -76,23 +104,22 @@ const TicketForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const newData = { ...prev, [name]: value };
 
-      // Reset dependent fields when parent selection changes
-      if (name === "companyId") {
-        newData.buildingId = "";
-        newData.siteId = "";
-        newData.systemId = "";
-      } else if (name === "buildingId") {
-        newData.siteId = "";
-        newData.systemId = "";
-      } else if (name === "siteId") {
-        newData.systemId = "";
-      }
-
-      return newData;
-    });
+    if (name === "type") {
+      setFormData(prev => {
+        const newST = value !== "Correctiva" ? "" : prev.st;
+        return {
+          ...prev,
+          [name]: value,
+          st: newST
+        };
+      });
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const validateForm = () => {
@@ -211,9 +238,8 @@ const TicketForm = () => {
       // Send email with links
       await service.sendEmail({
         toRecipients: [supportEmail],
-        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${
-          systems.find((s) => s.id === formData.systemId)?.name
-        }`,
+        subject: `ST ${formData.st} / ${company.name} / ${formData.type} / ${systems.find((s) => s.id === formData.systemId)?.name
+          }`,
         content: emailContent,
       });
 
@@ -241,19 +267,6 @@ const TicketForm = () => {
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">ST *</label>
-              <input
-                type="text"
-                name="st"
-                value={formData.st}
-                onChange={handleInputChange}
-                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-                placeholder="Número de ST"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
                 Tipo de Servicio *
               </label>
@@ -268,6 +281,33 @@ const TicketForm = () => {
                 <option value="Correctiva">Correctiva</option>
                 <option value="Preventiva">Preventiva</option>
               </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">ST *</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="st"
+                  value={formData.st}
+                  onChange={handleInputChange}
+                  className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${formData.type === "Correctiva" ? "bg-gray-50" : ""
+                    }`}
+                  placeholder="Número de ST"
+                  readOnly={formData.type === "Correctiva"} // Make readonly for Correctiva
+                  required
+                />
+                {stNumberLoading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  </div>
+                )}
+              </div>
+              {formData.type === "Correctiva" && (
+                <p className="text-xs text-gray-500">
+                  El número de ST se genera automáticamente para tickets correctivos
+                </p>
+              )}
             </div>
           </div>
 
@@ -522,14 +562,13 @@ const generateEmailContent = ({
                     <span class="label">Alcance:</span>
                     <span class="value">${scope}</span>
                 </div>
-                ${
-                  images.length > 0
-                    ? `
+                ${images.length > 0
+      ? `
                 <div class="section">
                     <div class="section-title">Imágenes</div>
                     ${images
-                      .map(
-                        (image) => `
+        .map(
+          (image) => `
                         <div class="info-row">
                             <span class="label">${image.name}:</span>
                             <span class="value">
@@ -537,12 +576,12 @@ const generateEmailContent = ({
                             </span>
                         </div>
                         `
-                      )
-                      .join("")}
+        )
+        .join("")}
                 </div>
                 `
-                    : ""
-                }
+      : ""
+    }
             </div>
 
             <div class="section">
@@ -559,16 +598,15 @@ const generateEmailContent = ({
                     <span class="label">Sitio:</span>
                     <span class="value">${site}</span>
                 </div>
-                ${
-                  siteDetails.location
-                    ? `
+                ${siteDetails.location
+      ? `
                 <div class="info-row">
                     <span class="label">Ubicación:</span>
                     <span class="value">${siteDetails.location}</span>
                 </div>
                 `
-                    : ""
-                }
+      : ""
+    }
             </div>
 
             <div class="section">
@@ -579,56 +617,51 @@ const generateEmailContent = ({
                 </div>
             </div>
 
-            ${
-              siteDetails.contactName ||
-              siteDetails.contactEmail ||
-              siteDetails.contactPhone
-                ? `
+            ${siteDetails.contactName ||
+      siteDetails.contactEmail ||
+      siteDetails.contactPhone
+      ? `
             <div class="section">
                 <div class="section-title">Información de Contacto</div>
-                ${
-                  siteDetails.contactName
-                    ? `
+                ${siteDetails.contactName
+        ? `
                 <div class="info-row">
                     <span class="label">Contacto:</span>
                     <span class="value">${siteDetails.contactName}</span>
                 </div>
                 `
-                    : ""
-                }
-                ${
-                  siteDetails.contactEmail
-                    ? `
+        : ""
+      }
+                ${siteDetails.contactEmail
+        ? `
                 <div class="info-row">
                     <span class="label">Email:</span>
                     <span class="value">${siteDetails.contactEmail}</span>
                 </div>
                 `
-                    : ""
-                }
-                ${
-                  siteDetails.contactPhone
-                    ? `
+        : ""
+      }
+                ${siteDetails.contactPhone
+        ? `
                 <div class="info-row">
                     <span class="label">Teléfono:</span>
                     <span class="value">${siteDetails.contactPhone}</span>
                 </div>
                 `
-                    : ""
-                }
+        : ""
+      }
             </div>
             `
-                : ""
-            }
+      : ""
+    }
 
-            ${
-              adminDocs.length > 0
-                ? `
+            ${adminDocs.length > 0
+      ? `
             <div class="section">
                 <div class="section-title">Documentos Administrativos</div>
                 ${adminDocs
-                  .map(
-                    (doc) => `
+        .map(
+          (doc) => `
                 <div class="info-row">
                     <span class="label">${doc.name}:</span>
                     <span class="value">
@@ -636,12 +669,12 @@ const generateEmailContent = ({
                     </span>
                 </div>
                 `
-                  )
-                  .join("")}
+        )
+        .join("")}
             </div>
             `
-                : ""
-            }
+      : ""
+    }
         </div>
     </body>
     </html>

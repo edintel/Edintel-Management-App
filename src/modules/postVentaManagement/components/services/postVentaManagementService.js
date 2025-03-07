@@ -1073,6 +1073,90 @@ class PostVentaManagementService extends BaseGraphService {
       console.error("Error deleting file:", error);
     }
   }
+
+  async getSequenceNumber(yearMonth) {
+    await this.initializeGraphClient();
+    try {
+      const response = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .filter(`fields/YearMonth eq '${yearMonth}'`)
+        .expand('fields')
+        .get();
+      
+      if (response.value.length > 0) {
+        return parseInt(response.value[0].fields.LastNumber);
+      }
+      
+      // If no record exists for this year/month, create one starting at 800
+      await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+        .post({
+          fields: {
+            Title: `Sequence for ${yearMonth}`,
+            YearMonth: yearMonth,
+            LastNumber: "800"
+          }
+        });
+      return 800;
+    } catch (error) {
+      console.error("Error getting sequence number:", error);
+      throw new Error("Error getting sequence number");
+    }
+  }
+  
+  async incrementSequenceNumber(yearMonth, currentNumber) {
+    await this.initializeGraphClient();
+    try {
+      const response = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+        .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+        .filter(`fields/YearMonth eq '${yearMonth}'`)
+        .expand('fields')
+        .get();
+      
+      if (response.value.length > 0) {
+        const itemId = response.value[0].id;
+        const nextNumber = currentNumber + 1;
+        
+        if (nextNumber > 999) {
+          throw new Error("Sequence number exceeded maximum (999) for this month");
+        }
+        
+        await this.client
+          .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
+          .patch({
+            fields: {
+              LastNumber: nextNumber.toString()
+            }
+          });
+        return nextNumber;
+      }
+      
+      throw new Error("Sequence record not found");
+    } catch (error) {
+      console.error("Error incrementing sequence number:", error);
+      throw error;
+    }
+  }
+  
+  async generateSTNumber(type) {
+    if (type !== "Correctiva") return "";
+    
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const yearMonth = `${year}${month}`;
+    
+    try {
+      const currentNumber = await this.getSequenceNumber(yearMonth);
+      const nextNumber = await this.incrementSequenceNumber(yearMonth, currentNumber);
+      return `${yearMonth}-3${nextNumber}`;
+    } catch (error) {
+      console.error("Error generating ST number:", error);
+      throw error;
+    }
+  }
 }
 
 export default PostVentaManagementService;
