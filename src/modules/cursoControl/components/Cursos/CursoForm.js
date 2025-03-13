@@ -12,7 +12,7 @@ const CursoForm = () => {
   const { createCurso, personas } = useCursoControl();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Get pre-filled data from navigation state if available
   const prefillData = location.state?.prefillData || {};
 
@@ -28,7 +28,7 @@ const CursoForm = () => {
     "Visado Walmart con Alturas",
     "Bayer cuartos limpios",
     "Abbott",
-    "Viant"
+    "Viant",
   ];
 
   const [formData, setFormData] = useState({
@@ -36,33 +36,35 @@ const CursoForm = () => {
     personaId: prefillData.personaId || "",
     curso: prefillData.curso || "",
     fecha: "",
-    notas: ""
+    notas: "",
   });
 
   // If we have prefillData, find the matching persona to get the complete data
   useEffect(() => {
     if (prefillData.personaId && !formData.title) {
-      const selectedPersona = personas.find(p => p.id === prefillData.personaId);
+      const selectedPersona = personas.find(
+        (p) => p.id === prefillData.personaId
+      );
       if (selectedPersona) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          title: selectedPersona.title || prev.title
+          title: selectedPersona.title || prev.title,
         }));
       }
     }
-  }, [personas, prefillData]);
+  }, [personas, prefillData, formData.title]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if (name === "title") {
-      const selectedPersona = personas.find(p => p.title === value);
-      setFormData(prev => ({
+      const selectedPersona = personas.find((p) => p.title === value);
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
-        personaId: selectedPersona?.id || ""
+        personaId: selectedPersona?.id || "",
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -74,12 +76,12 @@ const CursoForm = () => {
       if (!formData.title || !formData.curso || !formData.fecha) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
-      
+
       const formattedData = {
         ...formData,
-        fecha: new Date(formData.fecha)
+        fecha: new Date(formData.fecha),
       };
-      
+
       await createCurso(formattedData);
       navigate(CURSO_CONTROL_ROUTES.CURSOS.LIST);
     } catch (err) {

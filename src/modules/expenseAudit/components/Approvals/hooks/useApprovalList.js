@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useExpenseAudit } from '../../../context/expenseAuditContext';
-import { useLocation } from 'react-router-dom';
-import { VIEW_MODES } from '../constants';
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useExpenseAudit } from "../../../context/expenseAuditContext";
+import { useLocation } from "react-router-dom";
+import { VIEW_MODES } from "../constants";
 
 const PAGE_SIZE = 10; // Reduced page size for better mobile experience
 
@@ -17,13 +17,13 @@ export const useApprovalList = () => {
     approvalFlowService,
     userDepartmentRole,
     approvalFilters,
-    setApprovalFilters
+    setApprovalFilters,
   } = useExpenseAudit();
-  
+
   const today = new Date();
   const lastWeek = new Date(today);
   lastWeek.setDate(lastWeek.getDate() - 7);
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState(VIEW_MODES.PENDING);
   const [selectedPerson, setSelectedPerson] = useState("");
@@ -59,11 +59,18 @@ export const useApprovalList = () => {
         startDate,
         endDate,
         selectedPerson,
-        viewMode
+        viewMode,
       });
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, startDate, endDate, selectedPerson, viewMode, setApprovalFilters]);
+  }, [
+    searchTerm,
+    startDate,
+    endDate,
+    selectedPerson,
+    viewMode,
+    setApprovalFilters,
+  ]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -76,78 +83,52 @@ export const useApprovalList = () => {
   }, [service]);
 
   const approvalEligibility = useMemo(() => {
-    if (!userEmail || !permissionService || !expenseReports.length) return {};
+    if (
+      !userEmail ||
+      !permissionService ||
+      !expenseReports.length ||
+      !approvalFlowService
+    )
+      return {};
+
     const eligibility = {};
-    
     for (const expense of expenseReports) {
-      if (expense.aprobacionContabilidad === "Aprobada" ||
-          expense.aprobacionAsistente === "No aprobada" ||
-          expense.aprobacionJefatura === "No aprobada" ||
-          expense.aprobacionContabilidad === "No aprobada") {
-        eligibility[expense.id] = false;
-        continue;
-      }
-      
-      const creatorRole = permissionService.roles.find(
-        role => role.empleado?.email === expense.createdBy.email
+      // Use our refactored approvalFlowService to determine eligibility
+      eligibility[expense.id] = approvalFlowService.canApprove(
+        expense,
+        userEmail
       );
-      if (!creatorRole) {
-        eligibility[expense.id] = false;
-        continue;
-      }
-      
-      const userRoles = permissionService.getUserRoles(userEmail);
-      const isInSameDepartment = userRoles.some(role =>
-        Number(role.departmentId) === Number(creatorRole.departamentoId)
-      );
-      if (!isInSameDepartment) {
-        eligibility[expense.id] = false;
-        continue;
-      }
-      
-      const isAssistant = permissionService.hasRole(userEmail, "Asistente");
-      const isBoss = permissionService.hasRole(userEmail, "Jefe");
-      
-      if (isAssistant && expense.aprobacionAsistente === "Pendiente") {
-        eligibility[expense.id] = true;
-        continue;
-      }
-      
-      if (isBoss && expense.aprobacionJefatura === "Pendiente" &&
-          (expense.aprobacionAsistente === "Aprobada" ||
-           !permissionService.departmentHasAssistants(creatorRole.departamentoId))) {
-        eligibility[expense.id] = true;
-        continue;
-      }
-      
-      eligibility[expense.id] = false;
     }
-    
     return eligibility;
-  }, [expenseReports, userEmail, permissionService]);
+  }, [expenseReports, userEmail, permissionService, approvalFlowService]);
 
   const people = useMemo(() => {
-    return departmentWorkers.reduce((acc, dept) => {
-      dept.workers.forEach((worker) => {
-        if (
-          worker.empleado &&
-          !acc.some((p) => p.email === worker.empleado.email)
-        ) {
-          acc.push(worker.empleado);
-        }
-      });
-      return acc;
-    }, []).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return departmentWorkers
+      .reduce((acc, dept) => {
+        dept.workers.forEach((worker) => {
+          if (
+            worker.empleado &&
+            !acc.some((p) => p.email === worker.empleado.email)
+          ) {
+            acc.push(worker.empleado);
+          }
+        });
+        return acc;
+      }, [])
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [departmentWorkers]);
 
   const canViewApprovals = useCallback(() => {
     if (!userDepartmentRole) return false;
-    return userDepartmentRole.role === "Jefe" || userDepartmentRole.role === "Asistente";
+    return (
+      userDepartmentRole.role === "Jefe" ||
+      userDepartmentRole.role === "Asistente"
+    );
   }, [userDepartmentRole]);
 
   const filteredExpenses = useMemo(() => {
     if (!canViewApprovals() || !service || !expenseReports.length) return [];
-    
+
     return expenseReports.filter((expense) => {
       // Date range filter
       if (startDate && endDate) {
@@ -156,20 +137,25 @@ export const useApprovalList = () => {
         const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1);
         if (expenseDate < start || expenseDate > end) return false;
       }
-      
+
       // Person filter
-      if (selectedPerson && expense.createdBy.email !== selectedPerson) return false;
-      
+      if (selectedPerson && expense.createdBy.email !== selectedPerson)
+        return false;
+
       // Search term filter
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
-        if (!(expense.rubro.toLowerCase().includes(search) ||
-              expense.st.toLowerCase().includes(search) ||
-              expense.createdBy.name.toLowerCase().includes(search))) {
+        if (
+          !(
+            expense.rubro.toLowerCase().includes(search) ||
+            expense.st.toLowerCase().includes(search) ||
+            expense.createdBy.name.toLowerCase().includes(search)
+          )
+        ) {
           return false;
         }
       }
-      
+
       // View mode filter
       switch (viewMode) {
         case VIEW_MODES.ALL:
@@ -177,20 +163,34 @@ export const useApprovalList = () => {
         case VIEW_MODES.PENDING:
           return approvalEligibility[expense.id] === true;
         case VIEW_MODES.APPROVED: {
-          return expense.aprobacionAsistente === "Aprobada" ||
-                 expense.aprobacionJefatura === "Aprobada" ||
-                 expense.aprobacionContabilidad === "Aprobada";
+          return (
+            expense.aprobacionAsistente === "Aprobada" ||
+            expense.aprobacionJefatura === "Aprobada" ||
+            expense.aprobacionContabilidad === "Aprobada"
+          );
         }
         case VIEW_MODES.REJECTED: {
-          return expense.aprobacionAsistente === "No aprobada" ||
-                 expense.aprobacionJefatura === "No aprobada" ||
-                 expense.aprobacionContabilidad === "No aprobada";
+          return (
+            expense.aprobacionAsistente === "No aprobada" ||
+            expense.aprobacionJefatura === "No aprobada" ||
+            expense.aprobacionContabilidad === "No aprobada"
+          );
         }
         default:
           return true;
       }
     });
-  }, [expenseReports, viewMode, selectedPerson, searchTerm, startDate, endDate, service, approvalEligibility, canViewApprovals]);
+  }, [
+    expenseReports,
+    viewMode,
+    selectedPerson,
+    searchTerm,
+    startDate,
+    endDate,
+    service,
+    approvalEligibility,
+    canViewApprovals,
+  ]);
 
   const paginatedExpenses = useMemo(() => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
@@ -225,59 +225,78 @@ export const useApprovalList = () => {
     });
   }, []);
 
-  const handleConfirmAction = useCallback(async (notes = "") => {
-    try {
-      const expense = expenseReports.find(exp => exp.id === confirmDialog.expenseId);
-      if (!expense) return;
-      const approvalType = approvalFlowService.getNextApprovalType(expense, userEmail);
-      if (!approvalType) {
-        console.error("Cannot determine approval type");
-        return;
+  const handleConfirmAction = useCallback(
+    async (notes = "") => {
+      try {
+        const expense = expenseReports.find(
+          (exp) => exp.id === confirmDialog.expenseId
+        );
+        if (!expense) return;
+        const approvalType = approvalFlowService.getNextApprovalType(
+          expense,
+          userEmail
+        );
+        if (!approvalType) {
+          console.error("Cannot determine approval type");
+          return;
+        }
+
+        const status =
+          confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
+        await service.updateApprovalStatus(
+          confirmDialog.expenseId,
+          status,
+          approvalType,
+          notes
+        );
+
+        setExpenseReports((prevReports) =>
+          prevReports.map((report) => {
+            if (report.id !== confirmDialog.expenseId) return report;
+
+            const updatedReport = {
+              ...report,
+              bloqueoEdicion: true,
+              notasRevision: notes,
+            };
+
+            switch (approvalType) {
+              case "assistant":
+              case "accounting_assistant":
+                updatedReport.aprobacionAsistente = status;
+                break;
+              case "boss":
+              case "accounting_boss":
+                updatedReport.aprobacionJefatura = status;
+                if (
+                  approvalType === "accounting_boss" &&
+                  status === "Aprobada"
+                ) {
+                  updatedReport.aprobacionContabilidad = "Aprobada";
+                }
+                break;
+              default:
+                break;
+            }
+
+            return updatedReport;
+          })
+        );
+
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+      } catch (error) {
+        console.error("Error updating approval status:", error);
       }
-      
-      const status = confirmDialog.type === "approve" ? "Aprobada" : "No aprobada";
-      await service.updateApprovalStatus(
-        confirmDialog.expenseId,
-        status,
-        approvalType,
-        notes
-      );
-      
-      setExpenseReports((prevReports) =>
-        prevReports.map((report) => {
-          if (report.id !== confirmDialog.expenseId) return report;
-          
-          const updatedReport = {
-            ...report,
-            bloqueoEdicion: true,
-            notasRevision: notes
-          };
-          
-          switch (approvalType) {
-            case "assistant":
-            case "accounting_assistant":
-              updatedReport.aprobacionAsistente = status;
-              break;
-            case "boss":
-            case "accounting_boss":
-              updatedReport.aprobacionJefatura = status;
-              if (approvalType === "accounting_boss" && status === "Aprobada") {
-                updatedReport.aprobacionContabilidad = "Aprobada";
-              }
-              break;
-            default:
-              break;
-          }
-          
-          return updatedReport;
-        })
-      );
-      
-      setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-    } catch (error) {
-      console.error("Error updating approval status:", error);
-    }
-  }, [confirmDialog, expenseReports, service, approvalFlowService, setExpenseReports, userEmail]);
+    },
+    [
+      confirmDialog,
+      expenseReports,
+      service,
+      approvalFlowService,
+      setExpenseReports,
+      userEmail,
+    ]
+  );
 
   return {
     filteredExpenses,
@@ -303,7 +322,7 @@ export const useApprovalList = () => {
     handleApprove,
     handleReject,
     handleConfirmAction,
-    canViewApprovals
+    canViewApprovals,
   };
 };
 
