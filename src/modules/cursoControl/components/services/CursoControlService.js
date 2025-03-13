@@ -5,12 +5,18 @@ class CursoControlService extends BaseGraphService {
     super(msalInstance);
     this.config = config;
     this.loginRequest = {
-      scopes: [
-        "User.Read",
-        "Sites.Read.All",
-        "Sites.ReadWrite.All",
-      ],
+      scopes: ["User.Read", "Sites.Read.All", "Sites.ReadWrite.All"],
     };
+  }
+
+  formatDateForStorage(date) {
+    // Create a copy of the date to avoid modifying the original
+    const dateCopy = new Date(date);
+
+    // Convert to ISO string at noon to avoid timezone issues
+    const dateStr = dateCopy.toISOString().split("T")[0] + "T12:00:00Z";
+
+    return dateStr;
   }
 
   async initialize() {
@@ -40,9 +46,9 @@ class CursoControlService extends BaseGraphService {
         .api(`/sites/${this.siteId}/lists/${this.config.lists.cursos}/items`)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .filter(`fields/Title eq '${title}'`)
-        .expand('fields')
+        .expand("fields")
         .get();
-      
+
       if (response.value && response.value.length > 0) {
         const item = response.value[0];
         return {
@@ -64,10 +70,12 @@ class CursoControlService extends BaseGraphService {
     await this.initializeGraphClient();
     try {
       const fields = {
-        Title: cursoData.title, // Persona's name
-        PersonaLookupId: cursoData.personaId, 
+        Title: cursoData.title,
+        PersonaLookupId: cursoData.personaId,
         field_1: cursoData.curso,
-        field_2: cursoData.fecha ? cursoData.fecha.toISOString() : null,
+        field_2: cursoData.fecha
+          ? this.formatDateForStorage(cursoData.fecha)
+          : null,
         Notas: cursoData.notas || "",
       };
       const response = await this.client
@@ -87,12 +95,15 @@ class CursoControlService extends BaseGraphService {
       const fields = {
         Title: cursoData.title,
         field_1: cursoData.curso,
-        field_2: cursoData.fecha ? cursoData.fecha.toISOString() : null,
+        field_2: cursoData.fecha
+          ? this.formatDateForStorage(cursoData.fecha)
+          : null,
         Notas: cursoData.notas || "",
       };
-
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.cursos}/items/${id}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.cursos}/items/${id}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({ fields });
 
@@ -107,7 +118,9 @@ class CursoControlService extends BaseGraphService {
     await this.initializeGraphClient();
     try {
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.cursos}/items/${id}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.cursos}/items/${id}`
+        )
         .delete();
       return true;
     } catch (error) {
@@ -136,9 +149,9 @@ class CursoControlService extends BaseGraphService {
         .api(`/sites/${this.siteId}/lists/${this.config.lists.personas}/items`)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .filter(`fields/Title eq '${title}'`)
-        .expand('fields')
+        .expand("fields")
         .get();
-      
+
       if (response.value && response.value.length > 0) {
         const item = response.value[0];
         return {
@@ -183,7 +196,9 @@ class CursoControlService extends BaseGraphService {
       };
 
       const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.personas}/items/${id}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.personas}/items/${id}`
+        )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({ fields });
 
@@ -198,7 +213,9 @@ class CursoControlService extends BaseGraphService {
     await this.initializeGraphClient();
     try {
       await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.personas}/items/${id}`)
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.personas}/items/${id}`
+        )
         .delete();
       return true;
     } catch (error) {

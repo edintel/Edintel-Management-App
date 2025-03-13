@@ -12,7 +12,7 @@ const CursoEdit = () => {
   const { cursos, updateCurso, personas } = useCursoControl();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const cursoOptions = [
     "BN Padron",
     "Allergan",
@@ -25,28 +25,30 @@ const CursoEdit = () => {
     "Visado Walmart con Alturas",
     "Bayer cuartos limpios",
     "Abbott",
-    "Viant"
+    "Viant",
   ];
 
   const [formData, setFormData] = useState({
     title: "",
     curso: "",
     fecha: "",
-    notas: ""
+    notas: "",
   });
 
   // Load curso data
   useEffect(() => {
     const loadCurso = () => {
       try {
-        const foundCurso = cursos.find(c => c.id === id);
+        const foundCurso = cursos.find((c) => c.id === id);
         if (foundCurso) {
           setFormData({
             title: foundCurso.title || "",
             personaId: foundCurso.personaId || "",
             curso: foundCurso.curso || "",
-            fecha: foundCurso.fecha ? foundCurso.fecha.toISOString().split('T')[0] : "",
-            notas: foundCurso.notas || ""
+            fecha: foundCurso.fecha
+              ? foundCurso.fecha.toISOString().split("T")[0]
+              : "",
+            notas: foundCurso.notas || "",
           });
         } else {
           setError("Curso no encontrado");
@@ -66,7 +68,7 @@ const CursoEdit = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -82,13 +84,15 @@ const CursoEdit = () => {
       // Format date for submission
       const formattedData = {
         ...formData,
-        fecha: new Date(formData.fecha)
+        fecha: new Date(formData.fecha),
       };
 
       // Check if persona exists
-      const personaExists = personas.some(p => p.title === formData.title);
+      const personaExists = personas.some((p) => p.title === formData.title);
       if (!personaExists) {
-        throw new Error(`La persona "${formData.title}" no existe en el sistema. Debe agregarla primero.`);
+        throw new Error(
+          `La persona "${formData.title}" no existe en el sistema. Debe agregarla primero.`
+        );
       }
 
       await updateCurso(id, formattedData);
@@ -118,11 +122,11 @@ const CursoEdit = () => {
             <p>{error}</p>
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label 
-              htmlFor="title" 
+            <label
+              htmlFor="title"
               className="block text-sm font-medium text-gray-700"
             >
               Persona *
@@ -143,10 +147,10 @@ const CursoEdit = () => {
               ))}
             </select>
           </div>
-          
+
           <div className="space-y-2">
-            <label 
-              htmlFor="curso" 
+            <label
+              htmlFor="curso"
               className="block text-sm font-medium text-gray-700"
             >
               Curso *
@@ -167,10 +171,10 @@ const CursoEdit = () => {
               ))}
             </select>
           </div>
-          
+
           <div className="space-y-2">
-            <label 
-              htmlFor="fecha" 
+            <label
+              htmlFor="fecha"
               className="block text-sm font-medium text-gray-700"
             >
               Fecha vencimiento *
@@ -185,10 +189,10 @@ const CursoEdit = () => {
               className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
             />
           </div>
-          
+
           <div className="space-y-2">
-            <label 
-              htmlFor="notas" 
+            <label
+              htmlFor="notas"
               className="block text-sm font-medium text-gray-700"
             >
               Notas
@@ -203,7 +207,7 @@ const CursoEdit = () => {
               placeholder="Ingrese notas adicionales sobre el curso"
             />
           </div>
-          
+
           <div className="flex justify-end gap-4">
             <Button
               type="button"
