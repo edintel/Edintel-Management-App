@@ -5,28 +5,14 @@ import { useCursoControl } from "../../context/cursoControlContext";
 import { CURSO_CONTROL_ROUTES } from "../../routes";
 import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
-
 const CursoEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { cursos, updateCurso, personas } = useCursoControl();
+  const { cursos, updateCurso, personas, cursosTipos } = useCursoControl();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const cursoOptions = [
-    "BN Padron",
-    "Allergan",
-    "Visados Walmart",
-    "Credomatic",
-    "Phillips",
-    "Equifax",
-    "ICE Subastación",
-    "Curso Alturas",
-    "Visado Walmart con Alturas",
-    "Bayer cuartos limpios",
-    "Abbott",
-    "Viant",
-  ];
+  // Removed hard-coded cursoOptions array, now using cursosTipos from context
 
   const [formData, setFormData] = useState({
     title: "",
@@ -34,7 +20,6 @@ const CursoEdit = () => {
     fecha: "",
     notas: "",
   });
-
   // Load curso data
   useEffect(() => {
     const loadCurso = () => {
@@ -60,41 +45,32 @@ const CursoEdit = () => {
         setLoading(false);
       }
     };
-
     if (cursos.length > 0) {
       loadCurso();
     }
   }, [id, cursos]);
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
       if (!formData.title || !formData.curso || !formData.fecha) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
-
-      // Format date for submission
       const formattedData = {
         ...formData,
         fecha: new Date(formData.fecha),
       };
-
-      // Check if persona exists
       const personaExists = personas.some((p) => p.title === formData.title);
       if (!personaExists) {
         throw new Error(
           `La persona "${formData.title}" no existe en el sistema. Debe agregarla primero.`
         );
       }
-
       await updateCurso(id, formattedData);
       navigate(CURSO_CONTROL_ROUTES.CURSOS.DETAIL(id));
     } catch (err) {
@@ -104,7 +80,6 @@ const CursoEdit = () => {
       setLoading(false);
     }
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -112,7 +87,6 @@ const CursoEdit = () => {
       </div>
     );
   }
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <Card title="Editar Curso">
@@ -122,7 +96,6 @@ const CursoEdit = () => {
             <p>{error}</p>
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label
@@ -147,7 +120,6 @@ const CursoEdit = () => {
               ))}
             </select>
           </div>
-
           <div className="space-y-2">
             <label
               htmlFor="curso"
@@ -164,14 +136,13 @@ const CursoEdit = () => {
               className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
             >
               <option value="">Seleccione un curso</option>
-              {cursoOptions.map((option) => (
+              {cursosTipos.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
               ))}
             </select>
           </div>
-
           <div className="space-y-2">
             <label
               htmlFor="fecha"
@@ -189,7 +160,6 @@ const CursoEdit = () => {
               className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
             />
           </div>
-
           <div className="space-y-2">
             <label
               htmlFor="notas"
@@ -207,7 +177,6 @@ const CursoEdit = () => {
               placeholder="Ingrese notas adicionales sobre el curso"
             />
           </div>
-
           <div className="flex justify-end gap-4">
             <Button
               type="button"
@@ -237,5 +206,4 @@ const CursoEdit = () => {
     </div>
   );
 };
-
 export default CursoEdit;

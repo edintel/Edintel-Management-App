@@ -5,31 +5,15 @@ import { useCursoControl } from "../../context/cursoControlContext";
 import { CURSO_CONTROL_ROUTES } from "../../routes";
 import Card from "../../../../components/common/Card";
 import Button from "../../../../components/common/Button";
-
 const CursoForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { createCurso, personas } = useCursoControl();
+  const { createCurso, personas, cursosTipos } = useCursoControl();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Get pre-filled data from navigation state if available
   const prefillData = location.state?.prefillData || {};
 
-  const cursoOptions = [
-    "BN Padron",
-    "Allergan",
-    "Visados Walmart",
-    "Credomatic",
-    "Phillips",
-    "Equifax",
-    "ICE Subastación",
-    "Curso Alturas",
-    "Visado Walmart con Alturas",
-    "Bayer cuartos limpios",
-    "Abbott",
-    "Viant",
-  ];
+  // Removed hard-coded cursoOptions array, now using cursosTipos from context
 
   const [formData, setFormData] = useState({
     title: prefillData.title || "", // This is the persona name
@@ -38,7 +22,6 @@ const CursoForm = () => {
     fecha: "",
     notas: "",
   });
-
   // If we have prefillData, find the matching persona to get the complete data
   useEffect(() => {
     if (prefillData.personaId && !formData.title) {
@@ -53,7 +36,6 @@ const CursoForm = () => {
       }
     }
   }, [personas, prefillData, formData.title]);
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if (name === "title") {
@@ -67,7 +49,6 @@ const CursoForm = () => {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -76,12 +57,10 @@ const CursoForm = () => {
       if (!formData.title || !formData.curso || !formData.fecha) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
-
       const formattedData = {
         ...formData,
         fecha: new Date(formData.fecha),
       };
-
       await createCurso(formattedData);
       navigate(CURSO_CONTROL_ROUTES.CURSOS.LIST);
     } catch (err) {
@@ -91,7 +70,6 @@ const CursoForm = () => {
       setLoading(false);
     }
   };
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <Card title="Nuevo Curso">
@@ -141,7 +119,7 @@ const CursoForm = () => {
               className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
             >
               <option value="">Seleccione un curso</option>
-              {cursoOptions.map((option) => (
+              {cursosTipos.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -211,5 +189,4 @@ const CursoForm = () => {
     </div>
   );
 };
-
 export default CursoForm;

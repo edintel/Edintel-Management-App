@@ -1,40 +1,33 @@
-// components/common/FilterBar.js
-import React from 'react';
-import { X } from 'lucide-react';
-import { useCursoControl } from '../../context/cursoControlContext';
-import Button from '../../../../components/common/Button';
-
+import React from "react";
+import { X } from "lucide-react";
+import { useCursoControl } from "../../context/cursoControlContext";
+import Button from "../../../../components/common/Button";
 const FilterBar = () => {
   const {
     filters,
     setFilters,
-    cursos,
+    cursosTipos, // Use cursosTipos from context instead of deriving from cursos
     personas,
-    empresas
+    empresas,
   } = useCursoControl();
 
-  // Get unique curso types
-  const cursoTypes = [...new Set(cursos.map(c => c.curso))]
+  // No longer need to extract course types from cursos
+  const uniquePersonas = [...new Set(personas.map((p) => p.title))]
     .filter(Boolean)
     .sort();
-
-  // Get unique persona titles for the filter
-  const uniquePersonas = [...new Set(
-    personas.map(p => p.title)
-  )].filter(Boolean).sort();
 
   const handleResetFilters = () => {
     setFilters({
       curso: "",
       persona: "",
-      empresa: ""
+      empresa: "",
     });
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-6">
       <div className="flex flex-col md:flex-row gap-4">
-        {/* Curso filter */}
+        {}
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Curso
@@ -45,7 +38,7 @@ const FilterBar = () => {
             className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
           >
             <option value="">Todos los cursos</option>
-            {cursoTypes.map((type) => (
+            {cursosTipos.map((type) => (
               <option key={type} value={type}>
                 {type}
               </option>
@@ -104,5 +97,4 @@ const FilterBar = () => {
     </div>
   );
 };
-
 export default FilterBar;
