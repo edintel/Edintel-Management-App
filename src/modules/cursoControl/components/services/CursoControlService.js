@@ -1,5 +1,4 @@
 import BaseGraphService from "../../../../services/BaseGraphService";
-
 class CursoControlService extends BaseGraphService {
   constructor(msalInstance, config) {
     super(msalInstance);
@@ -8,22 +7,14 @@ class CursoControlService extends BaseGraphService {
       scopes: ["User.Read", "Sites.Read.All", "Sites.ReadWrite.All"],
     };
   }
-
   formatDateForStorage(date) {
-    // Create a copy of the date to avoid modifying the original
     const dateCopy = new Date(date);
-
-    // Convert to ISO string at noon to avoid timezone issues
     const dateStr = dateCopy.toISOString().split("T")[0] + "T12:00:00Z";
-
     return dateStr;
   }
-
   async initialize() {
     this.siteId = await this.getSiteId(this.config.siteName);
   }
-
-  // Cursos methods
   async getCursos() {
     const items = await this.getListItems(
       this.siteId,
@@ -39,6 +30,18 @@ class CursoControlService extends BaseGraphService {
     }));
   }
 
+  async getCursosTipos() {
+    const items = await this.getListItems(
+      this.siteId,
+      this.config.lists.cursosTipos
+    );
+    // Get unique course types from the Title field
+    return items
+      .map((item) => item.fields.Title || "")
+      .filter(Boolean)
+      .sort();
+  }
+
   async getCursoByTitle(title) {
     await this.initializeGraphClient();
     try {
@@ -48,7 +51,6 @@ class CursoControlService extends BaseGraphService {
         .filter(`fields/Title eq '${title}'`)
         .expand("fields")
         .get();
-
       if (response.value && response.value.length > 0) {
         const item = response.value[0];
         return {
@@ -65,7 +67,6 @@ class CursoControlService extends BaseGraphService {
       throw error;
     }
   }
-
   async createCurso(cursoData) {
     await this.initializeGraphClient();
     try {
@@ -88,7 +89,6 @@ class CursoControlService extends BaseGraphService {
       throw error;
     }
   }
-
   async updateCurso(id, cursoData) {
     await this.initializeGraphClient();
     try {
@@ -106,14 +106,12 @@ class CursoControlService extends BaseGraphService {
         )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({ fields });
-
       return response;
     } catch (error) {
       console.error("Error updating curso:", error);
       throw error;
     }
   }
-
   async deleteCurso(id) {
     await this.initializeGraphClient();
     try {
@@ -128,8 +126,6 @@ class CursoControlService extends BaseGraphService {
       throw error;
     }
   }
-
-  // Personas methods
   async getPersonas() {
     const items = await this.getListItems(
       this.siteId,
@@ -141,7 +137,6 @@ class CursoControlService extends BaseGraphService {
       empresa: item.fields.field_1 || "",
     }));
   }
-
   async getPersonaByTitle(title) {
     await this.initializeGraphClient();
     try {
@@ -151,7 +146,6 @@ class CursoControlService extends BaseGraphService {
         .filter(`fields/Title eq '${title}'`)
         .expand("fields")
         .get();
-
       if (response.value && response.value.length > 0) {
         const item = response.value[0];
         return {
@@ -166,7 +160,6 @@ class CursoControlService extends BaseGraphService {
       throw error;
     }
   }
-
   async createPersona(personaData) {
     await this.initializeGraphClient();
     try {
@@ -174,19 +167,16 @@ class CursoControlService extends BaseGraphService {
         Title: personaData.title,
         field_1: personaData.empresa || "Edintel",
       };
-
       const response = await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.personas}/items`)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .post({ fields });
-
       return response;
     } catch (error) {
       console.error("Error creating persona:", error);
       throw error;
     }
   }
-
   async updatePersona(id, personaData) {
     await this.initializeGraphClient();
     try {
@@ -194,21 +184,18 @@ class CursoControlService extends BaseGraphService {
         Title: personaData.title,
         field_1: personaData.empresa || "Edintel",
       };
-
       const response = await this.client
         .api(
           `/sites/${this.siteId}/lists/${this.config.lists.personas}/items/${id}`
         )
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
         .patch({ fields });
-
       return response;
     } catch (error) {
       console.error("Error updating persona:", error);
       throw error;
     }
   }
-
   async deletePersona(id) {
     await this.initializeGraphClient();
     try {
@@ -224,5 +211,4 @@ class CursoControlService extends BaseGraphService {
     }
   }
 }
-
 export default CursoControlService;
