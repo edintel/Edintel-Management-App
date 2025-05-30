@@ -15,7 +15,12 @@ const ExpenseForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  
+  const [currency, setCurrency] = useState('CRC');
+  const currencies = [
+    { code: 'CRC', symbol: '₡', name: 'Colones' },
+    { code: 'USD', symbol: '$', name: 'Dólares' }
+  ];
+
   const [formData, setFormData] = useState({
     rubro: "",
     monto: "",
@@ -79,7 +84,7 @@ const ExpenseForm = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       // Validate required fields
       if (
@@ -90,11 +95,11 @@ const ExpenseForm = () => {
       ) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
-      
+
       if (!formData.comprobante) {
         throw new Error("Debe adjuntar un comprobante");
       }
-      
+
       // Prepare expense data
       const expenseData = {
         ...formData,
@@ -103,13 +108,13 @@ const ExpenseForm = () => {
           .map(user => user.displayName)
           .join(", "),
       };
-      
+
       // Create expense in SharePoint
       const newExpense = await service.createExpenseReport(
         expenseData,
         formData.comprobante
       );
-      
+
       if (newExpense.id) {
         // Update contributors (if any)
         await service.updateExpenseIntegrantes(
@@ -117,7 +122,7 @@ const ExpenseForm = () => {
           formData.IntegrantesV2.map(user => user.id)
         );
       }
-      
+
       // Format the new expense for state update
       const formattedExpense = {
         id: newExpense.id,
@@ -142,10 +147,10 @@ const ExpenseForm = () => {
         },
         notas: newExpense.fields.Notas,
       };
-      
+
       // Update application state
       setExpenseReports((prevReports) => [formattedExpense, ...prevReports]);
-      
+
       // Navigate to expense list
       navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST);
     } catch (err) {
@@ -201,7 +206,17 @@ const ExpenseForm = () => {
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  ₡
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                  >
+                    {currencies.map((curr) => (
+                      <option key={curr.code} value={curr.code}>
+                        {curr.symbol}
+                      </option>
+                    ))}
+                  </select>
+
                 </span>
                 <input
                   type="number"
