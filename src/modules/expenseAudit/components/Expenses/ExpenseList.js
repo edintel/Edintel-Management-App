@@ -13,18 +13,18 @@ const ExpenseList = () => {
   const today = new Date();
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    expenseReports,
-    loading,
-    expenseListFilters,
-    setExpenseListFilters
+  const { 
+    expenseReports, 
+    loading, 
+    expenseListFilters, 
+    setExpenseListFilters 
   } = useExpenseAudit();
   const { user } = useAuth();
-
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -35,7 +35,7 @@ const ExpenseList = () => {
       setSearchTerm(expenseListFilters.searchTerm || "");
       setStartDate(expenseListFilters.startDate || "");
       setEndDate(expenseListFilters.endDate || "");
-
+      
       // Restore pagination state if available
       if (expenseListFilters.currentPage) {
         setCurrentPage(expenseListFilters.currentPage);
@@ -57,12 +57,9 @@ const ExpenseList = () => {
         itemsPerPage
       });
     }, 300);
-   
-
+    
     return () => clearTimeout(timeoutId);
   }, [searchTerm, startDate, endDate, currentPage, itemsPerPage, setExpenseListFilters]);
-
-  
 
   // Table columns configuration
   const columns = [
@@ -80,8 +77,11 @@ const ExpenseList = () => {
     {
       key: "monto",
       header: "Monto",
-      render: (value, row) => `${row.currencySymbol}${value}`
-
+      render: (value) =>
+        value.toLocaleString("es-CR", {
+          style: "currency",
+          currency: "CRC",
+        }),
     },
     { key: "st", header: "ST" },
     {
@@ -89,16 +89,16 @@ const ExpenseList = () => {
       header: "Estado",
       render: (_, row) => {
         // Check for rejection first
-        if (row.aprobacionAsistente === "No aprobada" ||
-          row.aprobacionJefatura === "No aprobada" ||
-          row.aprobacionContabilidad === "No aprobada") {
+        if (row.aprobacionAsistente === "No aprobada" || 
+            row.aprobacionJefatura === "No aprobada" || 
+            row.aprobacionContabilidad === "No aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
               No aprobada
             </span>
           );
         }
-
+        
         // Check for full approval
         if (row.aprobacionContabilidad === "Aprobada") {
           return (
@@ -107,7 +107,7 @@ const ExpenseList = () => {
             </span>
           );
         }
-
+        
         // Check for partially approved statuses
         if (row.aprobacionJefatura === "Aprobada") {
           return (
@@ -116,7 +116,7 @@ const ExpenseList = () => {
             </span>
           );
         }
-
+        
         if (row.aprobacionAsistente === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -124,7 +124,7 @@ const ExpenseList = () => {
             </span>
           );
         }
-
+        
         // Default to pending
         return (
           <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
@@ -147,7 +147,7 @@ const ExpenseList = () => {
           const end = new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1); // Include full end date
           if (expenseDate < start || expenseDate > end) return false;
         }
-
+        
         // Search term filter
         if (searchTerm) {
           const search = searchTerm.toLowerCase();
@@ -156,18 +156,18 @@ const ExpenseList = () => {
             expense.st.toLowerCase().includes(search)
           );
         }
-
+        
         return true;
       });
   }, [expenseReports, user?.username, startDate, endDate, searchTerm]);
 
   const filteredExpenses = filterExpenses();
-
+  
   // Handle page change
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
   };
-
+  
   // Handle items per page change
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(newItemsPerPage);

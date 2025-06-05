@@ -45,8 +45,6 @@ class ExpenseAuditService extends BaseGraphService {
     await this.permissionService.initialize(roles, departments);
   }
 
- 
-
   /**
    * Get all expense reports from SharePoint
    * @returns {Array} Array of formatted expense report objects
@@ -63,7 +61,6 @@ class ExpenseAuditService extends BaseGraphService {
       comprobante: item.fields.Comprobante || null,
       fecha: new Date(item.fields.Fecha),
       monto: parseFloat(item.fields.Monto) || 0,
-      currencySymbol: item.fields.CurrencySymbol,
       st: item.fields.ST,
       fondosPropios: Boolean(item.fields.Fondospropios),
       motivo: item.fields.Title,
@@ -115,8 +112,7 @@ class ExpenseAuditService extends BaseGraphService {
     const fields = {
       Title: expenseData.motivo,
       Rubro: expenseData.rubro,
-      Monto: expenseData.monto.toString(),
-      CurrencySymbol: expenseData.currencySymbol,
+      Monto: expenseData.monto,
       Fecha: expenseData.fecha,
       ST: expenseData.st,
       Fondospropios: expenseData.fondosPropios,
@@ -232,7 +228,6 @@ class ExpenseAuditService extends BaseGraphService {
       Title: expenseData.motivo,
       Rubro: expenseData.rubro,
       Monto: expenseData.monto.toString(),
-      CurrencySymbol: expenseData.currencySymbol,
       Fecha: expenseData.fecha,
       ST: expenseData.st,
       Fondospropios: expenseData.fondosPropios,

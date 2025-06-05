@@ -22,18 +22,13 @@ const ExpenseEdit = () => {
     loading: contextLoading,
     departmentWorkers
   } = useExpenseAudit();
-
+  
   const [formData, setFormData] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isNewFile, setIsNewFile] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const currencies = [
-    { code: 'CRC', symbol: '₡', name: 'Colones' },
-    { code: 'USD', symbol: '$', name: 'Dólares' }
-  ];
-
+  
   const rubroOptions = [
     "Almuerzo",
     "Cena",
@@ -48,7 +43,7 @@ const ExpenseEdit = () => {
     "Versatec",
     "Transporte público"
   ];
-
+  
   const allWorkers = React.useMemo(() => {
     return departmentWorkers
       .reduce((acc, dept) => {
@@ -78,34 +73,33 @@ const ExpenseEdit = () => {
         navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.LIST);
         return;
       }
-
+      
       // Check if user can edit this expense
       const canEdit = () => {
         if (!permissionService || !expense || !user) return false;
-
+        
         // Administrators can edit
-        if (permissionService.hasRole(user.username, "Jefe") ||
-          permissionService.hasRole(user.username, "Asistente")) {
+        if (permissionService.hasRole(user.username, "Jefe") || 
+            permissionService.hasRole(user.username, "Asistente")) {
           return true;
         }
-
+        
         // Creator can edit if not locked
         return user.username === expense.createdBy.email && !expense.bloqueoEdicion;
       };
-
+      
       if (!canEdit()) {
         navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id));
         return;
       }
-
+      
       // Format date to YYYY-MM-DD for input
       const formattedDate = expense.fecha.toISOString().split("T")[0];
-
+      
       // Set form data
       setFormData({
         rubro: expense.rubro,
         monto: expense.monto,
-        currencySymbol: expense.currencySymbol,
         fecha: formattedDate,
         st: expense.st,
         fondosPropios: expense.fondosPropios,
@@ -120,7 +114,7 @@ const ExpenseEdit = () => {
           email: integrante.email
         })) || []
       });
-
+      
       // Set preview if there's a comprobante
       if (expense.comprobante) {
         setPreview(expense.comprobante);
@@ -147,7 +141,7 @@ const ExpenseEdit = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+    
     try {
       // Validate required fields
       if (
@@ -158,11 +152,11 @@ const ExpenseEdit = () => {
       ) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
-
+      
       if (!formData.comprobante && !isNewFile) {
         throw new Error("Debe adjuntar un comprobante");
       }
-
+      
       // Prepare expense data
       const expenseData = {
         ...formData,
@@ -170,20 +164,20 @@ const ExpenseEdit = () => {
           .map(user => user.displayName)
           .join(", "),
       };
-
+      
       // Update expense in SharePoint
       const updatedExpense = await service.updateExpenseReport(
         id,
         expenseData,
         isNewFile ? formData.comprobante : undefined
       );
-
+      
       // Update contributors
       await service.updateExpenseIntegrantes(
         id,
         formData.IntegrantesV2.map(user => user.id)
       );
-
+      
       // Update state with new data
       setExpenseReports((prevReports) =>
         prevReports.map((report) =>
@@ -192,7 +186,6 @@ const ExpenseEdit = () => {
               ...report,
               rubro: updatedExpense.fields.Rubro,
               monto: parseFloat(updatedExpense.fields.Monto),
-              currencySymbol: updatedExpense.fields.CurrencySymbol,
               fecha: new Date(updatedExpense.fields.Fecha),
               st: updatedExpense.fields.ST,
               fondosPropios: Boolean(updatedExpense.fields.Fondospropios),
@@ -220,7 +213,7 @@ const ExpenseEdit = () => {
             : report
         )
       );
-
+      
       // Navigate to detail view
       navigate(EXPENSE_AUDIT_ROUTES.EXPENSES.DETAIL(id), {
         state: { from: location.state?.from },
@@ -279,21 +272,10 @@ const ExpenseEdit = () => {
               <label className="block text-sm font-medium text-gray-700">
                 Monto *
               </label>
-              <div className="flex items-center space-x-2">
-                <select
-                  key="currencySymbol"
-                  name="currencySymbol"
-                  value={formData.currencySymbol}
-                  onChange={handleInputChange}
-                  className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-                >
-
-                  {currencies.map((curr) => (
-                    <option key={curr.name} value={curr.symbol}>
-                      {curr.symbol}
-                    </option>
-                  ))}
-                </select>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  ₡
+                </span>
                 <input
                   type="number"
                   name="monto"
@@ -302,7 +284,7 @@ const ExpenseEdit = () => {
                   required
                   min="0"
                   step="0.01"
-                  className="w-full pl-4 rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                  className="w-full pl-8 rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 />
               </div>
             </div>

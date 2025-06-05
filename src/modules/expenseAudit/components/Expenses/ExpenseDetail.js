@@ -59,11 +59,7 @@ const ExpenseDetail = () => {
       setExpense(foundExpense);
       setLoading(false);
     }
-
-    
   }, [id, expenseReports, reportsLoading]);
-
-  
 
   // Navigation handlers
   const handleBack = () => {
@@ -305,7 +301,10 @@ const ExpenseDetail = () => {
                 <div>
                   <span className="text-sm text-gray-500">Monto</span>
                   <p className="text-gray-900 mt-1 font-semibold">
-                    {expense.currencySymbol}{expense.monto}
+                    {expense.monto.toLocaleString("es-CR", {
+                      style: "currency",
+                      currency: "CRC",
+                    })}
                   </p>
                 </div>
                 <div>
