@@ -301,7 +301,7 @@ const ExpenseEdit = () => {
                   required
                   min="0"
                   step="0.01"
-                  className="w-full pl-4 rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                  className="w-full pl-3 rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 />
               </div>
             </div>

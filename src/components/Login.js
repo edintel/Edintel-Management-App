@@ -20,6 +20,8 @@ function Login() {
   }, [isAuthenticated, navigate, location.state?.from?.pathname]);
 
   const handleLogin = async (e) => {
+
+   
     e.preventDefault();
     if (inProgress !== InteractionStatus.None) {
       console.log("Authentication is already in progress");
@@ -27,6 +29,7 @@ function Login() {
     }
 
     try {
+       await instance.clearCache();
       await instance.loginRedirect({
         scopes: [
           "User.Read",
