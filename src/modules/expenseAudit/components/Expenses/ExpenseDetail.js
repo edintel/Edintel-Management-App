@@ -301,10 +301,7 @@ const ExpenseDetail = () => {
                 <div>
                   <span className="text-sm text-gray-500">Monto</span>
                   <p className="text-gray-900 mt-1 font-semibold">
-                    {expense.monto.toLocaleString("es-CR", {
-                      style: "currency",
-                      currency: "CRC",
-                    })}
+                     {expense.currencySymbol || "₡"}{expense.monto}
                   </p>
                 </div>
                 <div>

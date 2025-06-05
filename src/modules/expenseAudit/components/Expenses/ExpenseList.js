@@ -77,11 +77,7 @@ const ExpenseList = () => {
     {
       key: "monto",
       header: "Monto",
-      render: (value) =>
-        value.toLocaleString("es-CR", {
-          style: "currency",
-          currency: "CRC",
-        }),
+      render: (value, row) => `${row.currencySymbol || "₡"}${value}`
     },
     { key: "st", header: "ST" },
     {

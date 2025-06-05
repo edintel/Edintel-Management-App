@@ -15,7 +15,6 @@ const ExpenseForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  const [currency, setCurrency] = useState('CRC');
   const currencies = [
     { code: 'CRC', symbol: '₡', name: 'Colones' },
     { code: 'USD', symbol: '$', name: 'Dólares' }
@@ -24,6 +23,7 @@ const ExpenseForm = () => {
   const [formData, setFormData] = useState({
     rubro: "",
     monto: "",
+    currencySymbol: '₡',
     fecha: "",
     st: "",
     fondosPropios: false,
@@ -130,6 +130,7 @@ const ExpenseForm = () => {
         comprobante: newExpense.fields.Comprobante,
         fecha: new Date(newExpense.fields.Fecha),
         monto: parseFloat(newExpense.fields.Monto),
+        currencySymbol: newExpense.fields.CurrencySymbol || "₡",
         st: newExpense.fields.ST,
         fondosPropios: Boolean(newExpense.fields.Fondospropios),
         motivo: newExpense.fields.Title,
@@ -204,20 +205,22 @@ const ExpenseForm = () => {
               >
                 Monto *
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                  >
-                    {currencies.map((curr) => (
-                      <option key={curr.code} value={curr.code}>
-                        {curr.symbol}
-                      </option>
-                    ))}
-                  </select>
+              <div className="flex items-center space-x-2">
 
-                </span>
+                <select
+                  key="currencySymbol"
+                  name="currencySymbol"
+                  value={formData.currencySymbol}
+                  onChange={handleInputChange}
+                  className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                >
+
+                  {currencies.map((curr) => (
+                    <option key={curr.name} value={curr.symbol}>
+                      {curr.symbol}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   id="monto"
@@ -227,7 +230,7 @@ const ExpenseForm = () => {
                   required
                   min="0"
                   step="0.01"
-                  className="w-full pl-8 rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                  className="w-full pl-4 rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 />
               </div>
             </div>
