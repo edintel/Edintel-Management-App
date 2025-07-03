@@ -703,7 +703,7 @@ class PostVentaManagementService extends BaseGraphService {
         )
         .expand("fields")
         .get();
-      
+
       // Handle service ticket and report files from legacy code path
       if (data.serviceTicket) {
         if (ticket.fields.Boleta) {
@@ -722,7 +722,7 @@ class PostVentaManagementService extends BaseGraphService {
         const reportId = await this.uploadServiceReport(ticketId, data.report);
         fields.Informe = reportId;
       }
-  
+
       // Handle files to delete
       if (data.filesToDelete && data.filesToDelete.length > 0) {
         for (const fileId of data.filesToDelete) {
@@ -734,13 +734,13 @@ class PostVentaManagementService extends BaseGraphService {
               .filter(`fields/itemId eq '${fileId}'`)
               .expand('fields')
               .get();
-            
+
             const generalDocs = generalDocsQuery.value;
-            
+
             if (generalDocs.length > 0) {
               // Delete file from SharePoint
               await this.deleteFile(this.siteId, this.driveId, fileId);
-              
+
               // Delete list item 
               await this.client
                 .api(`/sites/${this.siteId}/lists/${this.config.lists.docs}/items/${generalDocs[0].id}`)
@@ -754,13 +754,13 @@ class PostVentaManagementService extends BaseGraphService {
                   .filter(`fields/itemId eq '${fileId}'`)
                   .expand('fields')
                   .get();
-                
+
                 const adminDocs = adminDocsQuery.value;
-                
+
                 if (adminDocs.length > 0) {
                   // Delete file from SharePoint
                   await this.deleteFile(this.admins.siteId, this.admins.driveId, fileId);
-                  
+
                   // Delete list item
                   await this.client
                     .api(`/sites/${this.admins.siteId}/lists/${this.admins.lists.docsAdmins}/items/${adminDocs[0].id}`)
@@ -780,7 +780,7 @@ class PostVentaManagementService extends BaseGraphService {
           }
         }
       }
-  
+
       // Handle files to upload
       if (data.filesToUpload && data.filesToUpload.length > 0) {
         for (const fileData of data.filesToUpload) {
@@ -792,7 +792,7 @@ class PostVentaManagementService extends BaseGraphService {
           );
         }
       }
-  
+
       // Update the ticket in SharePoint
       const response = await this.client
         .api(
@@ -1079,7 +1079,7 @@ class PostVentaManagementService extends BaseGraphService {
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const yearMonth = `${year}${month}`;
-    
+
     await this.initializeGraphClient();
     try {
       const response = await this.client
@@ -1088,10 +1088,10 @@ class PostVentaManagementService extends BaseGraphService {
         .filter(`fields/YearMonth eq '${yearMonth}'`)
         .expand('fields')
         .get();
-      
+
       let currentNumber;
       let itemId;
-      
+
       if (response.value.length > 0) {
         itemId = response.value[0].id;
         currentNumber = parseInt(response.value[0].fields.LastNumber);
@@ -1108,13 +1108,13 @@ class PostVentaManagementService extends BaseGraphService {
         itemId = createResponse.id;
         currentNumber = 699;
       }
-      
+
       // Increment the sequence number
       const nextNumber = currentNumber + 1;
       if (nextNumber > 999) {
         throw new Error("Sequence number exceeded maximum (999) for this month");
       }
-      
+
       // Update in database
       await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
@@ -1123,7 +1123,7 @@ class PostVentaManagementService extends BaseGraphService {
             LastNumber: nextNumber.toString()
           }
         });
-      
+
       // Return the formatted ST number
       return `${yearMonth}-3${nextNumber}`;
     } catch (error) {
@@ -1131,14 +1131,121 @@ class PostVentaManagementService extends BaseGraphService {
       throw new Error("Error al generar número de ST: " + error.message);
     }
   }
-  
-  // Get a preview of what the ST number would look like without incrementing the counter
-  getSTNumberPreview() {
+
+  async getNextSTNumberRepair(maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const stNumber = await this.attemptGetNextSTNumber();
+
+        // Verificar si ya existe este número
+        const exists = await this.checkSTNumberExists(stNumber);
+        if (!exists) {
+          return stNumber;
+        }
+
+        // Si existe, esperar un poco y reintentar
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+
+      } catch (error) {
+        if (attempt === maxRetries - 1) {
+          throw error;
+        }
+        // Esperar antes de reintentar
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+
+    throw new Error("No se pudo generar un número ST único después de varios intentos");
+  }
+
+  async attemptGetNextSTNumber() {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    return `${year}${month}-3xxx`;
+    const yearMonth = `${year}${month}`;
+
+    await this.initializeGraphClient();
+
+    const response = await this.client
+      .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+      .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+      .filter(`fields/YearMonth eq '${yearMonth}'`)
+      .expand('fields')
+      .get();
+
+    let currentNumber;
+    let itemId;
+
+    if (response.value.length > 0) {
+      itemId = response.value[0].id;
+      currentNumber = parseInt(response.value[0].fields.LastNumber);
+    } else {
+      const createResponse = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+        .post({
+          fields: {
+            Title: `Sequence for ${yearMonth}`,
+            YearMonth: yearMonth,
+            LastNumber: "699"
+          }
+        });
+      itemId = createResponse.id;
+      currentNumber = 699;
+    }
+
+    const nextNumber = currentNumber + 1;
+    if (nextNumber > 999) {
+      throw new Error("Sequence number exceeded maximum (999) for this month");
+    }
+
+    // Usar ETag para optimistic concurrency control
+    const currentItem = await this.client
+      .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
+      .expand('fields')
+      .get();
+
+    try {
+      await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
+        .header('If-Match', currentItem['@odata.etag'])
+        .patch({
+          fields: {
+            LastNumber: nextNumber.toString()
+          }
+        });
+    } catch (error) {
+      if (error.statusCode === 412) { // Precondition Failed
+        throw new Error("Concurrent modification detected, retrying...");
+      }
+      throw error;
+    }
+
+    return `${yearMonth}-3${nextNumber}`;
   }
+
+  async checkSTNumberExists(stNumber) {
+    try {
+      const response = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.tickets}/items`)
+        .filter(`fields/STNumber eq '${stNumber}'`)
+        .top(1)
+        .get();
+
+      return response.value.length > 0;
+    } catch (error) {
+      console.error("Error checking ST number existence:", error);
+      return false;
+    }
+  }
+
+
+// Get a preview of what the ST number would look like without incrementing the counter
+getSTNumberPreview() {
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2);
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  return `${year}${month}-3xxx`;
+}
 }
 
 export default PostVentaManagementService;

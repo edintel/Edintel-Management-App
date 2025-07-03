@@ -164,7 +164,7 @@ const TicketForm = () => {
     try {
       let finalFormData = { ...formData };
       if (formData.type === "Correctiva") {
-        const stNumber = await service.getNextSTNumber();
+        const stNumber = await service.getNextSTNumberRepair();
         finalFormData.st = stNumber;
       }
       const site = sites.find((s) => s.id === finalFormData.siteId);
