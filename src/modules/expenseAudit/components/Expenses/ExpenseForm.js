@@ -88,6 +88,16 @@ const ExpenseForm = () => {
 
     try {
       // Validate required fields
+      const fechaIngresada = new Date(formData.fecha);
+      const fechaActual = new Date();
+
+      
+      fechaIngresada.setHours(0, 0, 0, 0);
+      fechaActual.setHours(0, 0, 0, 0);
+
+      if (fechaIngresada > fechaActual) {
+        throw new Error("La fecha no puede ser superior al día de hoy");
+      }
       if (
         !formData.rubro ||
         !formData.monto ||
@@ -103,7 +113,7 @@ const ExpenseForm = () => {
 
 
 
-     
+
 
 
       // Prepare expense data
@@ -121,7 +131,7 @@ const ExpenseForm = () => {
         formData.comprobante
       );
 
-      
+
 
       if (newExpense.id) {
         // Update contributors (if any)
@@ -158,8 +168,8 @@ const ExpenseForm = () => {
         notas: newExpense.fields.Notas,
       };
 
-   
-      
+
+
       // Update application state
       setExpenseReports((prevReports) => [formattedExpense, ...prevReports]);
 
@@ -217,7 +227,7 @@ const ExpenseForm = () => {
                 Monto *
               </label>
               <div className="flex items-center space-x-2">
-               
+
                 <select
                   key="currencySymbol"
                   name="currencySymbol"
@@ -225,9 +235,9 @@ const ExpenseForm = () => {
                   onChange={handleInputChange}
                   className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 >
-                  
+
                   {currencies.map((curr) => (
-                    <option  key= {curr.name} value={curr.symbol}>
+                    <option key={curr.name} value={curr.symbol}>
                       {curr.symbol}
                     </option>
                   ))}
