@@ -45,54 +45,51 @@ class ExpenseAuditService extends BaseGraphService {
     await this.permissionService.initialize(roles, departments);
   }
 
-
+ 
 
   /**
    * Get all expense reports from SharePoint
    * @returns {Array} Array of formatted expense report objects
    */
- async getExpenseReports() {
-  const items = await this.getListItems(
-    this.siteId,
-    this.config.lists.expenseReports
-  );
+  async getExpenseReports() {
+    const items = await this.getListItems(
+      this.siteId,
+      this.config.lists.expenseReports
+    );
 
-  const formattedExpenses = items.map((item) => ({
-    id: item.id,
-    rubro: item.fields.Rubro,
-    comprobante: item.fields.Comprobante || null,
-    fecha: new Date(item.fields.Fecha),
-    monto: parseFloat(item.fields.Monto) || 0,
-    currencySymbol: item.fields.CurrencySymbol,
-    st: item.fields.ST,
-    fondosPropios: Boolean(item.fields.Fondospropios),
-    motivo: item.fields.Title,
-    notasRevision: item.fields.Notasrevision,
-    facturaDividida: Boolean(item.fields.FacturaDividida),
-    integrantes: item.fields.Integrantes || "",
-    bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
-    aprobacionAsistente: item.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
-    aprobacionJefatura: item.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
-    aprobacionContabilidad: item.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
-    createdBy: {
-      name: item.createdBy.user.displayName || "",
-      email: item.createdBy.user.email || "",
-      id: item.createdBy.user.id || "",
-    },
-    notas: item.fields.Notas || "",
-    IntegrantesV2: Array.isArray(item.fields.IntegrantesV2)
-      ? item.fields.IntegrantesV2.map(integrante => ({
-          id: integrante.LookupId,
-          displayName: integrante.LookupValue,
-          email: integrante.Email || ""
-        }))
-      : []
-  }));
-
-  // *** AGREGAR ESTA LÍNEA PARA ORDENAR POR FECHA (MÁS NUEVA PRIMERO) ***
-  return formattedExpenses.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
-}
-
+    return items.map((item) => ({
+      id: item.id,
+      rubro: item.fields.Rubro,
+      comprobante: item.fields.Comprobante || null,
+      fecha: new Date(item.fields.Fecha),
+      monto: parseFloat(item.fields.Monto) || 0,
+      currencySymbol: item.fields.CurrencySymbol,
+      st: item.fields.ST,
+      fondosPropios: Boolean(item.fields.Fondospropios),
+      motivo: item.fields.Title,
+      notasRevision: item.fields.Notasrevision,
+      facturaDividida: Boolean(item.fields.FacturaDividida),
+      integrantes: item.fields.Integrantes || "",
+      bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
+      aprobacionAsistente: item.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
+      aprobacionJefatura: item.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
+      aprobacionContabilidad:
+        item.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
+      createdBy: {
+        name: item.createdBy.user.displayName || "",
+        email: item.createdBy.user.email || "",
+        id: item.createdBy.user.id || "",
+      },
+      notas: item.fields.Notas || "",
+      IntegrantesV2: Array.isArray(item.fields.IntegrantesV2)
+        ? item.fields.IntegrantesV2.map((integrante) => ({
+            email: integrante.Email,
+            displayName: integrante.LookupValue,
+            id: integrante.LookupId,
+          }))
+        : [],
+    }));
+  }
 
   /**
    * Create a new expense report
@@ -415,17 +412,17 @@ class ExpenseAuditService extends BaseGraphService {
       departamento: item.fields.Departamento,
       asistentes: Array.isArray(item.fields.Asistentes)
         ? item.fields.Asistentes.map((asistente) => ({
-          email: asistente.Email,
-          displayName: asistente.LookupValue,
-          id: asistente.LookupId,
-        }))
+            email: asistente.Email,
+            displayName: asistente.LookupValue,
+            id: asistente.LookupId,
+          }))
         : [],
       jefes: Array.isArray(item.fields.Jefes)
         ? item.fields.Jefes.map((jefe) => ({
-          email: jefe.Email,
-          displayName: jefe.LookupValue,
-          id: jefe.LookupId,
-        }))
+            email: jefe.Email,
+            displayName: jefe.LookupValue,
+            id: jefe.LookupId,
+          }))
         : [],
     }));
   }
@@ -441,10 +438,10 @@ class ExpenseAuditService extends BaseGraphService {
       empleado:
         Array.isArray(item.fields.Empleado) && item.fields.Empleado.length > 0
           ? {
-            email: item.fields.Empleado[0].Email,
-            displayName: item.fields.Empleado[0].LookupValue,
-            id: item.fields.Empleado[0].LookupId,
-          }
+              email: item.fields.Empleado[0].Email,
+              displayName: item.fields.Empleado[0].LookupValue,
+              id: item.fields.Empleado[0].LookupId,
+            }
           : null,
       departamentoId: item.fields["DepartamentoID_x003a__x0020_DepaLookupId"]
         ? parseInt(item.fields["DepartamentoID_x003a__x0020_DepaLookupId"], 10)
@@ -553,7 +550,7 @@ class ExpenseAuditService extends BaseGraphService {
       return (
         userDepartmentRole.department &&
         expenseCreator.departamentoId ===
-        parseInt(userDepartmentRole.department.id)
+          parseInt(userDepartmentRole.department.id)
       );
     }
 
