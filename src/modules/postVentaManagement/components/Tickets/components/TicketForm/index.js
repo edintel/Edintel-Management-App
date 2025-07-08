@@ -31,13 +31,23 @@ const TicketForm = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (formData.type === "Correctiva") {
-      const now = new Date();
-      const year = now.getFullYear().toString().slice(-2);
-      const month = (now.getMonth() + 1).toString().padStart(2, '0');
-      setStPreview(`${year}${month}-3xxx`);
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+    if (formData.type === "Correctiva-No Cobrable"|| formData.type === "Correctiva-Cobrable") {
+      const preview = `${year}${month}-3xxx`;
+      setStPreview(preview);
+
+      setFormData(prev => ({ ...prev, st: preview }));
+    } else if (formData.type === "Preventiva") {
+      const preview = `${year}${month}-2xxx`;
+      setStPreview(preview);
+
+      setFormData(prev => ({ ...prev, st: preview }));
     } else {
       setStPreview("");
+
     }
   }, [formData.type]);
 
@@ -97,17 +107,16 @@ const TicketForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+  
+
     // Special handling for type field
     if (name === "type") {
-      setFormData((prev) => {
-        const newData = {
-          ...prev,
-          [name]: value,
-          st: value === "Correctiva" ? "" : prev.st
-        };
-        return newData;
-      });
-    } else if (name === "st" && formData.type === "Correctiva") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        // No tocar el campo st al cambiar tipo, mantener el valor que tenía
+      }));
+    } else if (name === "st" && (formData.type === "Correctiva-Cobrable" || formData.type === "Preventiva" || formData.type === "Correctiva-No Cobrable")) {
       return;
     } else {
       setFormData((prev) => {
@@ -140,7 +149,7 @@ const TicketForm = () => {
       throw new Error("La fecha no puede ser superior al día de hoy");
     }
 
-    if (formData.type !== "Correctiva" && !formData.st.trim()) {
+    if (formData.type!=="Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Preventiva" && !formData.st.trim()) {
       return "El número de ST es requerido";
     }
     if (!formData.scope.trim()) {
@@ -163,8 +172,8 @@ const TicketForm = () => {
     }
     return null;
   };
-
   const handleSubmit = async (e) => {
+
     e.preventDefault();
     const validationError = validateForm();
     if (validationError) {
@@ -175,10 +184,12 @@ const TicketForm = () => {
     setError(null);
     try {
       let finalFormData = { ...formData };
-      if (formData.type === "Correctiva") {
-        const stNumber = await service.getNextSTNumberRepair();
+      if (formData.type === "Correctiva-Cobrable" || formData.type == "Preventiva" || formData.type == "Correctiva-No Cobrable") {
+        const stNumber = await service.getNextSTNumberRepair(3, formData.type);
         finalFormData.st = stNumber;
       }
+
+      console.log("DataTotal", finalFormData);
       const site = sites.find((s) => s.id === finalFormData.siteId);
       const building = buildings.find((b) => b.id === site.buildingId);
       const company = companies.find((c) => c.id === building.companyId);
@@ -254,14 +265,14 @@ const TicketForm = () => {
         images: imageLinks,
         adminDocs: adminFileLinks,
       });
-      await service.sendEmail({
-        toRecipients: [supportEmail],
-        subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
-          }`,
-        content: emailContent,
-      });
+       await service.sendEmail({
+         toRecipients: [supportEmail],
+         subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
+           }`,
+         content: emailContent,
+       }); 
       await loadPostVentaData();
-      navigate(POST_VENTA_ROUTES.TICKETS.LIST);
+      navigate(POST_VENTA_ROUTES.TICKETS.LIST); 
     } catch (err) {
       console.error("Error creating ticket:", err);
       setError(err.message || "Error al crear el ticket");
@@ -294,7 +305,8 @@ const TicketForm = () => {
                 required
               >
                 <option value="">Seleccione un tipo</option>
-                <option value="Correctiva">Correctiva</option>
+                <option value="Correctiva-No Cobrable">Correctiva-No Cobrable</option>
+                <option value="Correctiva-Cobrable">Correctiva-Cobrable</option>
                 <option value="Preventiva">Preventiva</option>
               </select>
             </div>
@@ -305,12 +317,12 @@ const TicketForm = () => {
               <input
                 type="text"
                 name="st"
-                value={formData.type === "Correctiva" ? stPreview : formData.st}
+                value={formData.st} // Usar directamente formData.st
                 onChange={handleInputChange}
-                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${formData.type === "Correctiva" ? "bg-gray-100" : ""
+                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type) ? "bg-gray-100" : ""
                   }`}
                 placeholder="Número de ST"
-                readOnly={formData.type === "Correctiva"}
+                readOnly={["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type)}
                 required
               />
             </div>
@@ -344,6 +356,7 @@ const TicketForm = () => {
                 required
               >
                 <option value="">Seleccione una empresa</option>
+                <option value="Prueba">Prueba</option>
                 {sortedCompanies.map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
@@ -364,6 +377,7 @@ const TicketForm = () => {
                 required
               >
                 <option value="">Seleccione un edificio</option>
+
                 {filteredBuildings.map((building) => (
                   <option key={building.id} value={building.id}>
                     {building.name}
@@ -384,6 +398,7 @@ const TicketForm = () => {
                 required
               >
                 <option value="">Seleccione un sitio</option>
+
                 {filteredSites.map((site) => (
                   <option key={site.id} value={site.id}>
                     {site.name}
@@ -404,6 +419,7 @@ const TicketForm = () => {
                 required
               >
                 <option value="">Seleccione un sistema</option>
+
                 {filteredSystems.map((system) => (
                   <option key={system.id} value={system.id}>
                     {system.name}

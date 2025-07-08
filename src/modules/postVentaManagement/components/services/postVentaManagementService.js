@@ -1131,121 +1131,122 @@ class PostVentaManagementService extends BaseGraphService {
       throw new Error("Error al generar número de ST: " + error.message);
     }
   }
-
-  async getNextSTNumberRepair(maxRetries = 3) {
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const stNumber = await this.attemptGetNextSTNumber();
-
-        // Verificar si ya existe este número
-        const exists = await this.checkSTNumberExists(stNumber);
-        if (!exists) {
-          return stNumber;
-        }
-
-        // Si existe, esperar un poco y reintentar
-        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-
-      } catch (error) {
-        if (attempt === maxRetries - 1) {
-          throw error;
-        }
-        // Esperar antes de reintentar
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    }
-
-    throw new Error("No se pudo generar un número ST único después de varios intentos");
-  }
-
-  async attemptGetNextSTNumber() {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const yearMonth = `${year}${month}`;
-
-    await this.initializeGraphClient();
-
-    const response = await this.client
-      .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
-      .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
-      .filter(`fields/YearMonth eq '${yearMonth}'`)
-      .expand('fields')
-      .get();
-
-    let currentNumber;
-    let itemId;
-
-    if (response.value.length > 0) {
-      itemId = response.value[0].id;
-      currentNumber = parseInt(response.value[0].fields.LastNumber);
-    } else {
-      const createResponse = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
-        .post({
-          fields: {
-            Title: `Sequence for ${yearMonth}`,
-            YearMonth: yearMonth,
-            LastNumber: "699"
-          }
-        });
-      itemId = createResponse.id;
-      currentNumber = 699;
-    }
-
-    const nextNumber = currentNumber + 1;
-    if (nextNumber > 999) {
-      throw new Error("Sequence number exceeded maximum (999) for this month");
-    }
-
-    // Usar ETag para optimistic concurrency control
-    const currentItem = await this.client
-      .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
-      .expand('fields')
-      .get();
-
+  
+ async getNextSTNumberRepair(maxRetries, type) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
-        .header('If-Match', currentItem['@odata.etag'])
-        .patch({
-          fields: {
-            LastNumber: nextNumber.toString()
-          }
-        });
+      const stNumber = await this.attemptGetNextSTNumber(type);
+      return stNumber; // Retornar directamente sin verificación adicional
     } catch (error) {
-      if (error.statusCode === 412) { // Precondition Failed
-        throw new Error("Concurrent modification detected, retrying...");
+      if (attempt === maxRetries - 1) {
+        throw error;
       }
-      throw error;
-    }
-
-    return `${yearMonth}-3${nextNumber}`;
-  }
-
-  async checkSTNumberExists(stNumber) {
-    try {
-      const response = await this.client
-        .api(`/sites/${this.siteId}/lists/${this.config.lists.tickets}/items`)
-        .filter(`fields/STNumber eq '${stNumber}'`)
-        .top(1)
-        .get();
-
-      return response.value.length > 0;
-    } catch (error) {
-      console.error("Error checking ST number existence:", error);
-      return false;
+      // Esperar antes de reintentar (solo para errores de concurrencia)
+      await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
     }
   }
 
+  throw new Error("No se pudo generar un número ST único después de varios intentos");
+}
 
-// Get a preview of what the ST number would look like without incrementing the counter
-getSTNumberPreview() {
+async attemptGetNextSTNumber(type) {
   const now = new Date();
   const year = now.getFullYear().toString().slice(-2);
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  return `${year}${month}-3xxx`;
+  const yearMonth = `${year}${month}`;
+
+  // Mapear el tipo al código correspondiente
+  const getTypeCode = (type) => {
+    const cleanType = type?.toLowerCase().trim();
+
+    switch (cleanType) {
+      case 'correctiva-cobrable':
+        return '3';
+      case 'correctiva-no cobrable':
+        return '3';
+      case 'preventiva':
+        return '2';
+      default:
+        throw new Error(`Tipo no válido: "${type}". Valores válidos: "Correctiva-Cobrable", "Correctiva-No Cobrable", "Preventiva"`);
+    }
+  };
+
+  const typeCode = getTypeCode(type);
+
+  await this.initializeGraphClient();
+
+  // Obtener o crear registro de secuencia para el mes actual
+  const response = await this.client
+    .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+    .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly")
+    .filter(`fields/YearMonth eq '${yearMonth}'`)
+    .expand('fields')
+    .get();
+
+  let currentNumber;
+  let itemId;
+
+  if (response.value.length > 0) {
+    // Registro existe, usar el número actual
+    itemId = response.value[0].id;
+    currentNumber = parseInt(response.value[0].fields.LastNumber);
+  } else {
+    // Crear nuevo registro para este mes
+    const createResponse = await this.client
+      .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items`)
+      .post({
+        fields: {
+          Title: `Sequence for ${yearMonth}`,
+          YearMonth: yearMonth,
+          LastNumber: "699"
+        }
+      });
+    itemId = createResponse.id;
+    currentNumber = 699;
+  }
+
+  const nextNumber = currentNumber + 1;
+  
+  // Verificar límite máximo
+  if (nextNumber > 999) {
+    throw new Error("Sequence number exceeded maximum (999) for this month");
+  }
+
+  // Obtener ETag para control de concurrencia optimista
+  const currentItem = await this.client
+    .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
+    .expand('fields')
+    .get();
+
+  // Actualizar secuencia con control de concurrencia
+  try {
+    await this.client
+      .api(`/sites/${this.siteId}/lists/${this.config.lists.sequenceNumbers}/items/${itemId}`)
+      .header('If-Match', currentItem['@odata.etag'])
+      .patch({
+        fields: {
+          LastNumber: nextNumber.toString()
+        }
+      });
+  } catch (error) {
+    if (error.statusCode === 412) { // Precondition Failed
+      throw new Error("Concurrent modification detected, retrying...");
+    }
+    throw error;
+  }
+
+  // Retornar número ST formateado
+  return `${yearMonth}-${typeCode}${nextNumber}`;
 }
+
+
+  // Get a preview of what the ST number would look like without incrementing the counter
+  getSTNumberPreview() {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    return `${year}${month}-3xxx`;
+  }
 }
 
 export default PostVentaManagementService;
