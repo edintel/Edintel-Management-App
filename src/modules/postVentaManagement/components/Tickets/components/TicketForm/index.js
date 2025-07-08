@@ -128,6 +128,18 @@ const TicketForm = () => {
   };
 
   const validateForm = () => {
+
+    const fechaIngresada = new Date(formData.fecha);
+    const fechaActual = new Date();
+
+
+    fechaIngresada.setHours(0, 0, 0, 0);
+    fechaActual.setHours(0, 0, 0, 0);
+
+    if (fechaIngresada > fechaActual) {
+      throw new Error("La fecha no puede ser superior al día de hoy");
+    }
+
     if (formData.type !== "Correctiva" && !formData.st.trim()) {
       return "El número de ST es requerido";
     }

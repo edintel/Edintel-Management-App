@@ -50,45 +50,46 @@ class ExpenseAuditService extends BaseGraphService {
    * @returns {Array} Array of formatted expense report objects
    */
   async getExpenseReports() {
-    const items = await this.getListItems(
-      this.siteId,
-      this.config.lists.expenseReports
-    );
+  const items = await this.getListItems(
+    this.siteId,
+    this.config.lists.expenseReports
+  );
 
-    return items.map((item) => ({
-      id: item.id,
-      rubro: item.fields.Rubro,
-      comprobante: item.fields.Comprobante || null,
-      fecha: new Date(item.fields.Fecha),
-      monto: parseFloat(item.fields.Monto) || 0,
-      currencySymbol: item.fields.CurrencySymbol,
-      st: item.fields.ST,
-      fondosPropios: Boolean(item.fields.Fondospropios),
-      motivo: item.fields.Title,
-      notasRevision: item.fields.Notasrevision,
-      facturaDividida: Boolean(item.fields.FacturaDividida),
-      integrantes: item.fields.Integrantes || "",
-      bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
-      aprobacionAsistente: item.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
-      aprobacionJefatura: item.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
-      aprobacionContabilidad:
-        item.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
-      createdBy: {
-        name: item.createdBy.user.displayName || "",
-        email: item.createdBy.user.email || "",
-        id: item.createdBy.user.id || "",
-      },
-      notas: item.fields.Notas || "",
-      IntegrantesV2: Array.isArray(item.fields.IntegrantesV2)
-        ? item.fields.IntegrantesV2.map((integrante) => ({
-            email: integrante.Email,
-            displayName: integrante.LookupValue,
-            id: integrante.LookupId,
-          }))
-        : [],
-    }));
-  }
+  const formattedExpenses = items.map((item) => ({
+    id: item.id,
+    rubro: item.fields.Rubro,
+    comprobante: item.fields.Comprobante || null,
+    fecha: new Date(item.fields.Fecha),
+    monto: parseFloat(item.fields.Monto) || 0,
+    currencySymbol: item.fields.CurrencySymbol,
+    st: item.fields.ST,
+    fondosPropios: Boolean(item.fields.Fondospropios),
+    motivo: item.fields.Title,
+    notasRevision: item.fields.Notasrevision,
+    facturaDividida: Boolean(item.fields.FacturaDividida),
+    integrantes: item.fields.Integrantes || "",
+    bloqueoEdicion: Boolean(item.fields.Bloqueoedici_x00f3_n),
+    aprobacionAsistente: item.fields.Aprobaci_x00f3_nAsistente || "Pendiente",
+    aprobacionJefatura: item.fields.Aprobaci_x00f3_nJefatura || "Pendiente",
+    aprobacionContabilidad: item.fields.Aprobaci_x00f3_nContabilidad || "Pendiente",
+    createdBy: {
+      name: item.createdBy.user.displayName || "",
+      email: item.createdBy.user.email || "",
+      id: item.createdBy.user.id || "",
+    },
+    notas: item.fields.Notas || "",
+    IntegrantesV2: Array.isArray(item.fields.IntegrantesV2)
+      ? item.fields.IntegrantesV2.map(integrante => ({
+          id: integrante.LookupId,
+          displayName: integrante.LookupValue,
+          email: integrante.Email || ""
+        }))
+      : []
+  }));
 
+  // *** AGREGAR ESTA LÍNEA PARA ORDENAR POR FECHA (MÁS NUEVA PRIMERO) ***
+  return formattedExpenses.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+}
   /**
    * Create a new expense report
    * @param {Object} expenseData - The expense data
