@@ -16,6 +16,7 @@ const TicketForm = () => {
   const navigate = useNavigate();
   const { companies, buildings, sites, systems, service, loadPostVentaData } =
     usePostVentaManagement();
+  const [isManualSTEnabled, setIsManualSTEnabled] = useState(false);
   const [stPreview, setStPreview] = useState("");
   const [formData, setFormData] = useState({
     st: "",
@@ -35,7 +36,7 @@ const TicketForm = () => {
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
 
-    if (formData.type === "Correctiva-No Cobrable"|| formData.type === "Correctiva-Cobrable") {
+    if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable") {
       const preview = `${year}${month}-3xxx`;
       setStPreview(preview);
 
@@ -49,7 +50,7 @@ const TicketForm = () => {
       setStPreview("");
 
     }
-  }, [formData.type]);
+  }, [formData.type, isManualSTEnabled]);
 
   // File management hooks
   const {
@@ -107,16 +108,15 @@ const TicketForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-  
+
 
     // Special handling for type field
     if (name === "type") {
       setFormData((prev) => ({
         ...prev,
         [name]: value,
-        // No tocar el campo st al cambiar tipo, mantener el valor que tenía
       }));
-    } else if (name === "st" && (formData.type === "Correctiva-Cobrable" || formData.type === "Preventiva" || formData.type === "Correctiva-No Cobrable")) {
+    } else if (name === "st" && !isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Preventiva" || formData.type === "Correctiva-No Cobrable")) {
       return;
     } else {
       setFormData((prev) => {
@@ -149,7 +149,7 @@ const TicketForm = () => {
       throw new Error("La fecha no puede ser superior al día de hoy");
     }
 
-    if (formData.type!=="Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Preventiva" && !formData.st.trim()) {
+    if (formData.type !== "Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Preventiva" && !formData.st.trim()) {
       return "El número de ST es requerido";
     }
     if (!formData.scope.trim()) {
@@ -184,95 +184,97 @@ const TicketForm = () => {
     setError(null);
     try {
       let finalFormData = { ...formData };
-      if (formData.type === "Correctiva-Cobrable" || formData.type == "Preventiva" || formData.type == "Correctiva-No Cobrable") {
+      if (!isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Preventiva" || formData.type === "Correctiva-No Cobrable")) {
         const stNumber = await service.getNextSTNumberRepair(3, formData.type);
         finalFormData.st = stNumber;
+      } else {
+        finalFormData.st = formData.st;
       }
-
       console.log("DataTotal", finalFormData);
-      const site = sites.find((s) => s.id === finalFormData.siteId);
-      const building = buildings.find((b) => b.id === site.buildingId);
-      const company = companies.find((c) => c.id === building.companyId);
-      const trimmedData = {
-        ...finalFormData,
-        st: finalFormData.st.trim(),
-        scope: finalFormData.scope.trim(),
-      };
-      const response = await service.createServiceTicket({
-        ...trimmedData,
-      });
-      let imageLinks = [];
-      if (images.length > 0) {
-        imageLinks = await Promise.all(
-          images.map(async (image) => {
-            const uploadResponse = await service.uploadTicketDocument(
-              response.id,
-              image.file,
-              "image",
-              image.name
-            );
-            const shareLink = await service.createShareLink(
-              service.siteId,
-              uploadResponse.itemId,
-              "view",
-              "organization"
-            );
-            return {
-              name: image.name,
-              link: shareLink.webUrl,
-              id: uploadResponse.itemId,
-            };
-          })
-        );
-      }
-      const adminFileLinks = await Promise.all(
-        adminDocs.map(async (doc) => {
-          let displayName =
-            doc.displayName || doc.file.name.split(".").slice(0, -1).join(".");
-          const uploadResponse = await service.uploadTicketDocument(
-            response.id,
-            doc.file,
-            "administrative",
-            `${displayName} - ${generateRandomNumber(16).toString()}`
-          );
-          const shareLink = await service.createShareLink(
-            service.admins.siteId,
-            uploadResponse.itemId,
-            "view",
-            "organization"
-          );
-          return {
-            name: doc.displayName || doc.file.name,
-            link: shareLink.webUrl,
-            id: uploadResponse.itemId,
-          };
-        })
-      );
-      const emailContent = generateEmailContent({
-        st: finalFormData.st,
-        type: finalFormData.type,
-        scope: finalFormData.scope,
-        system: systems.find((s) => s.id === finalFormData.systemId)?.name,
-        company: company.name,
-        building: building.name,
-        site: site.name,
-        siteDetails: {
-          location: site.location,
-          contactName: site.contactName,
-          contactEmail: site.contactEmail,
-          contactPhone: site.contactPhone,
-        },
-        images: imageLinks,
-        adminDocs: adminFileLinks,
-      });
+       
+       const site = sites.find((s) => s.id === finalFormData.siteId);
+       const building = buildings.find((b) => b.id === site.buildingId);
+       const company = companies.find((c) => c.id === building.companyId);
+       const trimmedData = {
+         ...finalFormData,
+         st: finalFormData.st.trim(),
+         scope: finalFormData.scope.trim(),
+       };
+       const response = await service.createServiceTicket({
+         ...trimmedData,
+       });
+       let imageLinks = [];
+       if (images.length > 0) {
+         imageLinks = await Promise.all(
+           images.map(async (image) => {
+             const uploadResponse = await service.uploadTicketDocument(
+               response.id,
+               image.file,
+               "image",
+               image.name
+             );
+             const shareLink = await service.createShareLink(
+               service.siteId,
+               uploadResponse.itemId,
+               "view",
+               "organization"
+             );
+             return {
+               name: image.name,
+               link: shareLink.webUrl,
+               id: uploadResponse.itemId,
+             };
+           })
+         );
+       }
+       const adminFileLinks = await Promise.all(
+         adminDocs.map(async (doc) => {
+           let displayName =
+             doc.displayName || doc.file.name.split(".").slice(0, -1).join(".");
+           const uploadResponse = await service.uploadTicketDocument(
+             response.id,
+             doc.file,
+             "administrative",
+             `${displayName} - ${generateRandomNumber(16).toString()}`
+           );
+           const shareLink = await service.createShareLink(
+             service.admins.siteId,
+             uploadResponse.itemId,
+             "view",
+             "organization"
+           );
+           return {
+             name: doc.displayName || doc.file.name,
+             link: shareLink.webUrl,
+             id: uploadResponse.itemId,
+           };
+         })
+       );
+       const emailContent = generateEmailContent({
+         st: finalFormData.st,
+         type: finalFormData.type,
+         scope: finalFormData.scope,
+         system: systems.find((s) => s.id === finalFormData.systemId)?.name,
+         company: company.name,
+         building: building.name,
+         site: site.name,
+         siteDetails: {
+           location: site.location,
+           contactName: site.contactName,
+           contactEmail: site.contactEmail,
+           contactPhone: site.contactPhone,
+         },
+         images: imageLinks,
+         adminDocs: adminFileLinks,
+       });
        await service.sendEmail({
          toRecipients: [supportEmail],
          subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
            }`,
          content: emailContent,
        }); 
-      await loadPostVentaData();
-      navigate(POST_VENTA_ROUTES.TICKETS.LIST); 
+       await loadPostVentaData();
+       navigate(POST_VENTA_ROUTES.TICKETS.LIST); 
     } catch (err) {
       console.error("Error creating ticket:", err);
       setError(err.message || "Error al crear el ticket");
@@ -314,15 +316,30 @@ const TicketForm = () => {
               <label className="text-sm font-medium text-gray-700">
                 ST *
               </label>
+
+              <input
+                type="checkbox"
+                checked={isManualSTEnabled}
+                onChange={(e) => {
+                  setIsManualSTEnabled(e.target.checked);}}
+                className="h-3 w-3 ml-2"
+              />
+              <label className="text-xs font-light text-gray-400 ml-2">
+                Seleccione si desea ingresar el ST manualmente
+              </label>
+
               <input
                 type="text"
                 name="st"
-                value={formData.st} // Usar directamente formData.st
+                value={formData.st}
                 onChange={handleInputChange}
-                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type) ? "bg-gray-100" : ""
-                  }`}
+                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${!isManualSTEnabled && ["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type)
+                  ? "bg-gray-100" : ""}`}
                 placeholder="Número de ST"
-                readOnly={["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type)}
+                readOnly={
+                  !isManualSTEnabled &&
+                  ["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type)
+                }
                 required
               />
             </div>
@@ -356,7 +373,6 @@ const TicketForm = () => {
                 required
               >
                 <option value="">Seleccione una empresa</option>
-                <option value="Prueba">Prueba</option>
                 {sortedCompanies.map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
