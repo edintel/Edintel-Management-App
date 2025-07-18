@@ -36,7 +36,7 @@ const TicketForm = () => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-   
+
     if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable") {
       const preview = `${year}${month}-3xxx`;
       setStPreview(preview);
@@ -109,7 +109,7 @@ const TicketForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Special handling for type field
     if (name === "type") {
       setFormData((prev) => ({
@@ -190,93 +190,93 @@ const TicketForm = () => {
       } else {
         finalFormData.st = formData.st;
       }
-      
-       
-       const site = sites.find((s) => s.id === finalFormData.siteId);
-       const building = buildings.find((b) => b.id === site.buildingId);
-       const company = companies.find((c) => c.id === building.companyId);
-       const trimmedData = {
-         ...finalFormData,
-         st: finalFormData.st.trim(),
-         scope: finalFormData.scope.trim(),
-         link: finalFormData.link.trim(),
-       };
-       const response = await service.createServiceTicket({
-         ...trimmedData,
-       });
-       let imageLinks = [];
-       if (images.length > 0) {
-         imageLinks = await Promise.all(
-           images.map(async (image) => {
-             const uploadResponse = await service.uploadTicketDocument(
-               response.id,
-               image.file,
-               "image",
-               image.name
-             );
-             const shareLink = await service.createShareLink(
-               service.siteId,
-               uploadResponse.itemId,
-               "view",
-               "organization"
-             );
-             return {
-               name: image.name,
-               link: shareLink.webUrl,
-               id: uploadResponse.itemId,
-             };
-           })
-         );
-       }
-       const adminFileLinks = await Promise.all(
-         adminDocs.map(async (doc) => {
-           let displayName =
-             doc.displayName || doc.file.name.split(".").slice(0, -1).join(".");
-           const uploadResponse = await service.uploadTicketDocument(
-             response.id,
-             doc.file,
-             "administrative",
-             `${displayName} - ${generateRandomNumber(16).toString()}`
-           );
-           const shareLink = await service.createShareLink(
-             service.admins.siteId,
-             uploadResponse.itemId,
-             "view",
-             "organization"
-           );
-           return {
-             name: doc.displayName || doc.file.name,
-             link: shareLink.webUrl,
-             id: uploadResponse.itemId,
-           };
-         })
-       );
-       const emailContent = generateEmailContent({
-         st: finalFormData.st,
-         type: finalFormData.type,
-         scope: finalFormData.scope,
-         system: systems.find((s) => s.id === finalFormData.systemId)?.name,
-         company: company.name,
-         building: building.name,
-         link: formData.link,
-         site: site.name,
-         siteDetails: {
-           location: site.location,
-           contactName: site.contactName,
-           contactEmail: site.contactEmail,
-           contactPhone: site.contactPhone,
-         },
-         images: imageLinks,
-         adminDocs: adminFileLinks,
-       });
-        await service.sendEmail({
-          toRecipients: [supportEmail],
-          subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
-            }`,
-          content: emailContent,
-        }); 
-       await loadPostVentaData();
-       navigate(POST_VENTA_ROUTES.TICKETS.LIST); 
+
+
+      const site = sites.find((s) => s.id === finalFormData.siteId);
+      const building = buildings.find((b) => b.id === site.buildingId);
+      const company = companies.find((c) => c.id === building.companyId);
+      const trimmedData = {
+        ...finalFormData,
+        st: finalFormData.st.trim(),
+        scope: finalFormData.scope.trim(),
+        link: finalFormData.link.trim(),
+      };
+      const response = await service.createServiceTicket({
+        ...trimmedData,
+      });
+      let imageLinks = [];
+      if (images.length > 0) {
+        imageLinks = await Promise.all(
+          images.map(async (image) => {
+            const uploadResponse = await service.uploadTicketDocument(
+              response.id,
+              image.file,
+              "image",
+              image.name
+            );
+            const shareLink = await service.createShareLink(
+              service.siteId,
+              uploadResponse.itemId,
+              "view",
+              "organization"
+            );
+            return {
+              name: image.name,
+              link: shareLink.webUrl,
+              id: uploadResponse.itemId,
+            };
+          })
+        );
+      }
+      const adminFileLinks = await Promise.all(
+        adminDocs.map(async (doc) => {
+          let displayName =
+            doc.displayName || doc.file.name.split(".").slice(0, -1).join(".");
+          const uploadResponse = await service.uploadTicketDocument(
+            response.id,
+            doc.file,
+            "administrative",
+            `${displayName} - ${generateRandomNumber(16).toString()}`
+          );
+          const shareLink = await service.createShareLink(
+            service.admins.siteId,
+            uploadResponse.itemId,
+            "view",
+            "organization"
+          );
+          return {
+            name: doc.displayName || doc.file.name,
+            link: shareLink.webUrl,
+            id: uploadResponse.itemId,
+          };
+        })
+      );
+      const emailContent = generateEmailContent({
+        st: finalFormData.st,
+        type: finalFormData.type,
+        scope: finalFormData.scope,
+        system: systems.find((s) => s.id === finalFormData.systemId)?.name,
+        company: company.name,
+        building: building.name,
+        link: formData.link,
+        site: site.name,
+        siteDetails: {
+          location: site.location,
+          contactName: site.contactName,
+          contactEmail: site.contactEmail,
+          contactPhone: site.contactPhone,
+        },
+        images: imageLinks,
+        adminDocs: adminFileLinks,
+      });
+      await service.sendEmail({
+        toRecipients: [supportEmail],
+        subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
+          }`,
+        content: emailContent,
+      });
+      await loadPostVentaData();
+      navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {
       console.error("Error creating ticket:", err);
       setError(err.message || "Error al crear el ticket");
@@ -323,7 +323,8 @@ const TicketForm = () => {
                 type="checkbox"
                 checked={isManualSTEnabled}
                 onChange={(e) => {
-                  setIsManualSTEnabled(e.target.checked);}}
+                  setIsManualSTEnabled(e.target.checked);
+                }}
                 className="h-3 w-3 ml-2"
               />
               <label className="text-xs font-light text-gray-400 ml-2">
@@ -459,7 +460,7 @@ const TicketForm = () => {
               >
               </input>
             </div>
-            
+
           </div>
           {/* Images Files */}
           <div className="space-y-2">
@@ -610,7 +611,7 @@ const generateEmailContent = ({
                 </div>
                 <div class="info-row">
                     <span class="label">Link:</span>
-                    <span class="value">${link}</span>
+                   <a href="${link}" style="color: #1a73e8; text-decoration: none;"> SharePoint </a>
                 </div>
                 ${images.length > 0
       ? `
