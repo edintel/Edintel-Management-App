@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import BaseGraphService from "../../../../services/BaseGraphService";
 import { generateRandomNumber } from "../../../../utils/randomUtils";
 import { isAdministrativeDoc } from "../../constants/documentTypes";
@@ -117,6 +118,7 @@ class PostVentaManagementService extends BaseGraphService {
       created: item.createdDateTime,
       messageId: item.fields.MessageId,
       notes: item.fields.Notas || null,
+      link: item.fields.Link || "",
     }));
   }
 
@@ -134,6 +136,7 @@ class PostVentaManagementService extends BaseGraphService {
    * @returns {Promise<Object>} Created Service Ticket
    */
   async createServiceTicket(stData) {
+     console.log("data de service", stData);
     try {
       await this.initializeGraphClient();
 
@@ -144,8 +147,9 @@ class PostVentaManagementService extends BaseGraphService {
         alcance: stData.scope,
         Estado: "Iniciada",
         Tipo: stData.type,
+        Link: stData.link,
       };
-
+     
       const response = await this.client
         .api(
           encodeURIComponent(
@@ -696,6 +700,7 @@ class PostVentaManagementService extends BaseGraphService {
         SistemaIDLookupId: parseInt(data.systemId),
         alcance: data.scope,
         Tipo: data.type,
+        Link: data.link.trim() || "",
       };
       const ticket = await this.client
         .api(

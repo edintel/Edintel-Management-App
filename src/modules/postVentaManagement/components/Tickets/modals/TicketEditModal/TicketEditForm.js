@@ -29,6 +29,7 @@ const TicketEditForm = ({
     siteId: "",
     systemId: "",
     type: "",
+    link: ""
   });
   // File management state structure
   const [fileState, setFileState] = useState({
@@ -194,12 +195,14 @@ const TicketEditForm = ({
         siteId: initialData.siteId || "",
         systemId: initialData.systemId || "",
         type: initialData.type || "",
+        link: initialData.link || ""
       });
     }
   }, [initialData, buildings, sites]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
       // Reset dependent fields when parent selection changes
@@ -283,6 +286,7 @@ const TicketEditForm = ({
   };
 
   const handleSubmit = async (e) => {
+    console.log("Form antes de guarde", formData);
     e.preventDefault();
     if (processing) return;
     try {
@@ -372,7 +376,8 @@ const TicketEditForm = ({
             required
           >
             <option value="">Seleccione un tipo</option>
-            <option value="Correctiva">Correctiva</option>
+            <option value="Correctiva-No Cobrable">Correctiva-No Cobrable</option>
+            <option value="Correctiva-Cobrable">Correctiva-Cobrable</option>
             <option value="Preventiva">Preventiva</option>
           </select>
         </div>
@@ -402,7 +407,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary",
               errors.companyId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -426,7 +431,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.buildingId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -448,7 +453,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.siteId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -470,7 +475,7 @@ const TicketEditForm = ({
             className={cn(
               "w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100",
               errors.systemId &&
-                "border-error focus:border-error focus:ring-error"
+              "border-error focus:border-error focus:ring-error"
             )}
             required
           >
@@ -481,6 +486,19 @@ const TicketEditForm = ({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">
+            Link al SharePoint
+          </label>
+          <input
+            name="link"
+            value={formData.link}
+            onChange={handleInputChange}
+            className="w-full font-light rounded-lg border-gray-700 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+          >
+          </input>
         </div>
       </div>
       {/* File Management Section */}

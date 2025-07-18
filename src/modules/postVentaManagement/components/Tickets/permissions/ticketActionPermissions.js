@@ -4,7 +4,8 @@ export const TICKET_ACTIONS = {
   SCHEDULE_DATE: "schedule_date",
   EDIT: "edit",
   DELETE: "delete",
-  CREATE: "create"
+  CREATE: "create",
+  VIEW_SHAREPOINT_LINK: "view_sharepoint_link"
 };
 
 const isAdmin = (userRole) => userRole?.role === "Administrativo";
@@ -28,6 +29,9 @@ const isInSupervisorEditableState = (ticket) => {
   return SUPERVISOR_EDITABLE_STATES.includes(ticket.state);
 };
 
+const canViewSharePointLink = (ticket, userRole) => {
+  return isAdmin(userRole) || isSupervisor(userRole);
+};
 const canEditDelete = (ticket, userRole) => {
   if (isAdmin(userRole)) return true;
   if (isSupervisor(userRole)) {
@@ -50,6 +54,8 @@ const statePermissions = {
       canEditDelete(ticket, userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) =>
       canEditDelete(ticket, userRole),
+    [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
+      canViewSharePointLink(ticket, userRole),
   },
   "Técnico asignado": {
     [TICKET_ACTIONS.ASSIGN_TECH]: (ticket, userRole) =>
@@ -66,6 +72,8 @@ const statePermissions = {
       canEditDelete(ticket, userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) =>
       canEditDelete(ticket, userRole),
+    [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
+      canViewSharePointLink(ticket, userRole),
   },
   "Confirmado por técnico": {
     [TICKET_ACTIONS.ASSIGN_TECH]: (ticket, userRole) =>
@@ -82,6 +90,8 @@ const statePermissions = {
       canEditDelete(ticket, userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) =>
       canEditDelete(ticket, userRole),
+    [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
+      canViewSharePointLink(ticket, userRole),
   },
   "Trabajo iniciado": {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
@@ -90,16 +100,22 @@ const statePermissions = {
       isAssignedToTicket(ticket, userRole),
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
+    [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
+      canViewSharePointLink(ticket, userRole),
   },
   Finalizada: {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
       isAdmin(userRole) || isSupervisor(userRole),
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
+    [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
+      canViewSharePointLink(ticket, userRole),
   },
   Cerrada: {
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
+    [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
+      canViewSharePointLink(ticket, userRole),
   },
 };
 

@@ -26,6 +26,7 @@ const TicketForm = () => {
     siteId: "",
     systemId: "",
     type: "",
+    link: "",
   });
   const supportEmail = emailConfig.supportEmail;
   const [processing, setProcessing] = useState(false);
@@ -35,7 +36,7 @@ const TicketForm = () => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
-
+   
     if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable") {
       const preview = `${year}${month}-3xxx`;
       setStPreview(preview);
@@ -108,8 +109,7 @@ const TicketForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
-
+    
     // Special handling for type field
     if (name === "type") {
       setFormData((prev) => ({
@@ -190,7 +190,7 @@ const TicketForm = () => {
       } else {
         finalFormData.st = formData.st;
       }
-      console.log("DataTotal", finalFormData);
+      
        
        const site = sites.find((s) => s.id === finalFormData.siteId);
        const building = buildings.find((b) => b.id === site.buildingId);
@@ -199,6 +199,7 @@ const TicketForm = () => {
          ...finalFormData,
          st: finalFormData.st.trim(),
          scope: finalFormData.scope.trim(),
+         link: finalFormData.link.trim(),
        };
        const response = await service.createServiceTicket({
          ...trimmedData,
@@ -267,12 +268,12 @@ const TicketForm = () => {
          images: imageLinks,
          adminDocs: adminFileLinks,
        });
-       await service.sendEmail({
-         toRecipients: [supportEmail],
-         subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
-           }`,
-         content: emailContent,
-       }); 
+        await service.sendEmail({
+          toRecipients: [supportEmail],
+          subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
+            }`,
+          content: emailContent,
+        }); 
        await loadPostVentaData();
        navigate(POST_VENTA_ROUTES.TICKETS.LIST); 
     } catch (err) {
@@ -443,6 +444,21 @@ const TicketForm = () => {
                 ))}
               </select>
             </div>
+
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Link al SharePoint
+              </label>
+              <input
+                name="link"
+                value={formData.link}
+                onChange={handleInputChange}
+                className="w-full font-light rounded-lg border-gray-300 focus:border-primary focus:ring-primary disabled:bg-gray-100"
+              >
+              </input>
+            </div>
+            
           </div>
           {/* Images Files */}
           <div className="space-y-2">

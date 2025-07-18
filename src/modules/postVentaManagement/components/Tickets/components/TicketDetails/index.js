@@ -74,6 +74,8 @@ const TicketDetails = () => {
   const siteDetails = getSiteDetails(ticket.siteId);
   const system = systems.find((s) => s.id === ticket.systemId);
 
+  
+
   const handleBack = () => {
     navigate(POST_VENTA_ROUTES.TICKETS.LIST);
   };
@@ -81,6 +83,7 @@ const TicketDetails = () => {
   // Check permissions for edit and delete actions
   const canEdit = isActionAllowed(TICKET_ACTIONS.EDIT, ticket, userRole);
   const canDelete = isActionAllowed(TICKET_ACTIONS.DELETE, ticket, userRole);
+  const canViewSharePointLink = isActionAllowed(TICKET_ACTIONS.VIEW_SHAREPOINT_LINK,ticket,userRole);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -99,7 +102,26 @@ const TicketDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+
+
+
           <Card title={"Alcance"}>{ticket.scope}</Card>
+
+          {canViewSharePointLink && (<Card title={"Link de SharePoint"}>
+            {ticket.link ? (
+              <a
+                href={ticket.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 hover:underline break-all"
+              >
+                {ticket.link}
+              </a>
+            ) : (
+              <span className="text-gray-500">No hay link disponible</span>
+            )}
+          </Card>)}
+
           <FilesSection
             ticket={ticket}
             onDownload={handleFileDownload}
