@@ -258,6 +258,7 @@ const TicketForm = () => {
          system: systems.find((s) => s.id === finalFormData.systemId)?.name,
          company: company.name,
          building: building.name,
+         link: formData.link,
          site: site.name,
          siteDetails: {
            location: site.location,
@@ -526,6 +527,7 @@ const generateEmailContent = ({
   system,
   company,
   building,
+  link,
   site,
   siteDetails,
   images,
@@ -605,6 +607,10 @@ const generateEmailContent = ({
                 <div class="info-row">
                     <span class="label">Alcance:</span>
                     <span class="value">${scope}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Link:</span>
+                    <span class="value">${link}</span>
                 </div>
                 ${images.length > 0
       ? `
