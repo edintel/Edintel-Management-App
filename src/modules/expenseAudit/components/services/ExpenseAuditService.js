@@ -63,7 +63,9 @@ class ExpenseAuditService extends BaseGraphService {
     monto: parseFloat(item.fields.Monto) || 0,
     currencySymbol: item.fields.CurrencySymbol,
     st: item.fields.ST,
+    dias: parseInt(item.fields.Dias) || 0 , // Agregado campo días
     fondosPropios: Boolean(item.fields.Fondospropios),
+    facturaSolitario: Boolean(item.fields.FacturaSolitario), // Agregado campo factura solitario
     motivo: item.fields.Title,
     notasRevision: item.fields.Notasrevision,
     facturaDividida: Boolean(item.fields.FacturaDividida),
@@ -118,7 +120,9 @@ class ExpenseAuditService extends BaseGraphService {
       CurrencySymbol: expenseData.currencySymbol,
       Fecha: expenseData.fecha,
       ST: expenseData.st,
+      Dias: expenseData.dias, // Agregado campo días
       Fondospropios: expenseData.fondosPropios,
+      FacturaSolitario: expenseData.facturaSolitario, // Agregado campo factura solitario
       Comprobante: comprobanteId,
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
@@ -156,7 +160,7 @@ class ExpenseAuditService extends BaseGraphService {
         }
       }
     }
-
+    
     const response = await this.client
       .api(
         `/sites/${this.siteId}/lists/${this.config.lists.expenseReports}/items`
@@ -233,7 +237,9 @@ class ExpenseAuditService extends BaseGraphService {
       Monto: expenseData.monto.toString(),
       Fecha: expenseData.fecha,
       ST: expenseData.st,
+      Dias: expenseData.dias, // Agregado campo días
       Fondospropios: expenseData.fondosPropios,
+      FacturaSolitario: expenseData.facturaSolitario, // Agregado campo factura solitario
       FacturaDividida: expenseData.facturaDividida,
       Integrantes: expenseData.integrantes,
       Comprobante: comprobanteId,

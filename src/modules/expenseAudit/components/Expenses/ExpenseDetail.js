@@ -22,6 +22,7 @@ import {
   User,
   Mail,
   Trash2,
+  Calendar,
 } from "lucide-react";
 
 const ExpenseDetail = () => {
@@ -255,25 +256,27 @@ const ExpenseDetail = () => {
           >
             Volver
           </Button>
-          {canDelete() && (
-            <Button
-              variant="outline"
-              className="text-error hover:bg-error/10"
-              startIcon={<Trash2 size={16} />}
-              onClick={handleDelete}
-            >
-              Eliminar
-            </Button>
-          )}
-          {canEdit() && (
-            <Button
-              variant="outline"
-              startIcon={<Edit size={16} />}
-              onClick={handleEdit}
-            >
-              Editar
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {canDelete() && (
+              <Button
+                variant="outline"
+                className="text-error hover:bg-error/10"
+                startIcon={<Trash2 size={16} />}
+                onClick={handleDelete}
+              >
+                Eliminar
+              </Button>
+            )}
+            {canEdit() && (
+              <Button
+                variant="outline"
+                startIcon={<Edit size={16} />}
+                onClick={handleEdit}
+              >
+                Editar
+              </Button>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
@@ -304,35 +307,61 @@ const ExpenseDetail = () => {
                      {expense.currencySymbol || "₡"}{expense.monto}
                   </p>
                 </div>
-                <div>
-                  <span className="text-sm text-gray-500">Fondos Propios</span>
-                  <p className="text-gray-900 mt-1">
-                    {expense.fondosPropios ? "Sí" : "No"}
-                  </p>
-                </div>
-                {expense.fondosPropios && (
-                  <div className="col-span-3">
-                    <span className="text-sm text-gray-500">Motivo</span>
-                    <p className="text-gray-900 mt-1 break-words">
-                      {expense.motivo || "No especificado"}
+                
+                {/* Campo Días - Solo si es hospedaje */}
+                {expense.rubro === "Hospedaje" && expense.dias && (
+                  <div>
+                    <span className="text-sm text-gray-500">Días</span>
+                    <p className="text-gray-900 mt-1 flex items-center">
+                      <Calendar size={16} className="mr-1" />
+                      {expense.dias} {expense.dias === 1 ? "día" : "días"}
                     </p>
                   </div>
                 )}
-                {expense.facturaDividida && (
-                  <>
-                    <div>
-                      <span className="text-sm text-gray-500">
-                        Factura Dividida
-                      </span>
-                      <p className="text-gray-900 mt-1">Sí</p>
-                    </div>
-                    <div className="col-span-3">
-                      <span className="text-sm text-gray-500">Integrantes</span>
-                      <p className="text-gray-900 mt-1 break-words">
-                        {expense.integrantes || "No especificados"}
+
+                {/* Tipos de Factura */}
+                <div className="col-span-2">
+                  <span className="text-sm text-gray-500">Tipo de Factura</span>
+                  <div className="mt-1 space-y-1">
+                    {expense.fondosPropios && (
+                      <p className="text-gray-900 flex items-center">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                        Fondos propios
                       </p>
-                    </div>
-                  </>
+                    )}
+                    {expense.facturaSolitario && (
+                      <p className="text-gray-900 flex items-center">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                        Factura en solitario
+                      </p>
+                    )}
+                    {expense.facturaDividida && (
+                      <p className="text-gray-900 flex items-center">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                        Factura dividida
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Motivo para fondos propios */}
+                {expense.fondosPropios && expense.motivo && (
+                  <div className="col-span-2">
+                    <span className="text-sm text-gray-500">Motivo (Fondos Propios)</span>
+                    <p className="text-gray-900 mt-1 break-words">
+                      {expense.motivo}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Integrantes para factura dividida */}
+                {expense.facturaDividida && expense.integrantes && (
+                  <div className="col-span-2">
+                    <span className="text-sm text-gray-500">Integrantes (Factura Dividida)</span>
+                    <p className="text-gray-900 mt-1 break-words">
+                      {expense.integrantes}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>

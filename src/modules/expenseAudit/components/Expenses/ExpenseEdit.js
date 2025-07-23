@@ -100,17 +100,19 @@ const ExpenseEdit = () => {
       // Format date to YYYY-MM-DD for input
       const formattedDate = expense.fecha.toISOString().split("T")[0];
 
-      // Set form data
+      // Set form data with new fields
       setFormData({
         rubro: expense.rubro,
         monto: expense.monto,
         currencySymbol: expense.currencySymbol,
         fecha: formattedDate,
         st: expense.st,
-        fondosPropios: expense.fondosPropios,
+        dias: expense.dias || "", // Campo días
+        fondosPropios: expense.fondosPropios || false,
+        facturaSolitario: expense.facturaSolitario || false, // Nuevo campo
+        facturaDividida: expense.facturaDividida || false,
         motivo: expense.motivo || "",
         comprobante: expense.comprobante,
-        facturaDividida: expense.facturaDividida || false,
         integrantes: expense.integrantes || "",
         notas: expense.notas || "",
         IntegrantesV2: expense.IntegrantesV2?.map(integrante => ({
@@ -142,6 +144,21 @@ const ExpenseEdit = () => {
     }));
   };
 
+  const handleTipoFacturaChange = (tipo) => {
+    setFormData((prev) => ({
+      ...prev,
+      // Resetear todos los tipos
+      fondosPropios: false,
+      facturaSolitario: false,
+      facturaDividida: false,
+      // Activar solo el seleccionado
+      [tipo]: true,
+      // Limpiar campos relacionados cuando cambia el tipo
+      IntegrantesV2: tipo === "facturaDividida" ? prev.IntegrantesV2 : [],
+      motivo: tipo === "fondosPropios" ? prev.motivo : "",
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -158,6 +175,26 @@ const ExpenseEdit = () => {
         throw new Error("Por favor complete todos los campos requeridos");
       }
 
+      // Validate días for Hospedaje
+      if (formData.rubro === "Hospedaje" && (!formData.dias || formData.dias <= 0)) {
+        throw new Error("Para hospedaje debe ingresar el número de días");
+      }
+
+      // Validate tipo de factura
+      if (!formData.fondosPropios && !formData.facturaSolitario && !formData.facturaDividida) {
+        throw new Error("Debe seleccionar el tipo de factura (fondos propios, factura en solitario o factura dividida)");
+      }
+
+      // Validate motivo for fondos propios
+      if (formData.fondosPropios && !formData.motivo.trim()) {
+        throw new Error("Debe ingresar el motivo para fondos propios");
+      }
+
+      // Validate integrantes for factura dividida
+      if (formData.facturaDividida && formData.IntegrantesV2.length === 0) {
+        throw new Error("Debe seleccionar al menos un integrante para factura dividida");
+      }
+
       if (!formData.comprobante && !isNewFile) {
         throw new Error("Debe adjuntar un comprobante");
       }
@@ -165,6 +202,8 @@ const ExpenseEdit = () => {
       // Prepare expense data
       const expenseData = {
         ...formData,
+        // Incluir días si es hospedaje
+        dias: formData.rubro === "Hospedaje" ? parseFloat(formData.dias) : null,
         integrantes: formData.IntegrantesV2
           .map(user => user.displayName)
           .join(", "),
@@ -177,11 +216,16 @@ const ExpenseEdit = () => {
         isNewFile ? formData.comprobante : undefined
       );
 
-      // Update contributors
-      await service.updateExpenseIntegrantes(
-        id,
-        formData.IntegrantesV2.map(user => user.id)
-      );
+      // Update contributors (only if factura dividida)
+      if (formData.facturaDividida) {
+        await service.updateExpenseIntegrantes(
+          id,
+          formData.IntegrantesV2.map(user => user.id)
+        );
+      } else {
+        // Clear contributors if not factura dividida
+        await service.updateExpenseIntegrantes(id, []);
+      }
 
       // Update state with new data
       setExpenseReports((prevReports) =>
@@ -194,7 +238,9 @@ const ExpenseEdit = () => {
               currencySymbol: updatedExpense.fields.CurrencySymbol,
               fecha: new Date(updatedExpense.fields.Fecha),
               st: updatedExpense.fields.ST,
+              dias: updatedExpense.fields.Dias || null, // Actualizar días
               fondosPropios: Boolean(updatedExpense.fields.Fondospropios),
+              facturaSolitario: Boolean(updatedExpense.fields.FacturaSolitario), // Actualizar factura solitario
               motivo: updatedExpense.fields.Title || "",
               comprobante: updatedExpense.fields.Comprobante,
               facturaDividida: Boolean(updatedExpense.fields.FacturaDividida),
@@ -214,7 +260,7 @@ const ExpenseEdit = () => {
               createdBy: report.createdBy,
               notas: updatedExpense.fields.Notas,
               // Keep IntegrantesV2 in sync
-              IntegrantesV2: formData.IntegrantesV2
+              IntegrantesV2: formData.facturaDividida ? formData.IntegrantesV2 : []
             }
             : report
         )
@@ -256,23 +302,48 @@ const ExpenseEdit = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Rubro *
-              </label>
-              <select
-                name="rubro"
-                value={formData.rubro}
-                onChange={handleInputChange}
-                required
-                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-              >
-                <option value="">Seleccione un rubro</option>
-                {rubroOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-4">
+                {/* Campo Rubro */}
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rubro *
+                  </label>
+                  <select
+                    name="rubro"
+                    value={formData.rubro}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                  >
+                    <option value="">Seleccione un rubro</option>
+                    {rubroOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Campo Días - Solo visible si rubro es "Hospedaje" */}
+                {formData.rubro === "Hospedaje" && (
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Días *
+                    </label>
+                    <input
+                      type="number"
+                      name="dias"
+                      value={formData.dias}
+                      onChange={handleInputChange}
+                      min="1"
+                      step="1"
+                      required
+                      className="w-full pl-3 rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                      placeholder="Ej: 2"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -286,7 +357,6 @@ const ExpenseEdit = () => {
                   onChange={handleInputChange}
                   className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
                 >
-
                   {currencies.map((curr) => (
                     <option key={curr.name} value={curr.symbol}>
                       {curr.symbol}
@@ -334,72 +404,106 @@ const ExpenseEdit = () => {
               />
             </div>
           </div>
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="fondosPropios"
-              name="fondosPropios"
-              checked={formData.fondosPropios}
-              onChange={handleInputChange}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <label
-              htmlFor="fondosPropios"
-              className="ml-2 text-sm text-gray-700"
-            >
-              Fondos propios
-            </label>
-          </div>
-          {formData.fondosPropios && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Motivo
-              </label>
-              <input
-                type="text"
-                name="motivo"
-                value={formData.motivo || ""}
-                onChange={handleInputChange}
-                placeholder="Ingrese el motivo"
-                className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
-              />
+
+          {/* Tipo de Factura - Obligatorio seleccionar uno */}
+          <div className="space-y-4">
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">
+                Tipo de Factura * (Seleccione una opción)
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="fondosPropios"
+                    name="tipoFactura"
+                    value="fondosPropios"
+                    checked={formData.fondosPropios}
+                    onChange={(e) => handleTipoFacturaChange(e.target.value)}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor="fondosPropios"
+                    className="ml-2 text-sm text-gray-700"
+                  >
+                    Fondos propios
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="facturaSolitario"
+                    name="tipoFactura"
+                    value="facturaSolitario"
+                    checked={formData.facturaSolitario}
+                    onChange={(e) => handleTipoFacturaChange(e.target.value)}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor="facturaSolitario"
+                    className="ml-2 text-sm text-gray-700"
+                  >
+                    Factura en solitario
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="facturaDividida"
+                    name="tipoFactura"
+                    value="facturaDividida"
+                    checked={formData.facturaDividida}
+                    onChange={(e) => handleTipoFacturaChange(e.target.value)}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor="facturaDividida"
+                    className="ml-2 text-sm text-gray-700"
+                  >
+                    Factura dividida entre varios integrantes
+                  </label>
+                </div>
+              </div>
             </div>
-          )}
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="facturaDividida"
-              name="facturaDividida"
-              checked={formData.facturaDividida}
-              onChange={handleInputChange}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <label
-              htmlFor="facturaDividida"
-              className="ml-2 text-sm text-gray-700"
-            >
-              ¿La factura es dividida entre varios integrantes?
-            </label>
+
+            {/* Campo Motivo - Solo visible si es fondos propios */}
+            {formData.fondosPropios && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Motivo *
+                </label>
+                <input
+                  type="text"
+                  name="motivo"
+                  value={formData.motivo}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Ingrese el motivo"
+                  className="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
+                />
+              </div>
+            )}
+
+            {/* Selección de integrantes - Solo visible si es factura dividida */}
+            {formData.facturaDividida && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Integrantes adicionales *
+                </label>
+                <MultiSelect
+                  options={allWorkers}
+                  value={formData.IntegrantesV2}
+                  onChange={(selected) => setFormData(prev => ({
+                    ...prev,
+                    IntegrantesV2: selected
+                  }))}
+                  placeholder="Seleccionar integrantes..."
+                  searchPlaceholder="Buscar por nombre o correo..."
+                />
+              </div>
+            )}
           </div>
-          {formData.facturaDividida && (
-            <div className="space-y-2">
-              <label
-                className="block text-sm font-medium text-gray-700"
-              >
-                Integrantes adicionales
-              </label>
-              <MultiSelect
-                options={allWorkers}
-                value={formData.IntegrantesV2}
-                onChange={(selected) => setFormData(prev => ({
-                  ...prev,
-                  IntegrantesV2: selected
-                }))}
-                placeholder="Seleccionar integrantes..."
-                searchPlaceholder="Buscar por nombre o correo..."
-              />
-            </div>
-          )}
+
           <div className="space-y-2">
             <label
               htmlFor="notas"
