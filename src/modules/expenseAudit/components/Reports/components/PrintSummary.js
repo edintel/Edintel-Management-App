@@ -7,18 +7,23 @@ const PrintSummary = ({ expenses, dateRange, selectedPerson, people, title = "Re
     expenses.filter((exp) => !exp.fondosPropios),
     "monto"
   );
-  
+
   const versatecTotal = _.sumBy(
     expenses.filter((exp) => exp.rubro === "Versatec"),
     "monto"
   );
-  
+
   const netTotal = tarjetasTotal - versatecTotal;
-  
+
   const fondosPropiosTotal = _.sumBy(
     expenses.filter((exp) => exp.fondosPropios),
     "monto"
   );
+
+  // Agregar esta función al inicio del componente
+  const formatCurrencyWithSymbol = (value, currencySymbol) => {
+    return `${currencySymbol}${value.toLocaleString("es-CR")}`;
+  };
 
   // Group expenses by rubro with counts, totals, and associated STs
   const summaryByRubro = _.chain(expenses)
@@ -62,14 +67,14 @@ const PrintSummary = ({ expenses, dateRange, selectedPerson, people, title = "Re
           minute: "2-digit",
         })}
       </div>
-      
+
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold mb-2">{title}</h1>
         <p className="text-sm">
           {dateRange.startDate && dateRange.endDate
             ? `Período: ${formatDate(dateRange.startDate)} - ${formatDate(
-                dateRange.endDate
-              )}`
+              dateRange.endDate
+            )}`
             : "Todos los periodos"}
         </p>
         <p className="text-sm">
@@ -79,7 +84,7 @@ const PrintSummary = ({ expenses, dateRange, selectedPerson, people, title = "Re
           Total de gastos: {expenses.length}
         </p>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="border rounded p-4">
           <h3 className="text-sm font-medium">Tarjetas</h3>
@@ -100,7 +105,7 @@ const PrintSummary = ({ expenses, dateRange, selectedPerson, people, title = "Re
           </p>
         </div>
       </div>
-      
+
       <div>
         <h2 className="text-lg font-bold mb-4">Detalle por Rubro</h2>
         <table className="w-full text-sm">
@@ -140,7 +145,7 @@ const PrintSummary = ({ expenses, dateRange, selectedPerson, people, title = "Re
           </tfoot>
         </table>
       </div>
-      
+
       {expenses.length > 0 && (
         <div className="mt-12 page-break">
           <h2 className="text-lg font-bold mb-4">Detalle de Gastos</h2>
@@ -166,7 +171,7 @@ const PrintSummary = ({ expenses, dateRange, selectedPerson, people, title = "Re
                   <td className="py-2">{expense.createdBy.name}</td>
                   <td className="py-2">{expense.rubro}</td>
                   <td className="py-2 text-right">
-                    {formatCurrency(expense.monto)}
+                    {formatCurrencyWithSymbol(expense.monto, expense.currencySymbol)}
                   </td>
                   <td className="py-2">{expense.st}</td>
                   <td className="py-2 text-center">{expense.fondosPropios ? "Sí" : "No"}</td>
@@ -176,7 +181,7 @@ const PrintSummary = ({ expenses, dateRange, selectedPerson, people, title = "Re
           </table>
         </div>
       )}
-      
+
       <div className="mt-8 text-sm text-center">
         Generado el {new Date().toLocaleDateString("es-CR", {
           year: "numeric",

@@ -228,42 +228,52 @@ const Reports = () => {
     navigator.clipboard.writeText(csv);
   }, [getExpensesForExport]);
 
-  const handleExportCSV = useCallback(() => {
-    const rows = getExpensesForExport().map((expense) => ({
-      Fecha: expense.fecha.toLocaleDateString("es-CR"),
-      Solicitante: expense.createdBy.name,
-      Rubro: expense.rubro,
-      Monto: expense.monto,
-      ST: expense.st,
-      Estado: getExpenseStatus(expense),
-    }));
-    const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "ST", "Estado"];
-    const csv = [
-      headers.join(","),
-      ...rows.map((row) =>
-        headers
-          .map((header) => {
-            const value = row[header];
-            return typeof value === "string" && value.includes(",")
-              ? `"${value}"`
-              : value;
-          })
-          .join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    const filename =
-      startDate && endDate
-        ? `reporte_gastos_${startDate}_${endDate}.csv`
-        : "reporte_gastos.csv";
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [startDate, endDate, getExpensesForExport]);
+const handleExportCSV = useCallback(() => {
+  const rows = getExpensesForExport().map((expense) => ({
+    Fecha: expense.fecha.toLocaleDateString("es-CR"),
+    Solicitante: expense.createdBy.name,
+    Rubro: expense.rubro,
+    Monto: expense.monto,
+    Moneda: expense.currencySymbol,
+    ST: expense.st,
+    Estado: getExpenseStatus(expense),
+  }));
+  
+  const headers = ["Fecha", "Solicitante", "Rubro", "Monto", "Moneda", "ST", "Estado"];
+  
+  const csv = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers
+        .map((header) => {
+          const value = row[header];
+          return typeof value === "string" && value.includes(",")
+            ? `"${value}"`
+            : value;
+        })
+        .join(",")
+    ),
+  ].join("\n");
+  
+  // Agregar BOM UTF-8 para que Excel reconozca correctamente los caracteres especiales
+  const BOM = "\uFEFF";
+  const csvWithBOM = BOM + csv;
+  
+  const blob = new Blob([csvWithBOM], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  
+  const filename =
+    startDate && endDate
+      ? `reporte_gastos_${startDate}_${endDate}.csv`
+      : "reporte_gastos.csv";
+      
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}, [startDate, endDate, getExpensesForExport]);
 
   const handlePrint = useCallback(() => {
     window.print();

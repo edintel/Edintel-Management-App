@@ -11,7 +11,7 @@ const StatusBadge = memo(({ status }) => {
       </span>
     );
   }
-  
+
   if (status.includes("Contabilidad")) {
     return (
       <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
@@ -19,7 +19,7 @@ const StatusBadge = memo(({ status }) => {
       </span>
     );
   }
-  
+
   if (status.includes("Jefatura")) {
     return (
       <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -27,7 +27,7 @@ const StatusBadge = memo(({ status }) => {
       </span>
     );
   }
-  
+
   if (status.includes("Asistente")) {
     return (
       <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -35,7 +35,7 @@ const StatusBadge = memo(({ status }) => {
       </span>
     );
   }
-  
+
   return (
     <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
       Pendiente
@@ -49,7 +49,7 @@ const SelectionCheckbox = memo(({ checked, onChange, stopPropagation = false }) 
     if (stopPropagation) e.stopPropagation();
     onChange(isChecked);
   };
-  
+
   return (
     <div className="flex justify-center" onClick={stopPropagation ? e => e.stopPropagation() : undefined}>
       <Checkbox
@@ -140,11 +140,7 @@ const ReportTable = ({
     {
       key: "monto",
       header: "Monto",
-      render: (value) =>
-        value.toLocaleString("es-CR", {
-          style: "currency",
-          currency: "CRC",
-        }),
+      render: (value, row) => `${row.currencySymbol || "₡"}${value}`
     },
     { key: "st", header: "ST" },
     {
