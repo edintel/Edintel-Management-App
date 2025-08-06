@@ -25,18 +25,18 @@ const Dashboard = () => {
   };
 
   const { start: lastWeekStart, end: lastWeekEnd } = getLastWeekRange();
-  
+
   // Filter expenses for the current user
   const userExpenses = expenseReports.filter(
     (expense) => expense.createdBy.email === user?.username
   );
-  
+
   // Filter for expenses created in the last week
   const currentWeekExpenses = userExpenses.filter((expense) => {
     const expenseDate = new Date(expense.fecha);
     return expenseDate >= lastWeekStart && expenseDate <= lastWeekEnd;
   });
-  
+
   // Get recent expenses (last 5)
   const recentExpenses = [...userExpenses]
     .sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
@@ -58,11 +58,7 @@ const Dashboard = () => {
     {
       key: "monto",
       header: "Monto",
-      render: (value) =>
-        value.toLocaleString("es-CR", {
-          style: "currency",
-          currency: "CRC",
-        }),
+      render: (value, row) => `${row.currencySymbol || "₡"}${value}`,
     },
     { key: "st", header: "ST" },
     {
@@ -70,16 +66,16 @@ const Dashboard = () => {
       header: "Estado",
       render: (_, row) => {
         // Check for rejection first
-        if (row.aprobacionAsistente === "No aprobada" || 
-            row.aprobacionJefatura === "No aprobada" || 
-            row.aprobacionContabilidad === "No aprobada") {
+        if (row.aprobacionAsistente === "No aprobada" ||
+          row.aprobacionJefatura === "No aprobada" ||
+          row.aprobacionContabilidad === "No aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-error/10 text-error">
               No aprobada
             </span>
           );
         }
-        
+
         // Check for full approval
         if (row.aprobacionContabilidad === "Aprobada") {
           return (
@@ -88,7 +84,7 @@ const Dashboard = () => {
             </span>
           );
         }
-        
+
         // Check for partially approved statuses
         if (row.aprobacionJefatura === "Aprobada") {
           return (
@@ -97,7 +93,7 @@ const Dashboard = () => {
             </span>
           );
         }
-        
+
         if (row.aprobacionAsistente === "Aprobada") {
           return (
             <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-info/10 text-info">
@@ -105,7 +101,7 @@ const Dashboard = () => {
             </span>
           );
         }
-        
+
         // Default to pending
         return (
           <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
@@ -128,25 +124,25 @@ const Dashboard = () => {
     {
       title: "Pendientes",
       value: currentWeekExpenses.filter(
-        (report) => approvalFlowService && 
-                  !approvalFlowService.getApprovalState(report).isFullyApproved && 
-                  !approvalFlowService.getApprovalState(report).isRejected
+        (report) => approvalFlowService &&
+          !approvalFlowService.getApprovalState(report).isFullyApproved &&
+          !approvalFlowService.getApprovalState(report).isRejected
       ).length,
       icon: <AlertTriangle className="text-warning" size={24} />,
     },
     {
       title: "Aprobados",
       value: currentWeekExpenses.filter(
-        (report) => approvalFlowService && 
-                  approvalFlowService.getApprovalState(report).isFullyApproved
+        (report) => approvalFlowService &&
+          approvalFlowService.getApprovalState(report).isFullyApproved
       ).length,
       icon: <Check className="text-success" size={24} />,
     },
     {
       title: "No Aprobados",
       value: currentWeekExpenses.filter(
-        (report) => approvalFlowService && 
-                  approvalFlowService.getApprovalState(report).isRejected
+        (report) => approvalFlowService &&
+          approvalFlowService.getApprovalState(report).isRejected
       ).length,
       icon: <X className="text-error" size={24} />,
     },

@@ -75,23 +75,19 @@ const ApprovalTable = ({
       render: (value) => value?.name || "N/A",
       hiddenOnMobile: false, // Always show
     },
-    { 
-      key: "rubro", 
+    {
+      key: "rubro",
       header: "Rubro",
       hiddenOnMobile: false, // Always show
     },
     {
       key: "monto",
       header: "Monto",
-      render: (value) =>
-        value.toLocaleString("es-CR", {
-          style: "currency",
-          currency: "CRC",
-        }),
+      render: (value, row) => `${row.currencySymbol || "₡"}${value}`,
       hiddenOnMobile: false, // Show on mobile
     },
-    { 
-      key: "st", 
+    {
+      key: "st",
       header: "ST",
       hiddenOnMobile: true, // Hide on mobile
     },
