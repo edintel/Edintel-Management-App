@@ -49,7 +49,8 @@ const ExpenseForm = () => {
     "Uber",
     "Parqueo",
     "Versatec",
-    "Transporte público"
+    "Transporte público",
+    "Devolución"
   ];
 
   // Get potential contributors (people who can share expenses with current user)

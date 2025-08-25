@@ -45,7 +45,8 @@ const ExpenseEdit = () => {
     "Uber",
     "Parqueo",
     "Versatec",
-    "Transporte público"
+    "Transporte público",
+    "Devolución"
   ];
 
   const allWorkers = React.useMemo(() => {
