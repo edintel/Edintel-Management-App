@@ -50,7 +50,8 @@ const ExpenseForm = () => {
     "Parqueo",
     "Versatec",
     "Transporte público",
-    "Devolución"
+    "Devolución",
+    "Otros",
   ];
 
   // Get potential contributors (people who can share expenses with current user)
