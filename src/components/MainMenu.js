@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { useMsal } from "@azure/msal-react";
 import Card from "./common/Card";
-import { FileText, Ticket, Loader2, BookOpen } from "lucide-react";
+import { FileText, Ticket, Loader2, BookOpen, Hourglass } from "lucide-react";
 import BaseGraphService from "../services/BaseGraphService";
 import { expenseAuditConfig } from "../modules/expenseAudit/config/expenseAudit.config";
 import { postVentaConfig } from "../modules/postVentaManagement/config/postVentaManagement.config";
@@ -19,14 +19,15 @@ const MainMenu = () => {
   const [availableModules, setAvailableModules] = useState({
     expenseAudit: false,
     postVenta: false,
-    cursoControl: false
+    cursoControl: false,
+    horasExtras: false,
   });
 
   useEffect(() => {
     const checkModuleAccess = async () => {
       try {
         const baseService = new BaseGraphService(instance);
-        
+
         // Check Expense Audit access
         try {
           const expenseSiteId = await baseService.getSiteId(expenseAuditConfig.siteName);
@@ -38,7 +39,7 @@ const MainMenu = () => {
         } catch (error) {
           console.log("No access to ExpenseAudit", error);
         }
-        
+
         // Check PostVenta access
         try {
           const postVentaSiteId = await baseService.getSiteId(postVentaConfig.general.siteName);
@@ -50,15 +51,15 @@ const MainMenu = () => {
         } catch (error) {
           console.log("No access to PostVenta", error);
         }
-        
+
         // Check Curso Control access
         try {
 
           const cursoControlSiteId = await baseService.getSiteId(cursoControlConfig.siteName);
-          
+
           try {
             await baseService.getListItems(
-              cursoControlSiteId, 
+              cursoControlSiteId,
               cursoControlConfig.lists.cursos,
               { top: 1 }
             );
@@ -69,14 +70,14 @@ const MainMenu = () => {
         } catch (error) {
           console.log("No access to Curso Control site", error);
         }
-        
+
       } catch (error) {
         console.error("Error checking module access:", error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     if (user?.username) {
       checkModuleAccess();
     }
@@ -106,6 +107,14 @@ const MainMenu = () => {
       icon: BookOpen,
       path: "/curso-control/cursos",
       available: availableModules.cursoControl
+    },
+    {
+      id: "horas-extras",
+      name: "Horas Extras",
+      description: "Sistema de gestión de horas extras",
+      icon: Hourglass,
+      path: " ",
+      available: availableModules.horasExtras
     }
   ];
 

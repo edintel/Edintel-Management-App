@@ -14,7 +14,7 @@ const Layout = ({ children }) => {
     { name: "Dashboard", path: POST_VENTA_ROUTES.DASHBOARD },
     { name: "Tickets", path: POST_VENTA_ROUTES.TICKETS.LIST },
     ...(userRole?.role !== "Técnico"
-      ? [{ name: "Ubicaciones", path: POST_VENTA_ROUTES.LOCATIONS }]
+      ? [{ name: "Ubicaciones", path: POST_VENTA_ROUTES.LOCATIONS }, {name:"Reportes", path: POST_VENTA_ROUTES.REPORTS}]
       : []),
     { name: "Menu principal", path: "/" },
   ];

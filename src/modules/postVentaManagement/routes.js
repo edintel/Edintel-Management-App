@@ -8,6 +8,7 @@ import TicketForm from './components/Tickets/components/TicketForm';
 import Profile from './components/Profile/Profile';
 import LocationManagementPage from './components/LocationManagement/LocationManagementPage';
 import { usePostVentaManagement } from './context/postVentaManagementContext';
+import Reports from './components/Reports/index';
 import LoadingScreen from '../../components/LoadingScreen';
 
 const ROLES = {
@@ -28,18 +29,19 @@ export const POST_VENTA_ROUTES = {
   },
   LOCATIONS: '/post-venta/locations',
   PROFILE: '/post-venta/profile',
+  REPORTS: '/post-venta/reports',
 };
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { userRole, loading } = usePostVentaManagement();
   const location = useLocation();
-  
+
   if (loading) return <LoadingScreen />;
-  
+
   if (!userRole || !allowedRoles.includes(userRole.role)) {
     return <Navigate to="/post-venta/dashboard" state={{ from: location }} replace />;
   }
-  
+
   return children;
 };
 
@@ -66,6 +68,14 @@ export const PostVentaRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.COMERCIAL]}>
               <LocationManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.COMERCIAL]}>
+              <Reports />
             </ProtectedRoute>
           }
         />
