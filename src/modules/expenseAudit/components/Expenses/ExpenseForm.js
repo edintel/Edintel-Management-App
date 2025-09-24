@@ -105,7 +105,7 @@ const ExpenseForm = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-   
+
     try {
       // Validate required fields
       if (
@@ -115,6 +115,17 @@ const ExpenseForm = () => {
         !formData.st
       ) {
         throw new Error("Por favor complete todos los campos requeridos");
+      }
+
+
+      // Validate fecha no sea posterior a hoy
+      const today = new Date();
+      const selectedDate = new Date(formData.fecha);
+
+
+
+      if (selectedDate > today) {
+        throw new Error("No se puede ingresar una fecha posterior a la fecha actual");
       }
 
       // Validate días for Hospedaje
