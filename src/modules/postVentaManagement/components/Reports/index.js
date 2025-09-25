@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 
 const Reports = () => {
   const { serviceTickets, sites, buildings, companies, systems, loadPostVentaData, loading } = usePostVentaManagement();
-  
+
   const [filters, setFilters] = useState({
     dateFrom: '',
     dateTo: '',
@@ -30,7 +30,7 @@ const Reports = () => {
     const today = new Date();
     const lastMonth = new Date();
     lastMonth.setMonth(today.getMonth() - 1);
-    
+
     setFilters({
       ...filters,
       dateFrom: lastMonth.toISOString().split('T')[0],
@@ -38,31 +38,62 @@ const Reports = () => {
     });
   }, []);
 
+  /*   // Función para calcular días hábiles entre dos fechas
+    const calculateBusinessDays = (startDate, endDate) => {
+      if (!startDate || !endDate) return null;
+  
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      let businessDays = 0;
+      const current = new Date(start);
+  
+      while (current <= end) {
+        const dayOfWeek = current.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          businessDays++;
+        }
+        current.setDate(current.getDate() + 1);
+      }
+  
+      return businessDays;
+    }; */
   // Función para calcular días hábiles entre dos fechas
   const calculateBusinessDays = (startDate, endDate) => {
     if (!startDate || !endDate) return null;
-    
+
+    // Normalizar fechas a medianoche para evitar problemas con horas
     const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
     const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    // Si las fechas son iguales, retornar 0
+    if (start.getTime() === end.getTime()) return 0;
+
     let businessDays = 0;
     const current = new Date(start);
-    
+
+    // Empezar desde el día siguiente al de inicio
+    current.setDate(current.getDate() + 1);
+
     while (current <= end) {
       const dayOfWeek = current.getDay();
+      // Contar solo de lunes (1) a viernes (5)
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         businessDays++;
       }
       current.setDate(current.getDate() + 1);
     }
-    
+
     return businessDays;
   };
 
   // Función para formatear fecha y hora
   const formatDateTime = (dateString) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString('es-CR', { 
+    const date = new Date(dateString)
+    return date.toLocaleString('es-CR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -85,16 +116,16 @@ const Reports = () => {
       const building = site ? buildings.find(b => b.id === site.buildingId) : null;
       const company = building ? companies.find(c => c.id === building.companyId) : null;
       const system = systems.find(s => s.id === ticket.systemId);
-      
+
       // Calcular tiempo de resolución
       const openDate = ticket.created || ticket.technicianAssignedDate;
-      const closeDate = ticket.closeDate;
+      const closeDate = ticket.workEndDate;
       const resolutionDays = calculateBusinessDays(openDate, closeDate);
-      
+
       // Determinar si cumple SLA (2 días hábiles para correctivos)
       const isCorrectiveType = ticket.type?.includes('Correctiva');
       const meetsSLA = !isCorrectiveType || (resolutionDays !== null && resolutionDays <= 2);
-      
+
       return {
         ...ticket,
         siteName: site?.name || '-',
@@ -117,37 +148,37 @@ const Reports = () => {
         const fromDate = new Date(filters.dateFrom);
         const toDate = new Date(filters.dateTo);
         toDate.setHours(23, 59, 59); // Incluir todo el día final
-        
+
         if (ticketDate < fromDate || ticketDate > toDate) {
           return false;
         }
       }
-      
+
       // Filtro por tipo
       if (filters.ticketType && ticket.type !== filters.ticketType) {
         return false;
       }
-      
+
       // Filtro por estado
       if (filters.status && ticket.state !== filters.status) {
         return false;
       }
-      
+
       // Filtro por empresa
       if (filters.company && ticket.companyName !== filters.company) {
         return false;
       }
-      
+
       // Filtro por edificio
       if (filters.building && ticket.buildingName !== filters.building) {
         return false;
       }
-      
+
       // Filtro por sitio
       if (filters.site && ticket.siteName !== filters.site) {
         return false;
       }
-      
+
       return true;
     });
   }, [processedTickets, filters]);
@@ -158,10 +189,10 @@ const Reports = () => {
     sorted.sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
-      
+
       if (aValue === null || aValue === undefined) return 1;
       if (bValue === null || bValue === undefined) return -1;
-      
+
       if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
@@ -176,9 +207,10 @@ const Reports = () => {
   // Estadísticas
   const statistics = useMemo(() => {
     const correctiveTickets = filteredTickets.filter(t => t.isCorrectiveType);
-    const completedCorrectiveTickets = correctiveTickets.filter(t => t.state === 'Cerrada');
+    // Filtrar por tickets que tengan workEndDate (trabajo finalizado)
+    const completedCorrectiveTickets = correctiveTickets.filter(t => t.workEndDate);
     const meetingSLA = completedCorrectiveTickets.filter(t => t.meetsSLA);
-    
+
     return {
       total: filteredTickets.length,
       corrective: correctiveTickets.length,
@@ -186,8 +218,8 @@ const Reports = () => {
       completed: filteredTickets.filter(t => t.state === 'Cerrada').length,
       inProgress: filteredTickets.filter(t => t.state !== 'Cerrada' && t.state !== 'Iniciada').length,
       pending: filteredTickets.filter(t => t.state === 'Iniciada').length,
-      slaCompliance: completedCorrectiveTickets.length > 0 
-        ? Math.round((meetingSLA.length / completedCorrectiveTickets.length) * 100) 
+      slaCompliance: completedCorrectiveTickets.length > 0
+        ? Math.round((meetingSLA.length / completedCorrectiveTickets.length) * 100)
         : 100,
       avgResolutionTime: completedCorrectiveTickets.length > 0
         ? Math.round(completedCorrectiveTickets.reduce((acc, t) => acc + (t.resolutionDays || 0), 0) / completedCorrectiveTickets.length * 10) / 10
@@ -243,7 +275,7 @@ const Reports = () => {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Reporte de Tickets');
-    
+
     // Ajustar anchos de columna
     const maxWidth = 50;
     const wscols = [
@@ -268,7 +300,7 @@ const Reports = () => {
       { wch: 30 }  // Link
     ];
     ws['!cols'] = wscols;
-    
+
     const fileName = `Reporte_Tickets_${filters.dateFrom}_${filters.dateTo}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
@@ -277,8 +309,8 @@ const Reports = () => {
     if (sortConfig.key !== column) {
       return null;
     }
-    return sortConfig.direction === 'asc' ? 
-      <ChevronUp className="inline w-4 h-4 ml-1" /> : 
+    return sortConfig.direction === 'asc' ?
+      <ChevronUp className="inline w-4 h-4 ml-1" /> :
       <ChevronDown className="inline w-4 h-4 ml-1" />;
   };
 
@@ -301,7 +333,7 @@ const Reports = () => {
             <div className="text-blue-100">Total de Tickets</div>
           </div>
         </Card>
-        
+
         <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
           <div className="p-4">
             <div className="text-3xl font-bold">{statistics.slaCompliance}%</div>
@@ -311,7 +343,7 @@ const Reports = () => {
             </div>
           </div>
         </Card>
-        
+
         <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
           <div className="p-4">
             <div className="text-3xl font-bold">{statistics.avgResolutionTime}</div>
@@ -321,7 +353,7 @@ const Reports = () => {
             </div>
           </div>
         </Card>
-        
+
         <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
           <div className="p-4">
             <div className="text-3xl font-bold">{statistics.completed}</div>
@@ -340,7 +372,7 @@ const Reports = () => {
             <Filter className="mr-2" size={20} />
             <h2 className="text-lg font-semibold">Filtros</h2>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -353,7 +385,7 @@ const Reports = () => {
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Fecha Hasta
@@ -365,7 +397,7 @@ const Reports = () => {
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tipo de Ticket
@@ -383,7 +415,7 @@ const Reports = () => {
                 <option value="Proyectos">Proyectos</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Estado
@@ -402,7 +434,7 @@ const Reports = () => {
                 <option value="Cerrada">Cerrada</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Empresa
@@ -418,7 +450,7 @@ const Reports = () => {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Edificio
@@ -430,16 +462,16 @@ const Reports = () => {
                 disabled={!filters.company}
               >
                 <option value="">Todos</option>
-                {filters.company && 
+                {filters.company &&
                   [...new Set(processedTickets
                     .filter(t => t.companyName === filters.company)
                     .map(t => t.buildingName))].sort().map(building => (
-                    <option key={building} value={building}>{building}</option>
-                  ))
+                      <option key={building} value={building}>{building}</option>
+                    ))
                 }
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Sitio
@@ -451,16 +483,16 @@ const Reports = () => {
                 disabled={!filters.building}
               >
                 <option value="">Todos</option>
-                {filters.building && 
+                {filters.building &&
                   [...new Set(processedTickets
                     .filter(t => t.buildingName === filters.building)
                     .map(t => t.siteName))].sort().map(site => (
-                    <option key={site} value={site}>{site}</option>
-                  ))
+                      <option key={site} value={site}>{site}</option>
+                    ))
                 }
               </select>
             </div>
-            
+
             <div className="flex items-end">
               <Button
                 variant="secondary"
@@ -500,25 +532,25 @@ const Reports = () => {
               Exportar a Excel
             </Button>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-2 py-3 text-left"></th>
-                  <th 
+                  <th
                     className="px-2 py-3 text-left cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('stNumber')}
                   >
                     ST {getSortIcon('stNumber')}
                   </th>
-                  <th 
+                  <th
                     className="px-2 py-3 text-left cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('state')}
                   >
                     Estado {getSortIcon('state')}
                   </th>
-                  <th 
+                  <th
                     className="px-2 py-3 text-left cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('type')}
                   >
@@ -526,19 +558,25 @@ const Reports = () => {
                   </th>
                   <th className="px-2 py-3 text-left">Empresa</th>
                   <th className="px-2 py-3 text-left">Sitio</th>
-                  <th 
+                  <th
                     className="px-2 py-3 text-left cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('created')}
                   >
                     Fecha Apertura {getSortIcon('created')}
                   </th>
-                  <th 
+                  <th
+                    className="px-2 py-3 text-left cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('workEndDate')}
+                  >
+                    Fecha Trabajo Finalizado {getSortIcon('workEndDate')}
+                  </th>
+                  <th
                     className="px-2 py-3 text-left cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('closeDate')}
                   >
                     Fecha Cierre {getSortIcon('closeDate')}
                   </th>
-                  <th 
+                  <th
                     className="px-2 py-3 text-left cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('resolutionDays')}
                   >
@@ -572,20 +610,19 @@ const Reports = () => {
                             onClick={() => toggleRowExpansion(ticket.id)}
                             className="p-1 hover:bg-gray-200 rounded"
                           >
-                            {expandedRows[ticket.id] ? 
-                              <ChevronUp size={16} /> : 
+                            {expandedRows[ticket.id] ?
+                              <ChevronUp size={16} /> :
                               <ChevronDown size={16} />
                             }
                           </button>
                         </td>
                         <td className="px-2 py-2 font-medium">{ticket.stNumber || '-'}</td>
                         <td className="px-2 py-2">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            ticket.state === 'Cerrada' ? 'bg-green-100 text-green-800' :
+                          <span className={`px-2 py-1 rounded-full text-xs ${ticket.state === 'Cerrada' ? 'bg-green-100 text-green-800' :
                             ticket.state === 'Iniciada' ? 'bg-gray-100 text-gray-800' :
-                            ticket.state === 'Trabajo iniciado' ? 'bg-blue-100 text-blue-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
+                              ticket.state === 'Trabajo iniciado' ? 'bg-blue-100 text-blue-800' :
+                                'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {ticket.state}
                           </span>
                         </td>
@@ -593,6 +630,7 @@ const Reports = () => {
                         <td className="px-2 py-2">{ticket.companyName}</td>
                         <td className="px-2 py-2">{ticket.siteName}</td>
                         <td className="px-2 py-2">{formatDate(ticket.created)}</td>
+                        <td className="px-2 py-2">{formatDate(ticket.workEndDate)}</td>
                         <td className="px-2 py-2">{formatDate(ticket.closeDate)}</td>
                         <td className="px-2 py-2 text-center">
                           {ticket.resolutionDays || '-'}
@@ -625,7 +663,7 @@ const Reports = () => {
                                   )}
                                   {ticket.link && (
                                     <div>
-                                      <span className="font-medium">Link:</span> 
+                                      <span className="font-medium">Link:</span>
                                       <a href={ticket.link} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 hover:underline">
                                         Ver documento
                                       </a>
@@ -649,7 +687,7 @@ const Reports = () => {
                                   {ticket.workEndDate && (
                                     <div><span className="font-medium">Trabajo Finalizado:</span> {formatDateTime(ticket.workEndDate)}</div>
                                   )}
-                                  {ticket.closeDate && (
+                                  {ticket.workEndDate && (
                                     <div><span className="font-medium">Cierre:</span> {formatDateTime(ticket.closeDate)}</div>
                                   )}
                                 </div>
@@ -664,7 +702,7 @@ const Reports = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Leyenda */}
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
