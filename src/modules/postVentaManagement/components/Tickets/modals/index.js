@@ -1,4 +1,3 @@
-// src/modules/postVentaManagement/components/Tickets/modals/index.js
 export { default as AssignTechnicianModal } from "./AssignTechnicianModal";
 export { default as TicketActionsModal } from "./TicketActionsModal";
 export { default as TicketEditModal } from "./TicketEditModal";
@@ -25,7 +24,8 @@ export const STATUS_FLOW = {
   Iniciada: ["Técnico asignado"],
   "Técnico asignado": ["Confirmado por técnico"],
   "Confirmado por técnico": ["Trabajo iniciado"],
-  "Trabajo iniciado": ["Finalizada"],
+  "Trabajo iniciado": ["Trabajo Parcial", "Finalizada"], 
+  "Trabajo Parcial": ["Finalizada"], 
   Finalizada: ["Cerrada"],
   Cerrada: [],
 };
@@ -47,6 +47,10 @@ export const STATUS_CONFIG = {
   "Trabajo iniciado": {
     color: "bg-info/10 text-info",
     icon: "Play",
+  },
+  "Trabajo Parcial": {
+    color: "bg-warning/10 text-warning",
+    icon: "AlertTriangle",
   },
   Finalizada: {
     color: "bg-success/10 text-success",

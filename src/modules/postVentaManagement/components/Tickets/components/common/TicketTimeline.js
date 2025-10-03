@@ -31,6 +31,11 @@ const TimelineConfig = {
     color: "text-info",
     bgColor: "bg-info/10",
   },
+  "Trabajo Parcial": {
+    icon: Clock,  
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+  },
   Finalizada: {
     icon: FileCheck,
     color: "text-success",
@@ -69,7 +74,7 @@ const TicketTimeline = ({ events, className }) => {
             className={cn(
               "relative flex items-start gap-4 pb-4",
               index !== events.length - 1 &&
-                "before:absolute before:left-6 before:top-10 before:h-full before:w-px before:bg-gray-200"
+              "before:absolute before:left-6 before:top-10 before:h-full before:w-px before:bg-gray-200"
             )}
           >
             {/* Icon */}

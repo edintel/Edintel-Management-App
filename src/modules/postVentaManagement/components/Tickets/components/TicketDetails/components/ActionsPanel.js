@@ -25,6 +25,8 @@ const getUpdateStatusLabel = (currentState) => {
     case "Confirmado por técnico":
       return "Iniciar Trabajo";
     case "Trabajo iniciado":
+      return "Actualizar Estado"; // Genérico porque tiene múltiples opciones
+    case "Trabajo Parcial":
       return "Finalizar Trabajo";
     case "Finalizada":
       return "Cerrar Ticket";
@@ -42,6 +44,8 @@ const getUpdateStatusIcon = (currentState) => {
       return Play;
     case "Trabajo iniciado":
       return FileCheck;
+    case "Trabajo Parcial":
+      return AlertTriangle;
     case "Finalizada":
       return Lock;
     default:
@@ -53,12 +57,14 @@ const getUpdateStatusVariant = (currentState) => {
   switch (currentState) {
     case "Iniciada":
     case "Técnico asignado":
-      return "warning"; // Yellow for initial states
+      return "warning";
     case "Confirmado por técnico":
     case "Trabajo iniciado":
-      return "info"; // Blue for in-progress states
+      return "info";
+    case "Trabajo Parcial":
+      return "warning";
     case "Finalizada":
-      return "success"; // Green for completion
+      return "success";
     default:
       return "primary";
   }
@@ -72,6 +78,8 @@ const getNextStatus = (currentState) => {
     case "Confirmado por técnico":
       return "Trabajo iniciado";
     case "Trabajo iniciado":
+      return null; // Se maneja en el modal con múltiples opciones
+    case "Trabajo Parcial":
       return "Finalizada";
     case "Finalizada":
       return "Cerrada";
@@ -99,19 +107,26 @@ const ActionsPanel = ({
       label: "Asignar Técnico",
       icon: UserPlus,
       onClick: () => onAssignTech(ticket),
-      variant: "secondary", // Purple for tech assignment
+      variant: "secondary",
     },
     [TICKET_ACTIONS.UPDATE_STATUS]: {
       label: getUpdateStatusLabel(ticket.state),
       icon: getUpdateStatusIcon(ticket.state),
-      onClick: () => onUpdateStatus(ticket.id, getNextStatus(ticket.state)),
+      onClick: () => {
+        // Para "Trabajo iniciado", el modal manejará las múltiples opciones
+        if (ticket.state === "Trabajo iniciado") {
+          onUpdateStatus(ticket.id); // Solo pasar el ID, el modal manejará el resto
+        } else {
+          onUpdateStatus(ticket.id, getNextStatus(ticket.state));
+        }
+      },
       variant: getUpdateStatusVariant(ticket.state),
     },
     [TICKET_ACTIONS.SCHEDULE_DATE]: {
       label: "Programar Fecha",
       icon: Calendar,
       onClick: () => onScheduleTicket(ticket),
-      variant: "primary", // Default blue for scheduling
+      variant: "primary",
     },
   };
 

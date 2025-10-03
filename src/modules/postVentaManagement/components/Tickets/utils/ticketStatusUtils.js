@@ -1,4 +1,4 @@
-import { CheckCircle, Play, Lock, FileCheck } from "lucide-react";
+import { CheckCircle, Play, Lock, FileCheck, AlertTriangle } from "lucide-react";
 
 export const getUpdateStatusLabel = (currentState) => {
   switch (currentState) {
@@ -8,6 +8,8 @@ export const getUpdateStatusLabel = (currentState) => {
     case "Confirmado por técnico":
       return "Iniciar Trabajo";
     case "Trabajo iniciado":
+      return "Actualizar Estado"; // Genérico porque hay dos opciones
+    case "Trabajo Parcial":
       return "Finalizar Trabajo";
     case "Finalizada":
       return "Cerrar Ticket";
@@ -25,6 +27,8 @@ export const getUpdateStatusIcon = (currentState) => {
       return Play;
     case "Trabajo iniciado":
       return FileCheck;
+    case "Trabajo Parcial":
+      return AlertTriangle;
     case "Finalizada":
       return Lock;
     default:
@@ -34,6 +38,8 @@ export const getUpdateStatusIcon = (currentState) => {
 
 export const getUpdateStatusVariant = (currentState) => {
   switch (currentState) {
+    case "Trabajo Parcial":
+      return "warning";
     case "Finalizada":
       return "success";
     default:
@@ -43,6 +49,8 @@ export const getUpdateStatusVariant = (currentState) => {
 
 export const getUpdateStatusClassName = (currentState) => {
   switch (currentState) {
+    case "Trabajo Parcial":
+      return "text-warning hover:bg-warning/10";
     case "Finalizada":
       return "text-success hover:bg-success/10";
     default:
@@ -58,6 +66,8 @@ export const getNextStatus = (currentState) => {
     case "Confirmado por técnico":
       return "Trabajo iniciado";
     case "Trabajo iniciado":
+      return null; // Retorna null porque hay múltiples opciones
+    case "Trabajo Parcial":
       return "Finalizada";
     case "Finalizada":
       return "Cerrada";

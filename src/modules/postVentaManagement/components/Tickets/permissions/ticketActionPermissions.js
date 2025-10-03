@@ -103,6 +103,14 @@ const statePermissions = {
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
       canViewSharePointLink(ticket, userRole),
   },
+   "Trabajo Parcial": {
+    [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
+      isAdmin(userRole) || isSupervisor(userRole),
+    [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
+    [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
+    [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
+      canViewSharePointLink(ticket, userRole),
+  },
   Finalizada: {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
       isAdmin(userRole) || isSupervisor(userRole),
@@ -156,7 +164,8 @@ export const getNextAvailableStatus = (currentState) => {
     Iniciada: ["Técnico asignado"],
     "Técnico asignado": ["Confirmado por técnico"],
     "Confirmado por técnico": ["Trabajo iniciado"],
-    "Trabajo iniciado": ["Finalizada"],
+    "Trabajo iniciado": ["Trabajo Parcial", "Finalizada"], // Ahora tiene dos opciones
+    "Trabajo Parcial": ["Finalizada"], // Desde Parcial solo puede finalizar
     Finalizada: ["Cerrada"],
     Cerrada: [],
   };

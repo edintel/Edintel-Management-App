@@ -56,6 +56,19 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
+    if (ticket.workNotDone) {
+      const event = {
+        type: "Trabajo Parcial",
+        date: ticket.workNotDone
+      };
+      if (ticket.notes) {
+        event.details = {
+          "Notas": ticket.notes
+        };
+      }
+      events.push(event);
+    }
+
     // Work finished with notes
     if (ticket.workEndDate) {
       const event = {
