@@ -74,7 +74,7 @@ export const useTicketActions = () => {
       setError(null);
   
       try {
-        if (newStatus === "Finalizada" && files) {
+        if ((newStatus === "Finalizada" || newStatus === "Trabajo Parcial") && files) {
           // Upload service tickets
           if (files.serviceTickets?.length > 0) {
             for (const serviceTicket of files.serviceTickets) {
