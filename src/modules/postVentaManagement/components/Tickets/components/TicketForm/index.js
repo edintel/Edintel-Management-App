@@ -32,29 +32,29 @@ const TicketForm = () => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-useEffect(() => {
-  const now = new Date();
-  const year = now.getFullYear().toString().slice(-2);
-  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  useEffect(() => {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
 
-  // Solo generar automáticamente si NO está en modo manual
-  if (!isManualSTEnabled) {
-    if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable") {
-      const preview = `${year}${month}-3xxx`;
-      setStPreview(preview);
-      setFormData(prev => ({ ...prev, st: preview }));
-    } else if (formData.type === "Preventiva") {
-      const preview = `${year}${month}-2xxx`;
-      setStPreview(preview);
-      setFormData(prev => ({ ...prev, st: preview }));
+    // Solo generar automáticamente si NO está en modo manual
+    if (!isManualSTEnabled) {
+      if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable") {
+        const preview = `${year}${month}-3xxx`;
+        setStPreview(preview);
+        setFormData(prev => ({ ...prev, st: preview }));
+      } else if (formData.type === "Preventiva") {
+        const preview = `${year}${month}-2xxx`;
+        setStPreview(preview);
+        setFormData(prev => ({ ...prev, st: preview }));
+      } else {
+        setStPreview("");
+      }
     } else {
+      // Si está en modo manual, limpiar el preview
       setStPreview("");
     }
-  } else {
-    // Si está en modo manual, limpiar el preview
-    setStPreview("");
-  }
-}, [formData.type, isManualSTEnabled]);
+  }, [formData.type, isManualSTEnabled]);
   // File management hooks
   const {
     files: adminDocs = [],
@@ -271,12 +271,12 @@ useEffect(() => {
         images: imageLinks,
         adminDocs: adminFileLinks,
       });
-        await service.sendEmail({
+      await service.sendEmail({
         toRecipients: [supportEmail],
         subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
           }`,
         content: emailContent,
-      });  
+      });
       await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {

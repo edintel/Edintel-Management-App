@@ -9,6 +9,7 @@ export const TICKET_ACTIONS = {
 };
 
 const isAdmin = (userRole) => userRole?.role === "Administrativo";
+const isTech = (userRole) => userRole?.role == "Técnico";
 const isSupervisor = (userRole) => userRole?.role === "Supervisor";
 const isCommercial = (userRole) => userRole?.role === "Comercial";
 const isAssignedToTicket = (ticket, userRole) => {
@@ -105,7 +106,7 @@ const statePermissions = {
   },
    "Trabajo Parcial": {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) || isSupervisor(userRole),
+      isAdmin(userRole) || isSupervisor(userRole) || isTech(userRole),
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
@@ -113,7 +114,7 @@ const statePermissions = {
   },
   Finalizada: {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) || isSupervisor(userRole),
+      isAdmin(userRole) || isSupervisor(userRole) || isTech(userRole),
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
