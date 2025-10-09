@@ -5,11 +5,11 @@ export const TICKET_ACTIONS = {
   EDIT: "edit",
   DELETE: "delete",
   CREATE: "create",
-  VIEW_SHAREPOINT_LINK: "view_sharepoint_link"
+  VIEW_SHAREPOINT_LINK: "view_sharepoint_link",
+  UPDATE_PARCIAL: "update_parcial"
 };
 
 const isAdmin = (userRole) => userRole?.role === "Administrativo";
-const isTech = (userRole) => userRole?.role == "Técnico";
 const isSupervisor = (userRole) => userRole?.role === "Supervisor";
 const isCommercial = (userRole) => userRole?.role === "Comercial";
 const isAssignedToTicket = (ticket, userRole) => {
@@ -106,15 +106,16 @@ const statePermissions = {
   },
    "Trabajo Parcial": {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) || isSupervisor(userRole) || isTech(userRole),
-    [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
+      isAdmin(userRole) || isSupervisor(userRole) || isAssignedToTicket(ticket, userRole),
+    [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole) ,
+    [TICKET_ACTIONS.UPDATE_PARCIAL]: (ticket, userRole) => true,
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
       canViewSharePointLink(ticket, userRole),
   },
   Finalizada: {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) || isSupervisor(userRole) || isTech(userRole),
+      isAdmin(userRole) || isSupervisor(userRole) ,
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
