@@ -14,7 +14,10 @@ const Layout = ({ children }) => {
     { name: "Dashboard", path: POST_VENTA_ROUTES.DASHBOARD },
     { name: "Tickets", path: POST_VENTA_ROUTES.TICKETS.LIST },
     ...(userRole?.role !== "Técnico"
-      ? [{ name: "Ubicaciones", path: POST_VENTA_ROUTES.LOCATIONS }, {name:"Reportes", path: POST_VENTA_ROUTES.REPORTS}]
+      ? [{ name: "Ubicaciones", path: POST_VENTA_ROUTES.LOCATIONS }]
+      : []),
+    ...(userRole?.role === "Administrativo" || userRole?.role === "Supervisor"
+      ? [{ name: "Reportes", path: POST_VENTA_ROUTES.REPORTS }]
       : []),
     { name: "Menu principal", path: "/" },
   ];
@@ -44,9 +47,8 @@ const Layout = ({ children }) => {
       </header>
 
       <aside
-        className={`fixed inset-y-0 left-0 w-72 bg-white transform transition-transform duration-300 ease-in-out z-50 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 w-72 bg-white transform transition-transform duration-300 ease-in-out z-50 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="h-16 flex items-center justify-end px-4 border-b">
           <button
@@ -63,11 +65,10 @@ const Layout = ({ children }) => {
             <Link
               key={item.path}
               to={item.path}
-              className={`block px-4 py-2 rounded-lg transition-colors ${
-                location.pathname === item.path
+              className={`block px-4 py-2 rounded-lg transition-colors ${location.pathname === item.path
                   ? "bg-primary text-white"
                   : "text-gray-700 hover:bg-gray-100"
-              }`}
+                }`}
               onClick={() => setIsSidebarOpen(false)}
             >
               {item.name}
