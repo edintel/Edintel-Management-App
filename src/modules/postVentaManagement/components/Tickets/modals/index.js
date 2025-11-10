@@ -2,6 +2,7 @@ export { default as AssignTechnicianModal } from "./AssignTechnicianModal";
 export { default as TicketActionsModal } from "./TicketActionsModal";
 export { default as TicketEditModal } from "./TicketEditModal";
 export { default as DeleteTicketModal } from "./DeleteTicketModal";
+export { default as ReassignTechModal } from "../modals/AssignTechnicianModal/ReassignTechModal";
 
 // Modal type constants for consistent references
 export const MODAL_TYPES = {
@@ -10,6 +11,7 @@ export const MODAL_TYPES = {
   DELETE_TICKET: "delete-ticket",
   UPDATE_STATUS: "update-status",
   SCHEDULE_DATE: "schedule-date",
+  REASSIGN_TECH: "reassign_tech",
 };
 
 // Helper functions for modal handling

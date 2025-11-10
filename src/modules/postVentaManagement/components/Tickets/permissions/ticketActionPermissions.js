@@ -1,5 +1,7 @@
+// src/modules/postVentaManagement/components/Tickets/permissions/ticketActionPermissions.js
 export const TICKET_ACTIONS = {
   ASSIGN_TECH: "assign_tech",
+  REASSIGN_TECH: "reassign_tech", // Nueva acción
   UPDATE_STATUS: "update_status",
   SCHEDULE_DATE: "schedule_date",
   EDIT: "edit",
@@ -33,6 +35,7 @@ const isInSupervisorEditableState = (ticket) => {
 const canViewSharePointLink = (ticket, userRole) => {
   return isAdmin(userRole) || isSupervisor(userRole);
 };
+
 const canEditDelete = (ticket, userRole) => {
   if (isAdmin(userRole)) return true;
   if (isSupervisor(userRole)) {
@@ -43,6 +46,11 @@ const canEditDelete = (ticket, userRole) => {
 
 const canCreate = (userRole) => {
   return isAdmin(userRole) || isSupervisor(userRole) || isCommercial(userRole);
+};
+
+// Los mismos permisos que ASSIGN_TECH
+const canReassignTech = (ticket, userRole) => {
+  return isAdmin(userRole) || isSupervisor(userRole);
 };
 
 const statePermissions = {
@@ -62,13 +70,9 @@ const statePermissions = {
     [TICKET_ACTIONS.ASSIGN_TECH]: (ticket, userRole) =>
       isAdmin(userRole) || isSupervisor(userRole),
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) ||
-      isSupervisor(userRole) ||
-      isAssignedToTicket(ticket, userRole),
+      isAdmin(userRole) || isSupervisor(userRole) || isAssignedToTicket(ticket, userRole),
     [TICKET_ACTIONS.SCHEDULE_DATE]: (ticket, userRole) =>
-      isAdmin(userRole) ||
-      isSupervisor(userRole) ||
-      isAssignedToTicket(ticket, userRole),
+      isAdmin(userRole) || isSupervisor(userRole),
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) =>
       canEditDelete(ticket, userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) =>
@@ -77,16 +81,10 @@ const statePermissions = {
       canViewSharePointLink(ticket, userRole),
   },
   "Confirmado por técnico": {
-    [TICKET_ACTIONS.ASSIGN_TECH]: (ticket, userRole) =>
-      isAdmin(userRole) || isSupervisor(userRole),
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) ||
-      isSupervisor(userRole) ||
-      isAssignedToTicket(ticket, userRole),
+      isAdmin(userRole) || isSupervisor(userRole) || isAssignedToTicket(ticket, userRole),
     [TICKET_ACTIONS.SCHEDULE_DATE]: (ticket, userRole) =>
-      isAdmin(userRole) ||
-      isSupervisor(userRole) ||
-      isAssignedToTicket(ticket, userRole),
+      isAdmin(userRole) || isSupervisor(userRole),
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) =>
       canEditDelete(ticket, userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) =>
@@ -96,18 +94,20 @@ const statePermissions = {
   },
   "Trabajo iniciado": {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) ||
-      isSupervisor(userRole) ||
-      isAssignedToTicket(ticket, userRole),
-    [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
-    [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
+      isAdmin(userRole) || isSupervisor(userRole) || isAssignedToTicket(ticket, userRole),
+    [TICKET_ACTIONS.EDIT]: (ticket, userRole) =>
+      canEditDelete(ticket, userRole),
+    [TICKET_ACTIONS.DELETE]: (ticket, userRole) =>
+      canEditDelete(ticket, userRole),
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
       canViewSharePointLink(ticket, userRole),
   },
-   "Trabajo Parcial": {
+  "Trabajo Parcial": {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
       isAdmin(userRole) || isSupervisor(userRole) || isAssignedToTicket(ticket, userRole),
-    [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole) ,
+    [TICKET_ACTIONS.REASSIGN_TECH]: (ticket, userRole) =>
+      canReassignTech(ticket, userRole), // Nueva acción para estado parcial
+    [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.UPDATE_PARCIAL]: (ticket, userRole) => true,
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
@@ -115,7 +115,7 @@ const statePermissions = {
   },
   Finalizada: {
     [TICKET_ACTIONS.UPDATE_STATUS]: (ticket, userRole) =>
-      isAdmin(userRole) || isSupervisor(userRole) ,
+      isAdmin(userRole) || isSupervisor(userRole),
     [TICKET_ACTIONS.EDIT]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.DELETE]: (ticket, userRole) => isAdmin(userRole),
     [TICKET_ACTIONS.VIEW_SHAREPOINT_LINK]: (ticket, userRole) =>
@@ -166,8 +166,8 @@ export const getNextAvailableStatus = (currentState) => {
     Iniciada: ["Técnico asignado"],
     "Técnico asignado": ["Confirmado por técnico"],
     "Confirmado por técnico": ["Trabajo iniciado"],
-    "Trabajo iniciado": ["Trabajo Parcial", "Finalizada"], // Ahora tiene dos opciones
-    "Trabajo Parcial": ["Finalizada"], // Desde Parcial solo puede finalizar
+    "Trabajo iniciado": ["Trabajo Parcial", "Finalizada"],
+    "Trabajo Parcial": ["Finalizada"],
     Finalizada: ["Cerrada"],
     Cerrada: [],
   };

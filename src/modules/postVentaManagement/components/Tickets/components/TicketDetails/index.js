@@ -1,4 +1,5 @@
-import React from "react";
+// src/modules/postVentaManagement/components/Tickets/components/TicketDetails/index.js
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";
 import { useTicketActions } from "../../hooks/useTicketActions";
@@ -27,6 +28,8 @@ import {
   DeleteTicketModal,
 } from "../../modals";
 
+import ReassignTechModal from '../../modals/AssignTechnicianModal/ReassignTechModal.js'
+
 const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -36,8 +39,14 @@ const TicketDetails = () => {
     systems,
     userRole,
     roles,
+    service,
     loading: contextLoading,
   } = usePostVentaManagement();
+
+  // Estado para modal de reasignación
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [reassignError, setReassignError] = useState(null);
+  const [reassigning, setReassigning] = useState(false);
 
   const {
     currentModal,
@@ -74,16 +83,42 @@ const TicketDetails = () => {
   const siteDetails = getSiteDetails(ticket.siteId);
   const system = systems.find((s) => s.id === ticket.systemId);
 
-  
-
   const handleBack = () => {
     navigate(POST_VENTA_ROUTES.TICKETS.LIST);
+  };
+
+  // Handler para reasignar técnicos
+  const handleReassignTech = async (ticketId, technicianIds) => {
+    try {
+      setReassigning(true);
+      setReassignError(null);
+
+      // Llamar al servicio para reasignar
+      await service.reassignTechniciansPartial(ticketId, technicianIds);
+
+      // Cerrar modal
+      setIsReassignModalOpen(false);
+
+      // Recargar la página para ver los cambios
+      window.location.reload();
+
+    } catch (err) {
+      console.error("Error reassigning technicians:", err);
+      setReassignError(err.message || "Error al reasignar técnicos");
+      // No hacemos throw para que el error se muestre en el modal
+    } finally {
+      setReassigning(false);
+    }
   };
 
   // Check permissions for edit and delete actions
   const canEdit = isActionAllowed(TICKET_ACTIONS.EDIT, ticket, userRole);
   const canDelete = isActionAllowed(TICKET_ACTIONS.DELETE, ticket, userRole);
-  const canViewSharePointLink = isActionAllowed(TICKET_ACTIONS.VIEW_SHAREPOINT_LINK,ticket,userRole);
+  const canViewSharePointLink = isActionAllowed(
+    TICKET_ACTIONS.VIEW_SHAREPOINT_LINK,
+    ticket,
+    userRole
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -94,7 +129,9 @@ const TicketDetails = () => {
           canEdit ? () => openModal(MODAL_TYPES.EDIT_TICKET, ticket) : null
         }
         onDelete={
-          canDelete ? () => openModal(MODAL_TYPES.DELETE_TICKET, ticket) : null
+          canDelete
+            ? () => openModal(MODAL_TYPES.DELETE_TICKET, ticket)
+            : null
         }
         className="mb-6"
         showEditDelete={canEdit || canDelete}
@@ -102,25 +139,24 @@ const TicketDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-
-
-
           <Card title={"Alcance"}>{ticket.scope}</Card>
 
-          {canViewSharePointLink && (<Card title={"Link de SharePoint"}>
-            {ticket.link ? (
-              <a
-                href={ticket.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 hover:underline break-all"
-              >
-                {ticket.link}
-              </a>
-            ) : (
-              <span className="text-gray-500">No hay link disponible</span>
-            )}
-          </Card>)}
+          {canViewSharePointLink && (
+            <Card title={"Link de SharePoint"}>
+              {ticket.link ? (
+                <a
+                  href={ticket.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 hover:underline break-all"
+                >
+                  {ticket.link}
+                </a>
+              ) : (
+                <span className="text-gray-500">No hay link disponible</span>
+              )}
+            </Card>
+          )}
 
           <FilesSection
             ticket={ticket}
@@ -136,6 +172,7 @@ const TicketDetails = () => {
           <ActionsPanel
             ticket={ticket}
             onAssignTech={() => openModal(MODAL_TYPES.ASSIGN_TECH, ticket)}
+            onReassignTech={() => setIsReassignModalOpen(true)}
             onUpdateStatus={(ticketId, newStatus) =>
               openModal(MODAL_TYPES.UPDATE_STATUS, { ...ticket, newStatus })
             }
@@ -163,6 +200,18 @@ const TicketDetails = () => {
         technicians={technicians}
         processing={processing}
         error={error}
+      />
+
+      <ReassignTechModal
+        isOpen={isReassignModalOpen}
+        onClose={() => {
+          setIsReassignModalOpen(false);
+          setReassignError(null);
+        }}
+        ticket={ticket}
+        onReassign={handleReassignTech}
+        processing={reassigning}
+        error={reassignError}
       />
 
       <TicketActionsModal

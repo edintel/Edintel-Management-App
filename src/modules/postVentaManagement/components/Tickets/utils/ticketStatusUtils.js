@@ -69,6 +69,8 @@ export const getNextStatus = (currentState) => {
       return null; // Retorna null porque hay múltiples opciones
     case "Trabajo Parcial":
       return "Finalizada";
+    case "Reasignar Técnico":
+      return null;
     case "Finalizada":
       return "Cerrada";
     default:

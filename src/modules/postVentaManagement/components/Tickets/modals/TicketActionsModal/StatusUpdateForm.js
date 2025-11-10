@@ -34,6 +34,8 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
         return "Finalizada"; // Default next status
       case "Trabajo Parcial":
         return "Finalizada"; // From incomplete can go to finalized
+      case "Reasignar Técnico":
+        return "Confirmado por técnico";
       case "Finalizada":
         return "Cerrada";
       default:

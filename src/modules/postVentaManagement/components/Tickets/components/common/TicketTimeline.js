@@ -32,7 +32,12 @@ const TimelineConfig = {
     bgColor: "bg-info/10",
   },
   "Trabajo Parcial": {
-    icon: Clock,  
+    icon: Clock,
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+  },
+  "Reasignación de técnico": {
+    icon: UserCheck,
     color: "text-warning",
     bgColor: "bg-warning/10",
   },

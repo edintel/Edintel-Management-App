@@ -1,3 +1,4 @@
+// src/modules/postVentaManagement/components/Tickets/components/TicketDetails/components/TimelineSection.js
 import React from "react";
 import Card from "../../../../../../../components/common/Card";
 import TicketTimeline from "../../common/TicketTimeline";
@@ -56,6 +57,7 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
+    // Trabajo Parcial
     if (ticket.workNotDone) {
       const event = {
         type: "Trabajo Parcial",
@@ -67,6 +69,33 @@ const TimelineSection = ({ ticket }) => {
         };
       }
       events.push(event);
+    }
+
+    if (ticket.lastReassignmentDate && ticket.reassignedTechnicians?.length > 0) {
+      events.push({
+        type: "Reasignación de técnico",
+        date: ticket.lastReassignmentDate,
+        description: "Nuevos técnicos asignados para completar el trabajo parcial",
+        details: {
+          "Técnicos reasignados": ticket.reassignedTechnicians
+            .map((tech) => tech.LookupValue)
+            .join(", "),
+          "Estado de confirmación": ticket.postReassignmentConfirmation
+            ? "✅ Confirmado"
+            : "⏳ Pendiente de confirmación"
+        },
+      });
+    }
+
+    // Confirmación post-reasignación
+    if (ticket.postReassignmentConfirmation) {
+      events.push({
+        type: "Confirmado por técnico",
+        date: ticket.postReassignmentConfirmation,
+        details: {
+          "Tipo": "Post-reasignación"
+        }
+      });
     }
 
     // Work finished with notes

@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   Lock,
   FileCheck,
+  Upload,
+  RefreshCw, 
 } from "lucide-react";
 import Card from "../../../../../../../components/common/Card";
 import Button from "../../../../../../../components/common/Button";
@@ -15,6 +17,7 @@ import {
   TICKET_ACTIONS,
   getAvailableActions,
 } from "../../../permissions/ticketActionPermissions";
+import UploadParcialButton from "./UploadParcialButton";
 
 // Helper functions for status-specific UI elements
 const getUpdateStatusLabel = (currentState) => {
@@ -25,7 +28,7 @@ const getUpdateStatusLabel = (currentState) => {
     case "Confirmado por técnico":
       return "Iniciar Trabajo";
     case "Trabajo iniciado":
-      return "Actualizar Estado"; // Genérico porque tiene múltiples opciones
+      return "Actualizar Estado"; 
     case "Trabajo Parcial":
       return "Finalizar Trabajo";
     case "Finalizada":
@@ -93,6 +96,8 @@ const ActionsPanel = ({
   onAssignTech,
   onUpdateStatus,
   onScheduleTicket,
+  onReassignTech,
+  onUploadParcialSuccess, 
   className = "",
 }) => {
   const { userRole } = usePostVentaManagement();
@@ -108,6 +113,12 @@ const ActionsPanel = ({
       icon: UserPlus,
       onClick: () => onAssignTech(ticket),
       variant: "secondary",
+    },
+    [TICKET_ACTIONS.REASSIGN_TECH]: {
+      label: "Reasignar Técnico",
+      icon: RefreshCw,
+      onClick: () => onReassignTech(ticket),
+      variant: "info",
     },
     [TICKET_ACTIONS.UPDATE_STATUS]: {
       label: getUpdateStatusLabel(ticket.state),
@@ -127,6 +138,18 @@ const ActionsPanel = ({
       icon: Calendar,
       onClick: () => onScheduleTicket(ticket),
       variant: "primary",
+    },
+    // Nueva configuración para UPDATE_PARCIAL
+    [TICKET_ACTIONS.UPDATE_PARCIAL]: {
+      component: UploadParcialButton, // Usar componente personalizado
+      props: {
+        ticket,
+        userRole,
+        onUploadSuccess: onUploadParcialSuccess || (() => {
+          console.log('Boleta parcial subida exitosamente');
+          // Aquí puedes agregar lógica adicional como recargar el ticket
+        }),
+      },
     },
   };
 
@@ -148,6 +171,17 @@ const ActionsPanel = ({
           const config = actionConfig[action];
           if (!config) return null;
 
+          // Si es un componente personalizado (como UploadParcialButton)
+          if (config.component) {
+            const Component = config.component;
+            return (
+              <div key={action} className="w-full">
+                <Component {...config.props} />
+              </div>
+            );
+          }
+
+          // Renderizado normal de botones
           return (
             <Button
               key={action}
@@ -160,6 +194,11 @@ const ActionsPanel = ({
             </Button>
           );
         })}
+        
+        {/* Separador visual si hay botón de subida parcial */}
+        {ticket.state === "Trabajo Parcial" && availableActions.includes(TICKET_ACTIONS.UPDATE_PARCIAL) && availableActions.includes(TICKET_ACTIONS.UPDATE_STATUS) && (
+          <div className="border-t border-gray-200 my-2" />
+        )}
       </div>
     </Card>
   );

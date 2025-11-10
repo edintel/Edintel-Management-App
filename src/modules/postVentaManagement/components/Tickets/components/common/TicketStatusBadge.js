@@ -36,6 +36,11 @@ const TicketStatusBadge = ({ status, className = "" }) => {
         label: "Trabajo Parcial",
         className: "bg-orange-100 text-orange-800",
         icon: AlertTriangle,
+      }, 
+      "Reasignación de técnico": {
+        label: "Reasignación de técnico",
+        className: "bg-orange-100 text-orange-800",
+       icon: CheckCircle,
       },
       "Finalizada": {
         label: "Finalizada",

@@ -119,7 +119,10 @@ class PostVentaManagementService extends BaseGraphService {
       messageId: item.fields.MessageId,
       notes: item.fields.Notas || null,
       link: item.fields.Link || "",
-      workNotDone: item.fields.FechaParcial
+      workNotDone: item.fields.FechaParcial,
+      reassignedTechnicians: item.fields.ReasignacionesParcial || [], // Técnicos reasignados
+      lastReassignmentDate: item.fields.FechaUltimaReasignacionParcial, // Última reasignación
+      postReassignmentConfirmation: item.fields.ConfirmacionPostReasignacion, // Confirmación post-reasignación
     }));
   }
 
@@ -480,6 +483,107 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
+
+  async reassignTechniciansPartial(ticketId, technicianIds) {
+    await this.initializeGraphClient();
+
+    try {
+      console.log('🔍 DEBUG: Buscando campo correcto...');
+
+      const ticket = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .expand("fields")
+        .get();
+
+      if (ticket.fields.Estado !== "Trabajo Parcial") {
+        throw new Error("Solo se pueden reasignar técnicos en estado Trabajo Parcial");
+      }
+
+      // Obtener columnas para debugging
+      const columns = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/columns`)
+        .get();
+
+      const personColumns = columns.value.filter(col =>
+        col.personOrGroup?.allowMultipleSelection &&
+        (col.name.toLowerCase().includes('reasign') ||
+          col.name.toLowerCase().includes('parcial') ||
+          col.displayName.toLowerCase().includes('reasign') ||
+          col.displayName.toLowerCase().includes('parcial'))
+      );
+
+      console.log('🎯 Columnas Person/Group con selección múltiple:');
+      personColumns.forEach(col => {
+        console.log(`  - ${col.displayName}: ${col.name}`);
+      });
+
+      const now = new Date().toISOString();
+      const technicianLookups = technicianIds.map((id) => id.toString());
+
+      // Probar cada campo encontrado
+      for (const col of personColumns) {
+        console.log(`🧪 Probando: ${col.name}LookupId`);
+
+        try {
+          const response = await this.client
+            .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+            .patch({
+              fields: {
+                "ReasignacionesParcialLookupId@odata.type" : "Collection(Edm.String)",
+                [`${col.name}LookupId`]: technicianLookups,
+                FechaUltimaReasignacionParcial: now,
+                ConfirmacionPostReasignacion: null,
+              },
+            });
+
+          console.log(`✅ ¡ÉXITO! Campo correcto: ${col.name}LookupId`);
+          return response;
+
+        } catch (err) {
+          console.log(`❌ Falló: ${col.name}LookupId`);
+        }
+      }
+
+      // Si no hay campos encontrados o ninguno funciona
+      throw new Error('No se encontró el campo correcto. Verifica que exista en SharePoint.');
+
+    } catch (error) {
+      console.error("Error:", error);
+      throw new Error(`Error al reasignar técnicos: ${error.message}`);
+    }
+  }
+
+  /**
+   * Confirms technician assignment after reassignment in Partial state
+   * This is called when technician confirms after being reassigned
+   * @param {string} ticketId - The ticket ID
+   * @returns {Promise<Object>} Updated ticket
+   */
+  async confirmPostReassignment(ticketId) {
+    await this.initializeGraphClient();
+
+    try {
+      const now = new Date().toISOString();
+
+      const response = await this.client
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
+        .patch({
+          fields: {
+            ConfirmacionPostReasignacion: now
+          },
+        });
+
+      return response;
+    } catch (error) {
+      console.error("Error confirming post-reassignment:", error);
+      throw new Error(`Error al confirmar reasignación: ${error.message}`);
+    }
+  }
+
+
+
   async getTicketById(ticketId) {
     if (!ticketId) throw new Error("Ticket ID is required");
 
@@ -522,7 +626,10 @@ class PostVentaManagementService extends BaseGraphService {
         messageId: response.fields.MessageId,
         notes: response.fields.Notas || null,
         link: response.fields.link || null,
-        workNotDone: response.fields.FechaParcial
+        workNotDone: response.fields.FechaParcial,
+        reassignedTechnicians: response.fields.ReasignacionesParcial || [], // Técnicos reasignados
+        lastReassignmentDate: response.fields.FechaUltimaReasignacionParcial, // Última reasignación
+        postReassignmentConfirmation: response.fields.ConfirmacionPostReasignacion, // Confirmación post-reasignación
       };
     } catch (error) {
       console.error("Error fetching ticket:", error);
@@ -658,7 +765,7 @@ class PostVentaManagementService extends BaseGraphService {
       }
 
       fields.Estado = newStatus;
-      
+
 
       const response = await this.client
         .api(
@@ -710,7 +817,7 @@ class PostVentaManagementService extends BaseGraphService {
         SistemaIDLookupId: parseInt(data.systemId),
         alcance: data.scope,
         Tipo: data.type,
-        Link: data.link.trim() || "",
+        Link: data.link?.trim() || "",
       };
       const ticket = await this.client
         .api(
