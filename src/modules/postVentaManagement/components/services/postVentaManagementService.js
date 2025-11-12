@@ -519,7 +519,7 @@ class PostVentaManagementService extends BaseGraphService {
         throw new Error("Ticket not found");
       }
 
-      // ✨ NUEVO: Parse del historial
+   
       let reassignmentHistory = [];
       if (response.fields.HistorialReasignaciones) {
         try {

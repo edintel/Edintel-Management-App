@@ -1,4 +1,3 @@
-// src/modules/postVentaManagement/components/Tickets/components/TicketDetails/index.js
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePostVentaManagement } from "../../../../context/postVentaManagementContext";

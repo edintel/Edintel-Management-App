@@ -40,30 +40,54 @@ const ListTable = ({
     {
       key: "stNumber",
       header: "ST",
-      width: 2, // Relative flex value
-      render: (value, row) => (
-        <div className="flex items-center gap-4">
-          <span className="font-medium">{value}</span>
-          {row.technicians?.length > 0 && (
-            <div className="flex -space-x-2">
-              {row.technicians.slice(0, 3).map((tech, index) => (
-                <div
-                  key={index}
-                  className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary ring-2 ring-white"
-                  title={tech.LookupValue}
-                >
-                  {tech.LookupValue.charAt(0)}
-                </div>
-              ))}
-              {row.technicians.length > 3 && (
-                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 ring-2 ring-white">
-                  +{row.technicians.length - 3}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ),
+      width: 2,
+      render: (value, row) => {
+        // Combinar técnicos originales y reasignados
+        const originalTechs = row.technicians || [];
+        const reassignedTechs = row.reassignedTechnicians || [];
+        const allTechs = [...originalTechs, ...reassignedTechs];
+
+        return (
+          <div className="flex items-center gap-4">
+            <span className="font-medium">{value}</span>
+            {allTechs.length > 0 && (
+              <div className="flex -space-x-2">
+                {/* Mostrar técnicos originales primero */}
+                {originalTechs.slice(0, 3).map((tech, index) => (
+                  <div
+                    key={`orig-${index}`}
+                    className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary ring-2 ring-white"
+                    title={tech.LookupValue}
+                  >
+                    {tech.LookupValue.charAt(0)}
+                  </div>
+                ))}
+
+                {/* Mostrar técnicos reasignados con estilo diferente */}
+                {originalTechs.length < 3 && reassignedTechs.slice(0, 3 - originalTechs.length).map((tech, index) => (
+                  <div
+                    key={`reass-${index}`}
+                    className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center text-xs font-medium text-amber-700 ring-2 ring-white"
+                    title={`${tech.LookupValue} (Reasignado)`}
+                  >
+                    {tech.LookupValue.charAt(0)}
+                  </div>
+                ))}
+
+                {/* Contador de técnicos adicionales */}
+                {allTechs.length > 3 && (
+                  <div
+                    className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 ring-2 ring-white"
+                    title={`${allTechs.length - 3} técnicos más`}
+                  >
+                    +{allTechs.length - 3}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "siteId",
@@ -136,7 +160,7 @@ const ListTable = ({
       className: "justify-end", // Align content to the right
       render: (_, row) => (
         <div className="flex">
-          <QuickActions 
+          <QuickActions
             ticket={row}
             onOpenModal={onOpenModal}
             onDownloadFile={onDownloadFile}
