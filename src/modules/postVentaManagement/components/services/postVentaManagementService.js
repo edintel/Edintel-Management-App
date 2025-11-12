@@ -496,14 +496,12 @@ class PostVentaManagementService extends BaseGraphService {
         workNotDone: item.fields.FechaParcial,
         reassignedTechnicians: item.fields.ReasignacionesParcial || [],
         lastReassignmentDate: item.fields.FechaUltimaReasignacionParcial,
-        postReassignmentConfirmation: item.fields.ConfirmacionPostReasignacion,
-        // ✨ NUEVO: Agregar historial completo
+      //  postReassignmentConfirmation: item.fields.ConfirmacionPostReasignacion,
         reassignmentHistory: reassignmentHistory,
       };
     });
   }
 
-  // ✨ NUEVO: También actualizar getTicketById() para incluir el historial
   async getTicketById(ticketId) {
     if (!ticketId) throw new Error("Ticket ID is required");
 
@@ -559,8 +557,7 @@ class PostVentaManagementService extends BaseGraphService {
         workNotDone: response.fields.FechaParcial,
         reassignedTechnicians: response.fields.ReasignacionesParcial || [],
         lastReassignmentDate: response.fields.FechaUltimaReasignacionParcial,
-        postReassignmentConfirmation: response.fields.ConfirmacionPostReasignacion,
-        // ✨ NUEVO: Incluir historial completo
+     //   postReassignmentConfirmation: response.fields.ConfirmacionPostReasignacion,
         reassignmentHistory: reassignmentHistory,
       };
     } catch (error) {
@@ -616,7 +613,7 @@ class PostVentaManagementService extends BaseGraphService {
                 "ReasignacionesParcialLookupId@odata.type": "Collection(Edm.String)",
                 [`${col.name}LookupId`]: technicianLookups,
                 FechaUltimaReasignacionParcial: now,
-                ConfirmacionPostReasignacion: null,
+               
               },
             });
 

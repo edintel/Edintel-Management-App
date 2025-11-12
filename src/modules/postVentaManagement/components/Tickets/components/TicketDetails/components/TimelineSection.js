@@ -27,7 +27,7 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-    
+
     if (ticket.technicians?.length > 0) {
       events.push({
         type: "Técnico asignado",
@@ -56,109 +56,58 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-    
+
     if (ticket.workNotDone) {
       const event = {
         type: "Trabajo Parcial",
         date: ticket.workNotDone
       };
-      
+
       const details = {};
-      
+
+      // Agregar notas si existen
       if (ticket.notes) {
         details["Notas"] = ticket.notes;
       }
-      
-    
-      if (ticket.reassignedTechnicians?.length > 0) {
+
+      // Verificar si hay reasignación de técnicos
+      const hasReassignment = ticket.reassignedTechnicians?.length > 0;
+
+      if (hasReassignment) {
+        // Mostrar técnicos reasignados
         details["Técnicos reasignados"] = ticket.reassignedTechnicians
           .map(tech => tech.LookupValue)
           .join(", ");
+
+        // Mostrar fecha de reasignación si existe
+        if (ticket.lastReassignmentDate) {
+          details["Fecha de reasignación"] = new Date(ticket.lastReassignmentDate).toLocaleString("es-ES", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        }
       }
-      
-      
-      if (ticket.lastReassignmentDate) {
-        details["Última reasignación"] = new Date(ticket.lastReassignmentDate).toLocaleString("es-ES", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+
+      // Contar cuántas boletas parciales se han subido
+      const partialDocuments = ticket.reassignmentHistory?.filter(
+        entry => entry.type === "partial_document"
+      ) || [];
+
+      if (partialDocuments.length > 0) {
+        details["Boletas parciales subidas"] = partialDocuments.length;
       }
-      
+
+      // Solo agregar detalles si hay algo que mostrar
       if (Object.keys(details).length > 0) {
         event.details = details;
       }
-      
+
       events.push(event);
     }
 
-   
-    if (ticket.reassignmentHistory && Array.isArray(ticket.reassignmentHistory)) {
-      ticket.reassignmentHistory.forEach((entry) => {
-        if (entry.type === "reassignment") {
-          // Evento de reasignación
-          events.push({
-            type: "Reasignación de técnico",
-            date: entry.date,
-            description: "Técnicos reasignados durante trabajo parcial",
-            details: {
-              "Técnicos anteriores": entry.previousTechnicians
-                .map(t => t.name)
-                .join(", "),
-              "Nuevos técnicos": entry.newTechnicians
-                .map(t => t.name)
-                .join(", ")
-            }
-          });
-        } else if (entry.type === "partial_document") {
-          // Evento de subida de boleta parcial
-          events.push({
-            type: "Boleta Parcial Subida",
-            date: entry.date,
-            description: "Documento de trabajo parcial agregado",
-            details: {
-              "Archivo": entry.fileName,
-              "Link": entry.fileUrl
-            }
-          });
-        }
-      });
-    }
-
-   
-    if (ticket.lastReassignmentDate && 
-        ticket.reassignedTechnicians?.length > 0 &&
-        (!ticket.reassignmentHistory || ticket.reassignmentHistory.length === 0)) {
-      events.push({
-        type: "Reasignación de técnico",
-        date: ticket.lastReassignmentDate,
-        description: "Técnicos reasignados para completar el trabajo parcial",
-        details: {
-          "Técnicos anteriores": ticket.technicians
-            .map(t => t.LookupValue)
-            .join(", "),
-          "Nuevos técnicos": ticket.reassignedTechnicians
-            .map(t => t.LookupValue)
-            .join(", "),
-          "Estado de confirmación": ticket.postReassignmentConfirmation
-            ? "✅ Confirmado"
-            : "⏳ Pendiente de confirmación"
-        }
-      });
-    }
-
-    // Confirmación post-reasignación
-    if (ticket.postReassignmentConfirmation) {
-      events.push({
-        type: "Confirmado por técnico",
-        date: ticket.postReassignmentConfirmation,
-        details: {
-          "Tipo": "Post-reasignación"
-        }
-      });
-    }
 
     // Work finished with notes
     if (ticket.workEndDate) {

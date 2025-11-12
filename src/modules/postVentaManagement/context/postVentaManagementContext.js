@@ -207,7 +207,6 @@ export function usePostVentaManagement() {
     error,
     initialized,
     loadPostVentaData,
-    // Additional helper functions
     getCompanyHierarchy,
     getTicketsAssignedToMe,
     getSiteDetails,
