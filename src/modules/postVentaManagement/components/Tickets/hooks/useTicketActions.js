@@ -339,11 +339,11 @@ export const useTicketActions = () => {
 </body>
 </html>`;
 
-          /*  await service.sendEmail({
+            await service.sendEmail({
              toRecipients: [supportEmail],
              subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
              content: emailContent,
-           }); */
+           }); 
         }
 
         await service.updateTicketStatus(ticketId, newStatus, notes);
