@@ -117,6 +117,7 @@ class PostVentaManagementService extends BaseGraphService {
         Estado: "Iniciada",
         Tipo: stData.type,
         Link: stData.link,
+        Equiment: stData.waitingEquiment || false,
       };
 
       const response = await this.client
@@ -458,7 +459,7 @@ class PostVentaManagementService extends BaseGraphService {
     );
 
     return items.map((item) => {
-      // ✨ NUEVO: Parse del historial de reasignaciones
+     
       let reassignmentHistory = [];
       if (item.fields.HistorialReasignaciones) {
         try {
@@ -496,8 +497,8 @@ class PostVentaManagementService extends BaseGraphService {
         workNotDone: item.fields.FechaParcial,
         reassignedTechnicians: item.fields.ReasignacionesParcial || [],
         lastReassignmentDate: item.fields.FechaUltimaReasignacionParcial,
-      //  postReassignmentConfirmation: item.fields.ConfirmacionPostReasignacion,
         reassignmentHistory: reassignmentHistory,
+        waitingEquiment: item.fields?.Equiment || false,
       };
     });
   }
@@ -519,7 +520,7 @@ class PostVentaManagementService extends BaseGraphService {
         throw new Error("Ticket not found");
       }
 
-   
+
       let reassignmentHistory = [];
       if (response.fields.HistorialReasignaciones) {
         try {
@@ -557,8 +558,8 @@ class PostVentaManagementService extends BaseGraphService {
         workNotDone: response.fields.FechaParcial,
         reassignedTechnicians: response.fields.ReasignacionesParcial || [],
         lastReassignmentDate: response.fields.FechaUltimaReasignacionParcial,
-     //   postReassignmentConfirmation: response.fields.ConfirmacionPostReasignacion,
         reassignmentHistory: reassignmentHistory,
+       
       };
     } catch (error) {
       console.error("Error fetching ticket:", error);
@@ -569,7 +570,7 @@ class PostVentaManagementService extends BaseGraphService {
     await this.initializeGraphClient();
 
     try {
-      
+
 
       const ticket = await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
@@ -593,7 +594,7 @@ class PostVentaManagementService extends BaseGraphService {
           col.displayName.toLowerCase().includes('parcial'))
       );
 
-     
+
       personColumns.forEach(col => {
         console.log(`  - ${col.displayName}: ${col.name}`);
       });
@@ -603,7 +604,7 @@ class PostVentaManagementService extends BaseGraphService {
 
       // Probar cada campo encontrado
       for (const col of personColumns) {
-        console.log(`🧪 Probando: ${col.name}LookupId`);
+       
 
         try {
           const response = await this.client
@@ -613,7 +614,7 @@ class PostVentaManagementService extends BaseGraphService {
                 "ReasignacionesParcialLookupId@odata.type": "Collection(Edm.String)",
                 [`${col.name}LookupId`]: technicianLookups,
                 FechaUltimaReasignacionParcial: now,
-               
+
               },
             });
 
@@ -845,6 +846,7 @@ class PostVentaManagementService extends BaseGraphService {
         alcance: data.scope,
         Tipo: data.type,
         Link: data.link?.trim() || "",
+        Equiment: data.Equiment ,
       };
       const ticket = await this.client
         .api(

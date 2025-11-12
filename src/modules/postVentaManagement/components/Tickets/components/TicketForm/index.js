@@ -27,10 +27,12 @@ const TicketForm = () => {
     systemId: "",
     type: "",
     link: "",
+    waitingEquiment: false,
   });
   const supportEmail = emailConfig.supportEmail;
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+
 
   useEffect(() => {
     const now = new Date();
@@ -110,7 +112,15 @@ const TicketForm = () => {
   }, [systems, availableSystems]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+
+    if (type === "checkbox") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: checked  // Usar checked en lugar de value
+      }));
+      return;
+    }
 
     // Special handling for type field
     if (name === "type") {
@@ -202,6 +212,7 @@ const TicketForm = () => {
         st: finalFormData.st.trim(),
         scope: finalFormData.scope.trim(),
         link: finalFormData.link.trim(),
+        waitingEquiment: finalFormData.waitingEquiment,
       };
       const response = await service.createServiceTicket({
         ...trimmedData,
@@ -270,13 +281,14 @@ const TicketForm = () => {
         },
         images: imageLinks,
         adminDocs: adminFileLinks,
+        waitingEquiment: finalFormData.waitingEquiment,
       });
-       await service.sendEmail({
-        toRecipients: [supportEmail],
-        subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
-          }`,
-        content: emailContent,
-      }); 
+            await service.sendEmail({
+              toRecipients: [supportEmail],
+              subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
+                }`,
+              content: emailContent,
+            });  
       await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {
@@ -365,6 +377,25 @@ const TicketForm = () => {
               required
             />
           </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="waitingEquiment"
+                checked={formData.waitingEquiment}
+                onChange={handleInputChange}
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Ticket esperando equipo
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 ml-6">
+              Marque esta opción si el ticket está en espera de equipos o materiales
+            </p>
+          </div>
+
           {/* Location Fields */}
           <div className="space-y-4">
             <div className="space-y-2">
@@ -536,6 +567,7 @@ const generateEmailContent = ({
   siteDetails,
   images,
   adminDocs,
+  waitingEquiment,
 }) => {
   return `
     <!DOCTYPE html>
@@ -604,6 +636,12 @@ const generateEmailContent = ({
                     <span class="label">ST:</span>
                     <span class="value">${st}</span>
                 </div>
+   ${waitingEquiment ? `
+            <div class="warning">
+                <strong>⚠️ ATENCIÓN:</strong> Este ticket está esperando equipo o materiales
+            </div>
+            ` : ''}
+
                 <div class="info-row">
                     <span class="label">Tipo:</span>
                     <span class="value">${type}</span>

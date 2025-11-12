@@ -1,14 +1,30 @@
 import React from 'react';
-import { Building2, Building, MapPin, Mail, Phone, User } from 'lucide-react';
+import { Building2, Building, MapPin, Mail, Phone, User, PackageX } from 'lucide-react';
 import Card from '../../../../../../../components/common/Card';
 
-const LocationInfo = ({ siteDetails, system, roles }) => {
+const LocationInfo = ({ siteDetails, system, roles, ticket }) => {
   if (!siteDetails) return null;
 
   return (
     <div className="space-y-6">
       <Card title="Información de Sitio">
         <div className="space-y-4">
+          {ticket?.waitingEquiment && (
+            <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg">
+              <div className="flex items-center gap-2">
+                <PackageX className="h-5 w-5 text-warning" />
+                <div>
+                  <p className="text-sm font-semibold text-warning">
+                    Esperando Equipo
+                  </p>
+                  <p className="text-xs text-warning/80">
+                    Este ticket está en espera de equipos o materiales
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <Building2 className="h-5 w-5 text-gray-400" />
             <div>

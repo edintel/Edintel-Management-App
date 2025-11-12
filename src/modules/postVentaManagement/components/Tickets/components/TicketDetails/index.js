@@ -184,6 +184,7 @@ const TicketDetails = () => {
             siteDetails={siteDetails}
             system={system}
             roles={roles}
+            ticket={ticket} 
           />
         </div>
       </div>

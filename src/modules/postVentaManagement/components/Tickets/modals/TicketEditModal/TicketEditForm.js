@@ -29,7 +29,8 @@ const TicketEditForm = ({
     siteId: "",
     systemId: "",
     type: "",
-    link: ""
+    link: "",
+    waitingEquiment: false,
   });
   // File management state structure
   const [fileState, setFileState] = useState({
@@ -195,13 +196,23 @@ const TicketEditForm = ({
         siteId: initialData.siteId || "",
         systemId: initialData.systemId || "",
         type: initialData.type || "",
-        link: initialData.link || ""
+        link: initialData.link || "",
+        waitingEquiment: initialData.waitingEquiment ,
       });
     }
   }, [initialData, buildings, sites]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+
+
+    if (type === "checkbox") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: checked
+      }));
+      return;
+    }
     
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
@@ -397,6 +408,25 @@ const TicketEditForm = ({
           required
         />
       </div>
+      
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            name="waitingEquiment"
+            checked={formData.waitingEquiment}
+            onChange={handleInputChange}
+            className="rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <span className="text-sm font-medium text-gray-700">
+            Ticket esperando equipo
+          </span>
+        </label>
+        <p className="text-xs text-gray-500 ml-6">
+          Marque esta opción si el ticket está en espera de equipos o materiales
+        </p>
+      </div>
+
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Empresa *</label>
