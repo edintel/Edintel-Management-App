@@ -90,41 +90,6 @@ class PostVentaManagementService extends BaseGraphService {
     }));
   }
 
-  async getServiceTickets() {
-    const items = await this.getListItems(
-      this.siteId,
-      this.config.lists.controlPV
-    );
-    return items.map((item) => ({
-      id: item.id,
-      scope: item.fields.alcance,
-      stNumber: item.fields.Title,
-      type: item.fields.Tipo,
-      descriptionId: item.fields.Descripci_x00f3_n,
-      siteId: item.fields.SitioIDLookupId,
-      state: item.fields.Estado,
-      technicians: item.fields.Tecnicoasignado || [],
-      tentativeDate: item.fields.Fecha,
-      technicianAssignedDate: item.fields.FechaTecnicoAsignado,
-      confirmationDate: item.fields.Fechaconfirmaci_x00f3_n,
-      workStartDate: item.fields.Fechatrabajoiniciado,
-      workEndDate: item.fields.Fechatrabajofinalizado,
-      closeDate: item.fields.Fechacierre,
-      serviceTicketId: item.fields.Boleta,
-      reportId: item.fields.Informe,
-      systemId: item.fields.SistemaIDLookupId,
-      calendarEventId: item.fields.calendarEvent,
-      createdBy: item.createdBy,
-      created: item.createdDateTime,
-      messageId: item.fields.MessageId,
-      notes: item.fields.Notas || null,
-      link: item.fields.Link || "",
-      workNotDone: item.fields.FechaParcial,
-      reassignedTechnicians: item.fields.ReasignacionesParcial || [], // Técnicos reasignados
-      lastReassignmentDate: item.fields.FechaUltimaReasignacionParcial, // Última reasignación
-      postReassignmentConfirmation: item.fields.ConfirmacionPostReasignacion, // Confirmación post-reasignación
-    }));
-  }
 
   /**
    * Filters service tickets by assigned technician
@@ -483,12 +448,131 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
+  // Actualización de getServiceTickets() en postVentaManagementService.js
+  // Reemplazar la función existente con esta versión mejorada
 
+  async getServiceTickets() {
+    const items = await this.getListItems(
+      this.siteId,
+      this.config.lists.controlPV
+    );
+
+    return items.map((item) => {
+      // ✨ NUEVO: Parse del historial de reasignaciones
+      let reassignmentHistory = [];
+      if (item.fields.HistorialReasignaciones) {
+        try {
+          reassignmentHistory = JSON.parse(item.fields.HistorialReasignaciones);
+        } catch (e) {
+          console.warn(`Error parsing reassignment history for ticket ${item.id}:`, e);
+          reassignmentHistory = [];
+        }
+      }
+
+      return {
+        id: item.id,
+        scope: item.fields.alcance,
+        stNumber: item.fields.Title,
+        type: item.fields.Tipo,
+        descriptionId: item.fields.Descripci_x00f3_n,
+        siteId: item.fields.SitioIDLookupId,
+        state: item.fields.Estado,
+        technicians: item.fields.Tecnicoasignado || [],
+        tentativeDate: item.fields.Fecha,
+        technicianAssignedDate: item.fields.FechaTecnicoAsignado,
+        confirmationDate: item.fields.Fechaconfirmaci_x00f3_n,
+        workStartDate: item.fields.Fechatrabajoiniciado,
+        workEndDate: item.fields.Fechatrabajofinalizado,
+        closeDate: item.fields.Fechacierre,
+        serviceTicketId: item.fields.Boleta,
+        reportId: item.fields.Informe,
+        systemId: item.fields.SistemaIDLookupId,
+        calendarEventId: item.fields.calendarEvent,
+        createdBy: item.createdBy,
+        created: item.createdDateTime,
+        messageId: item.fields.MessageId,
+        notes: item.fields.Notas || null,
+        link: item.fields.Link || "",
+        workNotDone: item.fields.FechaParcial,
+        reassignedTechnicians: item.fields.ReasignacionesParcial || [],
+        lastReassignmentDate: item.fields.FechaUltimaReasignacionParcial,
+        postReassignmentConfirmation: item.fields.ConfirmacionPostReasignacion,
+        // ✨ NUEVO: Agregar historial completo
+        reassignmentHistory: reassignmentHistory,
+      };
+    });
+  }
+
+  // ✨ NUEVO: También actualizar getTicketById() para incluir el historial
+  async getTicketById(ticketId) {
+    if (!ticketId) throw new Error("Ticket ID is required");
+
+    await this.initializeGraphClient();
+
+    try {
+      const response = await this.client
+        .api(
+          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
+        )
+        .expand("fields")
+        .get();
+
+      if (!response || !response.fields) {
+        throw new Error("Ticket not found");
+      }
+
+      // ✨ NUEVO: Parse del historial
+      let reassignmentHistory = [];
+      if (response.fields.HistorialReasignaciones) {
+        try {
+          reassignmentHistory = JSON.parse(response.fields.HistorialReasignaciones);
+        } catch (e) {
+          console.warn(`Error parsing reassignment history:`, e);
+          reassignmentHistory = [];
+        }
+      }
+
+      return {
+        id: response.id,
+        stNumber: response.fields.Title,
+        scope: response.fields.alcance,
+        type: response.fields.Tipo,
+        descriptionId: response.fields.Descripci_x00f3_n,
+        siteId: response.fields.SitioIDLookupId,
+        systemId: response.fields.SistemaIDLookupId,
+        state: response.fields.Estado,
+        technicians: response.fields.Tecnicoasignado || [],
+        tentativeDate: response.fields.Fecha,
+        technicianAssignedDate: response.fields.FechaTecnicoAsignado,
+        confirmationDate: response.fields.Fechaconfirmaci_x00f3_n,
+        workStartDate: response.fields.Fechatrabajoiniciado,
+        workEndDate: response.fields.Fechatrabajofinalizado,
+        closeDate: response.fields.Fechacierre,
+        serviceTicketId: response.fields.Boleta,
+        reportId: response.fields.Informe,
+        createdBy: response.createdBy,
+        created: response.createdDateTime,
+        messageId: response.fields.MessageId,
+        calendarEventId: response.fields.calendarEvent,
+        link: response.fields.Link || "",
+        notes: response.fields.Notas || null,
+        workNotDone: response.fields.FechaParcial,
+        reassignedTechnicians: response.fields.ReasignacionesParcial || [],
+        lastReassignmentDate: response.fields.FechaUltimaReasignacionParcial,
+        postReassignmentConfirmation: response.fields.ConfirmacionPostReasignacion,
+        // ✨ NUEVO: Incluir historial completo
+        reassignmentHistory: reassignmentHistory,
+      };
+    } catch (error) {
+      console.error("Error fetching ticket:", error);
+      throw error;
+    }
+  }
   async reassignTechniciansPartial(ticketId, technicianIds) {
     await this.initializeGraphClient();
 
     try {
-      console.log('🔍 DEBUG: Buscando campo correcto...');
+      
 
       const ticket = await this.client
         .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
@@ -512,7 +596,7 @@ class PostVentaManagementService extends BaseGraphService {
           col.displayName.toLowerCase().includes('parcial'))
       );
 
-      console.log('🎯 Columnas Person/Group con selección múltiple:');
+     
       personColumns.forEach(col => {
         console.log(`  - ${col.displayName}: ${col.name}`);
       });
@@ -529,7 +613,7 @@ class PostVentaManagementService extends BaseGraphService {
             .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
             .patch({
               fields: {
-                "ReasignacionesParcialLookupId@odata.type" : "Collection(Edm.String)",
+                "ReasignacionesParcialLookupId@odata.type": "Collection(Edm.String)",
                 [`${col.name}LookupId`]: technicianLookups,
                 FechaUltimaReasignacionParcial: now,
                 ConfirmacionPostReasignacion: null,
@@ -582,60 +666,6 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-
-
-  async getTicketById(ticketId) {
-    if (!ticketId) throw new Error("Ticket ID is required");
-
-    await this.initializeGraphClient();
-
-    try {
-      const response = await this.client
-        .api(
-          `/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`
-        )
-        .expand("fields")
-        .get();
-
-      if (!response || !response.fields) {
-        throw new Error("Ticket not found");
-      }
-
-      // Map the response to include all necessary fields
-      return {
-        id: response.id,
-        stNumber: response.fields.Title,
-        scope: response.fields.alcance,
-        type: response.fields.Tipo,
-        descriptionId: response.fields.Descripci_x00f3_n,
-        siteId: response.fields.SitioIDLookupId,
-        systemId: response.fields.SistemaIDLookupId,
-        state: response.fields.Estado,
-        technicians: response.fields.Tecnicoasignado || [],
-        tentativeDate: response.fields.Fecha,
-        technicianAssignedDate: response.fields.FechaTecnicoAsignado,
-        confirmationDate: response.fields.Fechaconfirmaci_x00f3_n,
-        workStartDate: response.fields.Fechatrabajoiniciado,
-        workEndDate: response.fields.Fechatrabajofinalizado,
-        closeDate: response.fields.Fechacierre,
-        serviceTicketId: response.fields.Boleta,
-        reportId: response.fields.Informe,
-        calendarEventId: response.fields.calendarEvent,
-        createdBy: response.createdBy,
-        created: response.createdDateTime,
-        messageId: response.fields.MessageId,
-        notes: response.fields.Notas || null,
-        link: response.fields.link || null,
-        workNotDone: response.fields.FechaParcial,
-        reassignedTechnicians: response.fields.ReasignacionesParcial || [], // Técnicos reasignados
-        lastReassignmentDate: response.fields.FechaUltimaReasignacionParcial, // Última reasignación
-        postReassignmentConfirmation: response.fields.ConfirmacionPostReasignacion, // Confirmación post-reasignación
-      };
-    } catch (error) {
-      console.error("Error fetching ticket:", error);
-      throw new Error(`Error fetching ticket: ${error.message}`);
-    }
-  }
 
   async getSiteById(siteId) {
     if (!siteId) throw new Error("Site ID is required");
@@ -1369,6 +1399,208 @@ class PostVentaManagementService extends BaseGraphService {
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     return `${year}${month}-3xxx`;
   }
+
+
+
+
+
+  /**
+   * Agrega una nueva entrada al historial de reasignaciones
+   * @param {string} ticketId - ID del ticket
+   * @param {Array} newTechnicianIds - IDs de los nuevos técnicos
+   * @param {Array} previousTechnicianIds - IDs de los técnicos anteriores
+   * @returns {Promise<Object>} Ticket actualizado
+   */
+  async reassignTechniciansWithHistory(ticketId, newTechnicianIds, previousTechnicianIds) {
+    await this.initializeGraphClient();
+
+    try {
+      // 1. Obtener el ticket actual
+      const ticket = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .expand("fields")
+        .get();
+
+      if (ticket.fields.Estado !== "Trabajo Parcial") {
+        throw new Error("Solo se pueden reasignar técnicos en estado Trabajo Parcial");
+      }
+
+      // 2. Obtener historial actual
+      let history = [];
+      if (ticket.fields.HistorialReasignaciones) {
+        try {
+          history = JSON.parse(ticket.fields.HistorialReasignaciones);
+        } catch (e) {
+          console.warn("Error parsing history, starting fresh");
+          history = [];
+        }
+      }
+
+      // 3. Obtener nombres de técnicos para el historial
+      const getTechNames = async (techIds) => {
+        const names = [];
+        for (const id of techIds) {
+          try {
+            const user = await this.client
+              .api(`/sites/${this.siteId}/lists/${this.config.lists.roles}/items`)
+              .filter(`fields/EmpleadoIDLookupId eq ${id}`)
+              .expand("fields")
+              .get();
+
+            if (user.value.length > 0) {
+              names.push({
+                id: id,
+                name: user.value[0].fields.EmpleadoID?.LookupValue || "Desconocido"
+              });
+            }
+          } catch (e) {
+            names.push({ id: id, name: "Desconocido" });
+          }
+        }
+        return names;
+      };
+
+      const previousTechs = await getTechNames(previousTechnicianIds);
+      const newTechs = await getTechNames(newTechnicianIds);
+
+      // 4. Crear nueva entrada en el historial
+      const now = new Date().toISOString();
+      const newEntry = {
+        date: now,
+        previousTechnicians: previousTechs,
+        newTechnicians: newTechs,
+        type: "reassignment"
+      };
+
+      history.push(newEntry);
+
+      // 5. Encontrar el campo correcto para técnicos reasignados
+      const columns = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/columns`)
+        .get();
+
+      const personColumns = columns.value.filter(col =>
+        col.personOrGroup?.allowMultipleSelection &&
+        (col.name.toLowerCase().includes('reasign') ||
+          col.name.toLowerCase().includes('parcial'))
+      );
+
+      if (personColumns.length === 0) {
+        throw new Error('No se encontró el campo de técnicos reasignados. Verifique la configuración de SharePoint.');
+      }
+
+      const technicianLookups = newTechnicianIds.map((id) => id.toString());
+
+      // 6. Actualizar el ticket
+      const response = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .patch({
+          fields: {
+            [`${personColumns[0].name}LookupId@odata.type`]: "Collection(Edm.String)",
+            [`${personColumns[0].name}LookupId`]: technicianLookups,
+            FechaUltimaReasignacionParcial: now,
+            ConfirmacionPostReasignacion: null,
+            HistorialReasignaciones: JSON.stringify(history) // Guardar historial completo
+          },
+        });
+
+      console.log(`✅ Reasignación registrada en historial`);
+      return response;
+
+    } catch (error) {
+      console.error("Error al reasignar con historial:", error);
+      throw new Error(`Error al reasignar técnicos: ${error.message}`);
+    }
+  }
+
+  /**
+   * Registra la subida de una boleta parcial en el historial
+   * @param {string} ticketId - ID del ticket
+   * @param {string} fileName - Nombre del archivo subido
+   * @param {string} fileUrl - URL del archivo
+   * @returns {Promise<void>}
+   */
+  async addPartialDocumentToHistory(ticketId, fileName, fileUrl) {
+    await this.initializeGraphClient();
+
+    try {
+      // 1. Obtener el ticket actual
+      const ticket = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .expand("fields")
+        .get();
+
+      // 2. Obtener historial actual
+      let history = [];
+      if (ticket.fields.HistorialReasignaciones) {
+        try {
+          history = JSON.parse(ticket.fields.HistorialReasignaciones);
+        } catch (e) {
+          console.warn("Error parsing history, starting fresh");
+          history = [];
+        }
+      }
+
+      // 3. Agregar entrada de documento
+      const now = new Date().toISOString();
+      const newEntry = {
+        date: now,
+        fileName: fileName,
+        fileUrl: fileUrl,
+        type: "partial_document"
+      };
+
+      history.push(newEntry);
+
+      // 4. Actualizar el ticket
+      await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .patch({
+          fields: {
+            HistorialReasignaciones: JSON.stringify(history)
+          },
+        });
+
+      console.log(`✅ Documento parcial registrado en historial`);
+
+    } catch (error) {
+      console.error("Error al registrar documento en historial:", error);
+      throw new Error(`Error al registrar documento: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtiene el historial de reasignaciones de un ticket
+   * @param {string} ticketId - ID del ticket
+   * @returns {Promise<Array>} Historial de reasignaciones
+   */
+  async getReassignmentHistory(ticketId) {
+    await this.initializeGraphClient();
+
+    try {
+      const ticket = await this.client
+        .api(`/sites/${this.siteId}/lists/${this.config.lists.controlPV}/items/${ticketId}`)
+        .expand("fields")
+        .get();
+
+      if (!ticket.fields.HistorialReasignaciones) {
+        return [];
+      }
+
+      try {
+        return JSON.parse(ticket.fields.HistorialReasignaciones);
+      } catch (e) {
+        console.error("Error parsing reassignment history:", e);
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching reassignment history:", error);
+      return [];
+    }
+  }
+
+
+
 }
 
 export default PostVentaManagementService;

@@ -66,13 +66,73 @@ export const useTicketActions = () => {
     [service, selectedTicket, roles, closeModal, loadPostVentaData]
   );
 
+
+  const handleReassignTechnicians = useCallback(
+    async (ticketId, newTechnicianIds) => {
+      setProcessing(true);
+      setError(null);
+      try {
+       
+        const currentTicket = await service.getTicketById(ticketId);
+
+        // Determinar cuáles son los técnicos "anteriores"
+        // Si ya hay reasignados, usar esos. Si no, usar los originales
+        const previousTechIds = currentTicket.reassignedTechnicians?.length > 0
+          ? currentTicket.reassignedTechnicians.map(t => t.LookupId)
+          : currentTicket.technicians.map(t => t.LookupId);
+
+      
+        await service.reassignTechniciansWithHistory(
+          ticketId,
+          newTechnicianIds,
+          previousTechIds
+        );
+
+       
+        if (currentTicket.calendarEventId && currentTicket.tentativeDate) {
+          const techDetails = await Promise.all(
+            newTechnicianIds.map(async (techId) => {
+              const techRole = roles.find(
+                role => role.employee?.LookupId.toString() === techId.toString()
+              );
+              return {
+                email: techRole?.employee?.Email,
+                name: techRole?.employee?.LookupValue
+              };
+            })
+          );
+
+          const validAttendees = techDetails.filter(tech => tech.email && tech.name);
+
+          if (validAttendees.length > 0) {
+            await service.updateCalendarEventAttendees(
+              service.groupId,
+              currentTicket.calendarEventId,
+              validAttendees
+            );
+          }
+        }
+
+        await loadPostVentaData();
+        closeModal();
+
+        console.log('✅ Reasignación completada con éxito');
+      } catch (err) {
+        console.error("Error al reasignar técnicos:", err);
+        setError(err.message || "Error al reasignar técnicos");
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [service, roles, closeModal, loadPostVentaData]
+  );
   const handleUpdateStatus = useCallback(
     async (ticketId, newStatus, files = null, notes = '') => {
       if (!ticketId || !newStatus) return;
-  
+
       setProcessing(true);
       setError(null);
-  
+
       try {
         if ((newStatus === "Finalizada" || newStatus === "Trabajo Parcial") && files) {
           // Upload service tickets
@@ -86,7 +146,7 @@ export const useTicketActions = () => {
               );
             }
           }
-  
+
           // Upload report if exists
           if (files.report) {
             await service.uploadTicketDocument(
@@ -252,38 +312,38 @@ export const useTicketActions = () => {
         <div class="section">
             <div class="section-title">Documentos</div>
             ${await Promise.all(generalDocs.map(async doc => {
-              const shareLink = await service.createShareLink(service.siteId, doc.itemId, "view", "organization");
-              return `
+            const shareLink = await service.createShareLink(service.siteId, doc.itemId, "view", "organization");
+            return `
               <div class="info-row">
-                <span class="label">${doc.documentType === 'serviceTicket' ? 'Boleta de Servicio' : 
-                                   doc.documentType === 'report' ? 'Informe' : 
-                                   doc.documentType === 'image' ? 'Imagen' : 'Documento'}:</span>
+                <span class="label">${doc.documentType === 'serviceTicket' ? 'Boleta de Servicio' :
+                doc.documentType === 'report' ? 'Informe' :
+                  doc.documentType === 'image' ? 'Imagen' : 'Documento'}:</span>
                 <span class="value">
                   <a href="${shareLink.webUrl}">Ver documento</a>
                 </span>
               </div>`;
-            })).then(links => links.join(''))}
+          })).then(links => links.join(''))}
             
             ${await Promise.all(adminDocs.map(async doc => {
-              const shareLink = await service.createShareLink(service.admins.siteId, doc.itemId, "view", "organization");
-              return `
+            const shareLink = await service.createShareLink(service.admins.siteId, doc.itemId, "view", "organization");
+            return `
               <div class="info-row">
                 <span class="label">Documento Administrativo:</span>
                 <span class="value">
                   <a href="${shareLink.webUrl}">Ver documento</a>
                 </span>
               </div>`;
-            })).then(links => links.join(''))}
+          })).then(links => links.join(''))}
         </div>
     </div>
 </body>
 </html>`;
 
-          await service.sendEmail({
-            toRecipients: [supportEmail],
-            subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
-            content: emailContent,
-          });
+          /*  await service.sendEmail({
+             toRecipients: [supportEmail],
+             subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
+             content: emailContent,
+           }); */
         }
 
         await service.updateTicketStatus(ticketId, newStatus, notes);
@@ -385,7 +445,7 @@ export const useTicketActions = () => {
       setProcessing(true);
       setError(null);
       try {
-  
+
         // Make sure filesToDelete is properly passed
         const transformedData = {
           ...data,
@@ -396,7 +456,7 @@ export const useTicketActions = () => {
             displayName: file.displayName || file.file?.displayName
           }))
         };
-;
+        ;
         await service.updateTicket(ticketId, transformedData);
         await loadPostVentaData();
         closeModal();
@@ -505,6 +565,7 @@ export const useTicketActions = () => {
     handleDeleteTicket,
     handleFileDownload,
     handleCreateShareLink,
+    handleReassignTechnicians,
   };
 };
 

@@ -1,4 +1,3 @@
-// src/modules/postVentaManagement/components/Tickets/components/TicketDetails/components/TimelineSection.js
 import React from "react";
 import Card from "../../../../../../../components/common/Card";
 import TicketTimeline from "../../common/TicketTimeline";
@@ -28,13 +27,13 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-    // Tech assignment
+    
     if (ticket.technicians?.length > 0) {
       events.push({
         type: "Técnico asignado",
         date: ticket.technicianAssignedDate,
         details: {
-          Técnicos: ticket.technicians
+          "Técnicos iniciales": ticket.technicians
             .map((tech) => tech.LookupValue)
             .join(", "),
         },
@@ -57,33 +56,96 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-    // Trabajo Parcial
+    
     if (ticket.workNotDone) {
       const event = {
         type: "Trabajo Parcial",
         date: ticket.workNotDone
       };
+      
+      const details = {};
+      
       if (ticket.notes) {
-        event.details = {
-          "Notas": ticket.notes
-        };
+        details["Notas"] = ticket.notes;
       }
+      
+    
+      if (ticket.reassignedTechnicians?.length > 0) {
+        details["Técnicos reasignados"] = ticket.reassignedTechnicians
+          .map(tech => tech.LookupValue)
+          .join(", ");
+      }
+      
+      
+      if (ticket.lastReassignmentDate) {
+        details["Última reasignación"] = new Date(ticket.lastReassignmentDate).toLocaleString("es-ES", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+      
+      if (Object.keys(details).length > 0) {
+        event.details = details;
+      }
+      
       events.push(event);
     }
 
-    if (ticket.lastReassignmentDate && ticket.reassignedTechnicians?.length > 0) {
+   
+    if (ticket.reassignmentHistory && Array.isArray(ticket.reassignmentHistory)) {
+      ticket.reassignmentHistory.forEach((entry) => {
+        if (entry.type === "reassignment") {
+          // Evento de reasignación
+          events.push({
+            type: "Reasignación de técnico",
+            date: entry.date,
+            description: "Técnicos reasignados durante trabajo parcial",
+            details: {
+              "Técnicos anteriores": entry.previousTechnicians
+                .map(t => t.name)
+                .join(", "),
+              "Nuevos técnicos": entry.newTechnicians
+                .map(t => t.name)
+                .join(", ")
+            }
+          });
+        } else if (entry.type === "partial_document") {
+          // Evento de subida de boleta parcial
+          events.push({
+            type: "Boleta Parcial Subida",
+            date: entry.date,
+            description: "Documento de trabajo parcial agregado",
+            details: {
+              "Archivo": entry.fileName,
+              "Link": entry.fileUrl
+            }
+          });
+        }
+      });
+    }
+
+   
+    if (ticket.lastReassignmentDate && 
+        ticket.reassignedTechnicians?.length > 0 &&
+        (!ticket.reassignmentHistory || ticket.reassignmentHistory.length === 0)) {
       events.push({
         type: "Reasignación de técnico",
         date: ticket.lastReassignmentDate,
-        description: "Nuevos técnicos asignados para completar el trabajo parcial",
+        description: "Técnicos reasignados para completar el trabajo parcial",
         details: {
-          "Técnicos reasignados": ticket.reassignedTechnicians
-            .map((tech) => tech.LookupValue)
+          "Técnicos anteriores": ticket.technicians
+            .map(t => t.LookupValue)
+            .join(", "),
+          "Nuevos técnicos": ticket.reassignedTechnicians
+            .map(t => t.LookupValue)
             .join(", "),
           "Estado de confirmación": ticket.postReassignmentConfirmation
             ? "✅ Confirmado"
             : "⏳ Pendiente de confirmación"
-        },
+        }
       });
     }
 

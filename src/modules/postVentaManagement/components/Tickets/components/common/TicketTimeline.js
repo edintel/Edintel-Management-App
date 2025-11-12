@@ -2,123 +2,155 @@ import React from "react";
 import {
   CheckCircle,
   Clock,
+  User,
   Play,
+  AlertTriangle,
   Lock,
-  UserCheck,
-  FileCheck,
   Calendar,
+  UserPlus,
+  FileUp,
 } from "lucide-react";
-import { cn } from "../../../../../../utils/cn";
 
-const TimelineConfig = {
-  Iniciada: {
-    icon: Clock,
-    color: "text-gray-500",
-    bgColor: "bg-gray-100",
-  },
-  "Técnico asignado": {
-    icon: UserCheck,
-    color: "text-warning",
-    bgColor: "bg-warning/10",
-  },
-  "Confirmado por técnico": {
-    icon: CheckCircle,
-    color: "text-info",
-    bgColor: "bg-info/10",
-  },
-  "Trabajo iniciado": {
-    icon: Play,
-    color: "text-info",
-    bgColor: "bg-info/10",
-  },
-  "Trabajo Parcial": {
-    icon: Clock,
-    color: "text-warning",
-    bgColor: "bg-warning/10",
-  },
-  "Reasignación de técnico": {
-    icon: UserCheck,
-    color: "text-warning",
-    bgColor: "bg-warning/10",
-  },
-  Finalizada: {
-    icon: FileCheck,
-    color: "text-success",
-    bgColor: "bg-success/10",
-  },
-  Cerrada: {
-    icon: Lock,
-    color: "text-success",
-    bgColor: "bg-success/10",
-  },
-  "Fecha programada": {
-    icon: Calendar,
-    color: "text-primary",
-    bgColor: "bg-primary/10",
-  },
-};
+const TicketTimeline = ({ events = [] }) => {
+  if (!events || events.length === 0) {
+    return (
+      <div className="text-center text-gray-500 py-8">
+        No hay eventos en la línea de tiempo
+      </div>
+    );
+  }
 
-const TicketTimeline = ({ events, className }) => {
-  const formatDate = (date) => {
-    if (!date) return "";
-    return new Date(date).toLocaleString("es-CR", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+  const getEventIcon = (type) => {
+    switch (type) {
+      case "Iniciada":
+        return Clock;
+      case "Fecha programada":
+        return Calendar;
+      case "Técnico asignado":
+        return User;
+      case "Confirmado por técnico":
+        return CheckCircle;
+      case "Trabajo iniciado":
+        return Play;
+      case "Trabajo Parcial":
+        return AlertTriangle;
+      case "Reasignación de técnico":
+        return UserPlus;
+      case "Boleta Parcial Subida":
+        return FileUp;
+      case "Finalizada":
+        return CheckCircle;
+      case "Cerrada":
+        return Lock;
+      default:
+        return Clock;
+    }
   };
 
+  const getEventColor = (type) => {
+    switch (type) {
+      case "Iniciada":
+        return "bg-gray-100 text-gray-600 border-gray-300";
+      case "Fecha programada":
+        return "bg-blue-100 text-blue-600 border-blue-300";
+      case "Técnico asignado":
+        return "bg-yellow-100 text-yellow-600 border-yellow-300";
+      case "Confirmado por técnico":
+        return "bg-info/10 text-info border-info/30";
+      case "Trabajo iniciado":
+        return "bg-info/10 text-info border-info/30";
+      case "Trabajo Parcial":
+        return "bg-warning/10 text-warning border-warning/30";
+      case "Reasignación de técnico":
+        return "bg-purple-100 text-purple-600 border-purple-300";
+      case "Boleta Parcial Subida":
+        return "bg-indigo-100 text-indigo-600 border-indigo-300";
+      case "Finalizada":
+        return "bg-success/10 text-success border-success/30";
+      case "Cerrada":
+        return "bg-success/10 text-success border-success/30";
+      default:
+        return "bg-gray-100 text-gray-600 border-gray-300";
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Fecha no disponible";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return "Fecha no válida";
+    }
+  };
+
+  // Ordenar eventos por fecha
+  const sortedEvents = [...events].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
   return (
-    <div className={cn("space-y-4", className)}>
-      {events.map((event, index) => {
-        const config = TimelineConfig[event.type] || TimelineConfig["Iniciada"];
-        const Icon = config.icon;
+    <div className="space-y-6">
+      {sortedEvents.map((event, index) => {
+        const Icon = getEventIcon(event.type);
+        const isLast = index === sortedEvents.length - 1;
 
         return (
-          <div
-            key={index}
-            className={cn(
-              "relative flex items-start gap-4 pb-4",
-              index !== events.length - 1 &&
-              "before:absolute before:left-6 before:top-10 before:h-full before:w-px before:bg-gray-200"
+          <div key={index} className="relative pl-16">
+            {/* Línea vertical */}
+            {!isLast && (
+              <div className="absolute left-[31px] top-8 bottom-0 w-0.5 bg-gray-200" />
             )}
-          >
-            {/* Icon */}
+
+            {/* Ícono del evento */}
             <div
-              className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-full",
-                config.bgColor
-              )}
+              className={`absolute left-4 top-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${getEventColor(
+                event.type
+              )}`}
             >
-              <Icon className={cn("h-6 w-6", config.color)} />
+              <Icon className="h-4 w-4" />
             </div>
 
-            {/* Content */}
-            <div className="flex-1 pt-2">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-                <h4 className="text-sm font-medium text-gray-900">
-                  {event.type}
-                </h4>
-                <time className="text-sm text-gray-500">
+            {/* Contenido del evento */}
+            <div className="pb-6">
+              <div className="flex items-start justify-between mb-1">
+                <h4 className="font-semibold text-gray-900">{event.type}</h4>
+                <span className="text-sm text-gray-500">
                   {formatDate(event.date)}
-                </time>
+                </span>
               </div>
 
+
               {event.description && (
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="text-sm text-gray-600 mb-2 italic">
                   {event.description}
                 </p>
               )}
 
-              {/* Additional details */}
               {event.details && (
-                <div className="mt-2 text-sm">
+                <div className="mt-2 space-y-1">
                   {Object.entries(event.details).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex items-center gap-2 text-gray-600"
-                    >
-                      <span className="font-medium">{key}:</span>
-                      <span>{value}</span>
+                    <div key={key} className="text-sm">
+                      <span className="font-medium text-gray-700">{key}: </span>
+
+                      {key === "Link" && value ? (
+                        <a
+                          href={value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Ver documento
+                        </a>
+                      ) : (
+                        <span className="text-gray-600">{value}</span>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -1,7 +1,6 @@
-// src/modules/postVentaManagement/components/Tickets/permissions/ticketActionPermissions.js
 export const TICKET_ACTIONS = {
   ASSIGN_TECH: "assign_tech",
-  REASSIGN_TECH: "reassign_tech", // Nueva acción
+  REASSIGN_TECH: "reassign_tech", 
   UPDATE_STATUS: "update_status",
   SCHEDULE_DATE: "schedule_date",
   EDIT: "edit",

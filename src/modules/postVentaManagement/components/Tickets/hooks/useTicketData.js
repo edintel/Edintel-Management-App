@@ -21,17 +21,41 @@ export const useTicketData = ({
     error,
   } = usePostVentaManagement();
 
-  // Get tickets assigned to current user - memoized
+  
   const getTicketsAssignedToMe = useMemo(() => {
     if (!userRole?.employee?.LookupId) return [];
-    return serviceTickets.filter((ticket) =>
-      ticket.technicians.some(
-        (tech) => tech.LookupId === userRole.employee.LookupId
-      )
-    );
+    
+    const myId = userRole.employee.LookupId;
+    
+    return serviceTickets.filter((ticket) => {
+     
+      const isInitialTech = ticket.technicians.some(
+        (tech) => tech.LookupId === myId
+      );
+      
+   
+      const isReassignedTech = ticket.reassignedTechnicians?.some(
+        (tech) => tech.LookupId === myId
+      );
+      
+      let isInHistory = false;
+      if (ticket.reassignmentHistory && Array.isArray(ticket.reassignmentHistory)) {
+        isInHistory = ticket.reassignmentHistory.some(entry => {
+          if (entry.type === "reassignment") {
+            // Verificar en técnicos anteriores y nuevos
+            const inPrevious = entry.previousTechnicians?.some(t => t.id === myId);
+            const inNew = entry.newTechnicians?.some(t => t.id === myId);
+            return inPrevious || inNew;
+          }
+          return false;
+        });
+      }
+      
+      return isInitialTech || isReassignedTech || isInHistory;
+    });
   }, [serviceTickets, userRole]);
 
-  // Filter and sort tickets based on criteria - memoized
+  // Filter and sort tickets based on criteria 
   const filteredTickets = useMemo(() => {
     let tickets = [];
     
@@ -58,15 +82,37 @@ export const useTicketData = ({
         // Status filter
         if (selectedState.length > 0 && !selectedState.includes(ticket.state)) return false;
         
-        // User filter
+       
         if (selectedUsers.length > 0) {
           const isUserInvolved = selectedUsers.some((userId) => {
+            // Verificar asignación inicial
             const isAssignedTech = ticket.technicians.some(
               (tech) => tech.LookupId === userId
             );
+            
+           
+            const isReassignedTech = ticket.reassignedTechnicians?.some(
+              (tech) => tech.LookupId === userId
+            );
+            
+            
+            let isInHistory = false;
+            if (ticket.reassignmentHistory && Array.isArray(ticket.reassignmentHistory)) {
+              isInHistory = ticket.reassignmentHistory.some(entry => {
+                if (entry.type === "reassignment") {
+                  const inPrevious = entry.previousTechnicians?.some(t => t.id === userId);
+                  const inNew = entry.newTechnicians?.some(t => t.id === userId);
+                  return inPrevious || inNew;
+                }
+                return false;
+              });
+            }
+            
+            // Verificar supervisor
             const siteDetails = getSiteDetails(ticket.siteId);
             const isSupervisor = siteDetails?.site?.supervisorId === userId;
-            return isAssignedTech || isSupervisor;
+            
+            return isAssignedTech || isReassignedTech || isInHistory || isSupervisor;
           });
           if (!isUserInvolved) return false;
         }
@@ -106,6 +152,7 @@ export const useTicketData = ({
       "Técnico asignado",
       "Confirmado por técnico",
       "Trabajo iniciado",
+      "Trabajo Parcial", 
       "Finalizada",
       "Cerrada",
     ],

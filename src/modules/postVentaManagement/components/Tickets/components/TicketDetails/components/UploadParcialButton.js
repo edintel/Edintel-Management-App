@@ -1,3 +1,4 @@
+// src/modules/postVentaManagement/components/Tickets/components/TicketDetails/components/UploadParcialButton.js
 import React, { useState } from 'react';
 import { Upload, FileText, Loader2, AlertCircle } from 'lucide-react';
 import Button from '../../../../../../../components/common/Button';
@@ -29,7 +30,7 @@ const UploadParcialButton = ({ ticket, userRole, onUploadSuccess }) => {
       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
 
       if (!allowedTypes.includes(fileExtension)) {
-        setError('Tipo de archivo no permitido. Use: PDF, JPG, PNG, DOC o DOCX');
+        setError('Tipo de archivo no permitido. Use: PDF, DOC, DOCX, XLSX, XLSM, XLSB');
         return;
       }
 
@@ -61,7 +62,7 @@ const UploadParcialButton = ({ ticket, userRole, onUploadSuccess }) => {
       const uploadResponse = await service.uploadTicketDocument(
         ticket.id,
         selectedFile,
-        'serviceTicket', // tipo de documento
+        'serviceTicket',
         fileName
       );
 
@@ -73,22 +74,12 @@ const UploadParcialButton = ({ ticket, userRole, onUploadSuccess }) => {
         "organization"
       );
 
-      // ⚠️ CAMBIO IMPORTANTE: Usar el campo que YA EXISTE
-      // Asumiendo que usas 'documents' o 'finalDocuments'
-      const existingDocs = ticket.documents || []; // o ticket.finalDocuments
-
-      await service.updateTicket(ticket.id, {
-        documents: [ // o finalDocuments
-          ...existingDocs,
-          {
-            itemId: uploadResponse.itemId,
-            fileName: selectedFile.name,
-            uploadDate: new Date().toISOString(),
-            shareLink: shareLink.webUrl,
-            type: 'serviceTicket' // Agregar tipo para diferenciar
-          }
-        ]
-      });
+      // ✨ NUEVO: Registrar en el historial
+      await service.addPartialDocumentToHistory(
+        ticket.id,
+        selectedFile.name,
+        shareLink.webUrl
+      );
 
       if (onUploadSuccess) {
         onUploadSuccess({
@@ -105,6 +96,13 @@ const UploadParcialButton = ({ ticket, userRole, onUploadSuccess }) => {
       if (fileInput) {
         fileInput.value = '';
       }
+
+      // ✨ NUEVO: Notificar éxito con más detalle
+      console.log('✅ Boleta parcial subida y registrada en historial:', {
+        fileName: selectedFile.name,
+        timestamp: new Date().toISOString(),
+        shareLink: shareLink.webUrl
+      });
 
     } catch (err) {
       setError(err.message || 'Error al subir el archivo');
@@ -165,7 +163,7 @@ const UploadParcialButton = ({ ticket, userRole, onUploadSuccess }) => {
         <input
           id="parcial-file-input"
           type="file"
-          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          accept=".pdf,.doc,.docx,.xlsx,.xlsm,.xlsb"
           onChange={handleFileSelect}
           disabled={isUploading}
           className="hidden"

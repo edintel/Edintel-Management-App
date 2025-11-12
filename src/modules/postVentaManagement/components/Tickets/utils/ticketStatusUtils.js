@@ -8,7 +8,7 @@ export const getUpdateStatusLabel = (currentState) => {
     case "Confirmado por técnico":
       return "Iniciar Trabajo";
     case "Trabajo iniciado":
-      return "Actualizar Estado"; // Genérico porque hay dos opciones
+      return "Actualizar Estado"; 
     case "Trabajo Parcial":
       return "Finalizar Trabajo";
     case "Finalizada":
@@ -66,7 +66,7 @@ export const getNextStatus = (currentState) => {
     case "Confirmado por técnico":
       return "Trabajo iniciado";
     case "Trabajo iniciado":
-      return null; // Retorna null porque hay múltiples opciones
+      return null; 
     case "Trabajo Parcial":
       return "Finalizada";
     case "Reasignar Técnico":
