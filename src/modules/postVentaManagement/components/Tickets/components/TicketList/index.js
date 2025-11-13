@@ -30,11 +30,12 @@ const TicketList = () => {
     resetFilters,
     hasActiveFilters,
   } = useTicketState();
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  
+  const [waitingEquipment, setWaitingEquipment] = useState(false);
+
   const {
     filteredTickets,
     getSiteDetails,
@@ -45,8 +46,9 @@ const TicketList = () => {
     endDate,
     selectedState,
     selectedUsers,
+    waitingEquipment,
   });
-  
+
   const {
     currentModal = null,
     selectedTicket,
@@ -68,12 +70,12 @@ const TicketList = () => {
   }, [searchTerm, startDate, endDate, selectedState, selectedUsers]);
 
   const loading = contextLoading || dataLoading;
-  
+
   // Handle page change
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
-  
+
   // Handle items per page change
   const handleItemsPerPageChange = (value) => {
     setItemsPerPage(value);
@@ -88,7 +90,7 @@ const TicketList = () => {
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <ListHeader total={filteredTickets.length} />
-      
+
       {/* Filters */}
       <ListFilters
         searchTerm={searchTerm}
@@ -104,8 +106,10 @@ const TicketList = () => {
         roles={roles}
         onResetFilters={resetFilters}
         hasActiveFilters={hasActiveFilters}
+        waitingEquipment={waitingEquipment}
+        onWaitingEquipmentChange={setWaitingEquipment}
       />
-      
+
       {/* Table with pagination */}
       <ListTable
         tickets={filteredTickets}
@@ -123,7 +127,7 @@ const TicketList = () => {
         onPageChange={handlePageChange}
         onItemsPerPageChange={handleItemsPerPageChange}
       />
-      
+
       {/* Modals */}
       <AssignTechnicianModal
         isOpen={currentModal?.type === MODAL_TYPES.ASSIGN_TECH}

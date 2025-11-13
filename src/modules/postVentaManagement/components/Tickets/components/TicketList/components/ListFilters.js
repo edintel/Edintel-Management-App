@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Filter, X, Check } from "lucide-react";
+import { Search, Filter, X, Check, PackageX } from "lucide-react";
 import Card from "../../../../../../../components/common/Card";
 import Button from "../../../../../../../components/common/Button";
 import DateRangePicker from "../../../../../../../components/common/DateRangePicker";
@@ -15,16 +15,21 @@ const ListFilters = ({
   onStateChange,
   selectedUsers = [],
   onUsersChange,
+  waitingEquipment = false,
+  onWaitingEquipmentChange,
   roles = [],
   onResetFilters,
   hasActiveFilters = false,
 }) => {
   const [isUsersOpen, setIsUsersOpen] = useState(false);
+  
+  // Estados sin "Esperando equipo" porque ahora es un filtro separado
   const stateOptions = [
     "Iniciada",
     "Técnico asignado",
     "Confirmado por técnico",
     "Trabajo iniciado",
+    "Trabajo Parcial",
     "Finalizada",
     "Cerrada",
   ];
@@ -40,7 +45,7 @@ const ListFilters = ({
       id: role.employee.LookupId,
       name: role.employee.LookupValue,
       role: role.role,
-    }))).sort((a, b) => 
+    }))).sort((a, b) =>
       a.name.localeCompare(b.name)
     );
 
@@ -102,11 +107,11 @@ const ListFilters = ({
         setIsStatusOpen(false);
       }
     };
-  
+
     if (isStatusOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-  
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -215,6 +220,31 @@ const ListFilters = ({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Filtro de Esperando Equipo */}
+            <div className="flex-1">
+              <div
+                onClick={() => onWaitingEquipmentChange(!waitingEquipment)}
+                className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition-colors ${
+                  waitingEquipment 
+                    ? "bg-warning/10 border border-warning/30" 
+                    : "bg-gray-50"
+                }`}
+              >
+                <div className="flex items-center">
+                  <PackageX 
+                    size={16} 
+                    className={`mr-2 ${waitingEquipment ? "text-warning" : "text-gray-400"}`} 
+                  />
+                  <span className={`text-sm ${waitingEquipment ? "font-medium text-warning" : ""}`}>
+                    Esperando equipo
+                  </span>
+                </div>
+                {waitingEquipment && (
+                  <Check size={16} className="text-warning" />
+                )}
+              </div>
             </div>
 
             {hasActiveFilters && (

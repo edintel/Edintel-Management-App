@@ -97,12 +97,7 @@ const UploadParcialButton = ({ ticket, userRole, onUploadSuccess }) => {
         fileInput.value = '';
       }
 
-      // ✨ NUEVO: Notificar éxito con más detalle
-      console.log('✅ Boleta parcial subida y registrada en historial:', {
-        fileName: selectedFile.name,
-        timestamp: new Date().toISOString(),
-        shareLink: shareLink.webUrl
-      });
+     window.location.reload();
 
     } catch (err) {
       setError(err.message || 'Error al subir el archivo');
