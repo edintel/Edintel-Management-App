@@ -38,25 +38,7 @@ const Reports = () => {
     });
   }, []);
 
-  /*   // Función para calcular días hábiles entre dos fechas
-    const calculateBusinessDays = (startDate, endDate) => {
-      if (!startDate || !endDate) return null;
-  
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      let businessDays = 0;
-      const current = new Date(start);
-  
-      while (current <= end) {
-        const dayOfWeek = current.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-          businessDays++;
-        }
-        current.setDate(current.getDate() + 1);
-      }
-  
-      return businessDays;
-    }; */
+
   // Función para calcular días hábiles entre dos fechas
   const calculateBusinessDays = (startDate, endDate) => {
     if (!startDate || !endDate) return null;
@@ -139,9 +121,15 @@ const Reports = () => {
     });
   }, [serviceTickets, sites, buildings, companies, systems]);
 
+
   // Filtrar tickets
   const filteredTickets = useMemo(() => {
     return processedTickets.filter(ticket => {
+      // NUEVO: Excluir tickets con esperandoEquipo
+      if (ticket.waitingEquiment) {
+        return false;
+      }
+
       // Filtro por rango de fechas
       if (filters.dateFrom && filters.dateTo) {
         const ticketDate = new Date(ticket.created);
@@ -206,6 +194,9 @@ const Reports = () => {
 
   // Estadísticas
   const statistics = useMemo(() => {
+
+   
+
     const correctiveTickets = filteredTickets.filter(t => t.isCorrectiveType);
     // Filtrar por tickets que tengan workEndDate (trabajo finalizado)
     const completedCorrectiveTickets = correctiveTickets.filter(t => t.workEndDate);

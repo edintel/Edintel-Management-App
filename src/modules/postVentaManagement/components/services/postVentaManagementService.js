@@ -846,7 +846,7 @@ class PostVentaManagementService extends BaseGraphService {
         alcance: data.scope,
         Tipo: data.type,
         Link: data.link?.trim() || "",
-        Equiment: data.Equiment ,
+        Equiment: data.waitingEquiment || false,
       };
       const ticket = await this.client
         .api(
