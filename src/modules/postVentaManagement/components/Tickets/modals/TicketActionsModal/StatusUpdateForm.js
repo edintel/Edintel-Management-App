@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Lock } from "lucide-react";
 import Button from "../../../../../../components/common/Button";
 import MultiFileUpload from "../../../../../../components/common/MultiFileUpload";
 import TicketStatusBadge from "../../components/common/TicketStatusBadge";
@@ -8,7 +8,9 @@ import { useFileManagement } from "../../hooks/useFileManagement";
 const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
   const [notes, setNotes] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
   const [errors, setErrors] = useState({});
   const [targetStatus, setTargetStatus] = useState(null);
 
@@ -31,9 +33,9 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
       case "Confirmado por técnico":
         return "Trabajo iniciado";
       case "Trabajo iniciado":
-        return "Finalizada"; // Default next status
+        return "Finalizada";
       case "Trabajo Parcial":
-        return "Finalizada"; // From incomplete can go to finalized
+        return "Finalizada";
       case "Reasignar Técnico":
         return "Confirmado por técnico";
       case "Finalizada":
@@ -64,13 +66,15 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
 
   const handleStatusUpdate = () => {
     if (ticket?.state === "Trabajo iniciado") {
-      // Show finish modal for work started status
       setShowFinishModal(true);
       setTargetStatus("Finalizada");
     } else if (ticket?.state === "Trabajo Parcial") {
-      // Also show finish modal for incomplete work status
       setShowFinishModal(true);
       setTargetStatus("Finalizada");
+    } else if (ticket?.state === "Finalizada") {
+      // Show close modal for finalized status
+      setShowCloseModal(true);
+      setTargetStatus("Cerrada");
     } else {
       // For other statuses, proceed normally
       onSubmit(ticket?.id, nextStatus);
@@ -106,7 +110,77 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
     onSubmit(ticket?.id, "Trabajo Parcial", filesData, notes);
   };
 
+  const handleCloseSubmit = () => {
+    console.log(closeNotes);
+    onSubmit(ticket?.id, "Cerrada", null, closeNotes);
+  };
+
   const allowedTypes = ['.pdf', '.doc', '.docx', '.xlsx', '.xlsm', '.xlsb'];
+
+  // Show close modal for "Finalizada" state
+  if (showCloseModal) {
+    return (
+      <div className="space-y-4">
+        <div className="p-4 bg-success/10 rounded-lg">
+          <div className="flex items-start gap-3">
+            <Lock className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-success">
+              Al cerrar el ticket, se enviará un correo de notificación de cierre. 
+              Puede agregar notas adicionales que se incluirán en el correo.
+            </div>
+          </div>
+        </div>
+
+        {/* Close Notes Input */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Notas de Cierre (Opcional)
+          </label>
+          <textarea
+            value={closeNotes}
+            onChange={(e) => setCloseNotes(e.target.value)}
+            placeholder="Agregue notas adicionales sobre el cierre del ticket..."
+            className="w-full min-h-[100px] px-3 py-2 resize-none border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+            disabled={processing}
+          />
+          <p className="text-xs text-gray-500">
+            Estas notas se incluirán en el correo de cierre y aparecerán en la línea de tiempo del ticket.
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowCloseModal(false);
+              setCloseNotes("");
+              setTargetStatus(null);
+            }}
+            disabled={processing}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCloseSubmit}
+            disabled={processing}
+          >
+            {processing ? (
+              <>
+                <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                Cerrando Ticket...
+              </>
+            ) : (
+              <>
+                <Lock className="h-4 w-4 mr-2" />
+                Cerrar Ticket
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Show finish/incomplete modal for "Trabajo iniciado" or "Trabajo Parcial" states
   if (showFinishModal || showIncompleteModal) {
@@ -280,10 +354,11 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-gray-700">Nuevo Estado</h3>
             <Button
-              variant="primary"
+              variant={ticket?.state === "Finalizada" ? "success" : "primary"}
               fullWidth
               onClick={handleStatusUpdate}
               disabled={processing}
+              startIcon={ticket?.state === "Finalizada" ? <Lock className="h-4 w-4" /> : null}
             >
               {processing ? (
                 <>

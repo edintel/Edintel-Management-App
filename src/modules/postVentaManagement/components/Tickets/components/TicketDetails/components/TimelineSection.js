@@ -27,7 +27,7 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-
+    // Technician assigned
     if (ticket.technicians?.length > 0) {
       events.push({
         type: "Técnico asignado",
@@ -56,7 +56,7 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-
+    // Partial work
     if (ticket.workNotDone) {
       const event = {
         type: "Trabajo Parcial",
@@ -108,7 +108,6 @@ const TimelineSection = ({ ticket }) => {
       events.push(event);
     }
 
-
     // Work finished with notes
     if (ticket.workEndDate) {
       const event = {
@@ -123,12 +122,21 @@ const TimelineSection = ({ ticket }) => {
       events.push(event);
     }
 
-    // Ticket closed
+    
     if (ticket.closeDate) {
-      events.push({
+      const event = {
         type: "Cerrada",
         date: ticket.closeDate,
-      });
+      };
+      
+      
+      if (ticket.closeNotes) {
+        event.details = {
+          "Notas de Cierre": ticket.closeNotes
+        };
+      }
+      
+      events.push(event);
     }
 
     return events;

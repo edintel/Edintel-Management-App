@@ -72,7 +72,7 @@ export const useTicketActions = () => {
       setProcessing(true);
       setError(null);
       try {
-       
+
         const currentTicket = await service.getTicketById(ticketId);
 
         // Determinar cuáles son los técnicos "anteriores"
@@ -81,14 +81,14 @@ export const useTicketActions = () => {
           ? currentTicket.reassignedTechnicians.map(t => t.LookupId)
           : currentTicket.technicians.map(t => t.LookupId);
 
-      
+
         await service.reassignTechniciansWithHistory(
           ticketId,
           newTechnicianIds,
           previousTechIds
         );
 
-       
+
         if (currentTicket.calendarEventId && currentTicket.tentativeDate) {
           const techDetails = await Promise.all(
             newTechnicianIds.map(async (techId) => {
@@ -126,6 +126,10 @@ export const useTicketActions = () => {
     },
     [service, roles, closeModal, loadPostVentaData]
   );
+
+  // VERSIÓN CORREGIDA DE handleUpdateStatus
+  // Reemplazar el método completo en useTicketActions.js
+
   const handleUpdateStatus = useCallback(
     async (ticketId, newStatus, files = null, notes = '') => {
       if (!ticketId || !newStatus) return;
@@ -243,6 +247,22 @@ export const useTicketActions = () => {
         .value {
             color: #333333;
         }
+        .notes-section {
+            background-color: #fff9e6;
+            border-left: 4px solid #ffa500;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .notes-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .notes-content {
+            white-space: pre-wrap;
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -309,6 +329,13 @@ export const useTicketActions = () => {
             ` : ''}
         </div>
 
+        ${notes ? `
+        <div class="notes-section">
+            <div class="notes-title">📝 Notas de Cierre:</div>
+            <div class="notes-content">${notes}</div>
+        </div>
+        ` : ''}
+
         <div class="section">
             <div class="section-title">Documentos</div>
             ${await Promise.all(generalDocs.map(async doc => {
@@ -339,14 +366,25 @@ export const useTicketActions = () => {
 </body>
 </html>`;
 
-            await service.sendEmail({
-             toRecipients: [supportEmail],
-             subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
-             content: emailContent,
-           }); 
+           await service.sendEmail({
+            toRecipients: [supportEmail],
+            subject: `CERRAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`,
+            content: emailContent,
+          }); 
         }
 
-        await service.updateTicketStatus(ticketId, newStatus, notes);
+        
+        if (newStatus === "Cerrada") {
+          // For closed status, notes should go to closeNotes parameter (4th param)
+          await service.updateTicketStatus(ticketId, newStatus, "", notes);
+        } else if (newStatus === "Trabajo Parcial" || newStatus === "Finalizada") {
+          // For these statuses, notes go to regular notes parameter (3rd param)
+          await service.updateTicketStatus(ticketId, newStatus, notes, "");
+        } else {
+          // For other statuses, no notes needed
+          await service.updateTicketStatus(ticketId, newStatus);
+        }
+        
         await loadPostVentaData();
         closeModal();
       } catch (err) {
@@ -568,4 +606,3 @@ export const useTicketActions = () => {
     handleReassignTechnicians,
   };
 };
-

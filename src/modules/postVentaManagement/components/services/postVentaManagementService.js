@@ -449,8 +449,7 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-  // Actualización de getServiceTickets() en postVentaManagementService.js
-  // Reemplazar la función existente con esta versión mejorada
+
 
   async getServiceTickets() {
     const items = await this.getListItems(
@@ -459,7 +458,6 @@ class PostVentaManagementService extends BaseGraphService {
     );
 
     return items.map((item) => {
-     
       let reassignmentHistory = [];
       if (item.fields.HistorialReasignaciones) {
         try {
@@ -488,17 +486,18 @@ class PostVentaManagementService extends BaseGraphService {
         serviceTicketId: item.fields.Boleta,
         reportId: item.fields.Informe,
         systemId: item.fields.SistemaIDLookupId,
+        notes: item.fields.Notas,
+        closeNotes: item.fields.NotasCierre, 
+        link: item.fields.Link,
         calendarEventId: item.fields.calendarEvent,
-        createdBy: item.createdBy,
         created: item.createdDateTime,
-        messageId: item.fields.MessageId,
-        notes: item.fields.Notas || null,
-        link: item.fields.Link || "",
+        createdBy: item.createdBy,
         workNotDone: item.fields.FechaParcial,
-        reassignedTechnicians: item.fields.ReasignacionesParcial || [],
+        reassignedTechnicians: item.fields.TecnicosReasignados || [],
         lastReassignmentDate: item.fields.FechaUltimaReasignacionParcial,
+        confirmationPostReassignment: item.fields.ConfirmacionPostReasignacion,
+        waitingEquiment: item.fields.Equiment || false,
         reassignmentHistory: reassignmentHistory,
-        waitingEquiment: item.fields?.Equiment || false,
       };
     });
   }
@@ -555,11 +554,12 @@ class PostVentaManagementService extends BaseGraphService {
         calendarEventId: response.fields.calendarEvent,
         link: response.fields.Link || "",
         notes: response.fields.Notas || null,
+        closeNotes: response.fields.NotasCierre || null,
         workNotDone: response.fields.FechaParcial,
         reassignedTechnicians: response.fields.ReasignacionesParcial || [],
         lastReassignmentDate: response.fields.FechaUltimaReasignacionParcial,
         reassignmentHistory: reassignmentHistory,
-       
+
       };
     } catch (error) {
       console.error("Error fetching ticket:", error);
@@ -604,7 +604,7 @@ class PostVentaManagementService extends BaseGraphService {
 
       // Probar cada campo encontrado
       for (const col of personColumns) {
-       
+
 
         try {
           const response = await this.client
@@ -754,7 +754,7 @@ class PostVentaManagementService extends BaseGraphService {
     }
   }
 
-  async updateTicketStatus(ticketId, newStatus, notes = "") {
+  async updateTicketStatus(ticketId, newStatus, notes = "", closeNotes = "") {
     await this.initializeGraphClient();
 
     try {
@@ -774,7 +774,7 @@ class PostVentaManagementService extends BaseGraphService {
           fields.Fechatrabajoiniciado = now;
           break;
         case "Trabajo Parcial":
-          fields.FechaParcial = now
+          fields.FechaParcial = now;
           if (notes) {
             fields.Notas = notes;
           }
@@ -787,13 +787,16 @@ class PostVentaManagementService extends BaseGraphService {
           break;
         case "Cerrada":
           fields.Fechacierre = now;
+         
+          if (closeNotes) {
+            fields.NotasCierre = closeNotes;
+          }
           break;
         default:
           break;
       }
 
       fields.Estado = newStatus;
-
 
       const response = await this.client
         .api(
@@ -809,6 +812,7 @@ class PostVentaManagementService extends BaseGraphService {
       throw new Error("Error al actualizar el estado del ticket");
     }
   }
+
 
   async assignTechnicians(ticketId, technicianIds) {
     await this.initializeGraphClient();
