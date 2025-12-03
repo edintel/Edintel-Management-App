@@ -1319,10 +1319,10 @@ class PostVentaManagementService extends BaseGraphService {
           return '3';
         case 'correctiva-no cobrable':
           return '3';
-        case 'preventiva':
-          return '2';
+        case "instalación menor":
+          return '1';
         default:
-          throw new Error(`Tipo no válido: "${type}". Valores válidos: "Correctiva-Cobrable", "Correctiva-No Cobrable", "Preventiva"`);
+          throw new Error(`Tipo no válido: "${type}". Valores válidos: "Correctiva-Cobrable", "Correctiva-No Cobrable", "Instalación Menor"`);
       }
     };
 

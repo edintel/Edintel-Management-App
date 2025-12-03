@@ -45,8 +45,8 @@ const TicketForm = () => {
         const preview = `${year}${month}-3xxx`;
         setStPreview(preview);
         setFormData(prev => ({ ...prev, st: preview }));
-      } else if (formData.type === "Preventiva") {
-        const preview = `${year}${month}-2xxx`;
+      } else if (formData.type === "Instalación Menor") {
+        const preview = `${year}${month}-1xxx`;
         setStPreview(preview);
         setFormData(prev => ({ ...prev, st: preview }));
       } else {
@@ -128,7 +128,7 @@ const TicketForm = () => {
         ...prev,
         [name]: value,
       }));
-    } else if (name === "st" && !isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Preventiva" || formData.type === "Correctiva-No Cobrable")) {
+    } else if (name === "st" && !isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable")) {
       return;
     } else {
       setFormData((prev) => {
@@ -161,7 +161,7 @@ const TicketForm = () => {
       throw new Error("La fecha no puede ser superior al día de hoy");
     }
 
-    if (formData.type !== "Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Preventiva" && !formData.st.trim()) {
+    if (formData.type !== "Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Instalación Menor" && !formData.st.trim()) {
       return "El número de ST es requerido";
     }
     if (!formData.scope.trim()) {
@@ -184,6 +184,8 @@ const TicketForm = () => {
     }
     return null;
   };
+
+  
   const handleSubmit = async (e) => {
 
     e.preventDefault();
@@ -196,7 +198,7 @@ const TicketForm = () => {
     setError(null);
     try {
       let finalFormData = { ...formData };
-      if (!isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Preventiva" || formData.type === "Correctiva-No Cobrable")) {
+      if (!isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable")) {
         const stNumber = await service.getNextSTNumberRepair(3, formData.type);
         finalFormData.st = stNumber;
       } else {
@@ -283,12 +285,12 @@ const TicketForm = () => {
         adminDocs: adminFileLinks,
         waitingEquiment: finalFormData.waitingEquiment,
       });
-            await service.sendEmail({
+             await service.sendEmail({
               toRecipients: [supportEmail],
               subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
                 }`,
               content: emailContent,
-            });  
+            });   
       await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {
@@ -325,7 +327,7 @@ const TicketForm = () => {
                 <option value="">Seleccione un tipo</option>
                 <option value="Correctiva-No Cobrable">Correctiva-No Cobrable</option>
                 <option value="Correctiva-Cobrable">Correctiva-Cobrable</option>
-                <option value="Preventiva">Preventiva</option>
+                <option value="Instalación Menor">Instalación Menor</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -351,12 +353,12 @@ const TicketForm = () => {
                 name="st"
                 value={formData.st}
                 onChange={handleInputChange}
-                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${!isManualSTEnabled && ["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type)
+                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${!isManualSTEnabled && ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable"].includes(formData.type)
                   ? "bg-gray-100" : ""}`}
                 placeholder="Número de ST"
                 readOnly={
                   !isManualSTEnabled &&
-                  ["Correctiva-Cobrable", "Preventiva", "Correctiva-No Cobrable"].includes(formData.type)
+                  ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable"].includes(formData.type)
                 }
                 required
               />

@@ -109,14 +109,24 @@ class BaseGraphService {
           .get();
       } catch (error) {
         if (error.statusCode === 404) {
-          await this.client
-            .api(`/sites/${siteId}/drives/${driveId}/root:${currentPath}`)
-            .header("Content-Type", "application/json")
-            .put({
-              name: segment,
-              folder: {},
-              "@microsoft.graph.conflictBehavior": "fail",
-            });
+          try {
+            await this.client
+              .api(`/sites/${siteId}/drives/${driveId}/root:${currentPath}`)
+              .header("Content-Type", "application/json")
+              .put({
+                name: segment,
+                folder: {},
+                "@microsoft.graph.conflictBehavior": "fail",
+              });
+          } catch (createError) {
+            // Si el error es 409 (Conflict), significa que la carpeta ya existe
+            // Esto puede suceder cuando múltiples archivos se suben en paralelo
+            // En este caso, simplemente continuamos
+            if (createError.statusCode !== 409) {
+              throw createError;
+            }
+            console.log(`Carpeta ya existe (condición de carrera detectada): ${currentPath}`);
+          }
         } else {
           throw error;
         }
@@ -399,7 +409,7 @@ class BaseGraphService {
       .filter(`fields/itemId eq '${itemId}'`)
       .expand('fields')
       .get();
-  
+
     return response.value.length > 0;
   }
 }

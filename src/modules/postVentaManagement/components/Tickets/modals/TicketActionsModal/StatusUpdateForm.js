@@ -55,7 +55,7 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
       serviceTickets.setError(newErrors.serviceTickets);
     }
 
-    if (ticket?.type === "Preventiva" && !reportFile.files.length) {
+    if (ticket?.type === "Instalación Menor" && !reportFile.files.length) {
       newErrors.report = "El informe es requerido para tickets preventivos";
       reportFile.setError(newErrors.report);
     }
@@ -193,7 +193,7 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
               {showIncompleteModal
                 ? "Para marcar el trabajo como Parcial, debe adjuntar las boletas de servicio y agregar una nota explicativa."
                 : "Para finalizar el ticket, debe adjuntar las boletas de servicio correspondientes."}
-              {ticket?.type === "Preventiva" && " Además, se requiere el informe preventivo."}
+              {ticket?.type === "Instalación Menor" && " Además, se requiere el informe preventivo."}
             </div>
           </div>
         </div>
@@ -218,7 +218,7 @@ const StatusUpdateForm = ({ ticket, onSubmit, processing }) => {
         </div>
 
         {/* Report Upload for Preventive tickets */}
-        {ticket?.type === "Preventiva" && (
+        {ticket?.type === "Instalación Menor" && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
               Informe *

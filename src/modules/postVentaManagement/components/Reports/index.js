@@ -205,7 +205,7 @@ const Reports = () => {
     return {
       total: filteredTickets.length,
       corrective: correctiveTickets.length,
-      preventive: filteredTickets.filter(t => t.type === 'Preventiva').length,
+      preventive: filteredTickets.filter(t => t.type === 'Instalación Menor').length,
       completed: filteredTickets.filter(t => t.state === 'Cerrada').length,
       inProgress: filteredTickets.filter(t => t.state !== 'Cerrada' && t.state !== 'Iniciada').length,
       pending: filteredTickets.filter(t => t.state === 'Iniciada').length,
@@ -401,7 +401,7 @@ const Reports = () => {
                 <option value="">Todos</option>
                 <option value="Correctiva-Cobrable">Correctiva Cobrable</option>
                 <option value="Correctiva-No Cobrable">Correctiva No Cobrable</option>
-                <option value="Preventiva">Preventiva</option>
+                <option value="Instalación Menor">Instalación Menor</option>
                 <option value="Instalación">Instalación</option>
                 <option value="Proyectos">Proyectos</option>
               </select>
