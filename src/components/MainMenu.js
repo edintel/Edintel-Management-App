@@ -9,6 +9,7 @@ import { FileText, Ticket, Loader2, BookOpen, Hourglass } from "lucide-react";
 import BaseGraphService from "../services/BaseGraphService";
 import { expenseAuditConfig } from "../modules/expenseAudit/config/expenseAudit.config";
 import { postVentaConfig } from "../modules/postVentaManagement/config/postVentaManagement.config";
+import { extraHoursConfig } from "../modules/extraHours/config/extraHours.config"
 import { cursoControlConfig } from "../modules/cursoControl/config/cursoControl.config";
 
 const MainMenu = () => {
@@ -39,6 +40,25 @@ const MainMenu = () => {
         } catch (error) {
           console.log("No access to ExpenseAudit", error);
         }
+
+        try {
+          // Usar directamente el siteId de la configuración
+          const extraHoursSiteId = extraHoursConfig.siteId;
+
+          try {
+            await baseService.getListItems(
+              extraHoursSiteId,
+              extraHoursConfig.lists.rolesDepartamentos,
+              { top: 1 }
+            );
+            setAvailableModules(prev => ({ ...prev, horasExtras: true }));
+          } catch (listError) {
+            console.log("No access to Extra Hours lists", listError);
+          }
+        } catch (error) {
+          console.log("No access to Extra Hours site", error);
+        }
+
 
         // Check PostVenta access
         try {
@@ -113,7 +133,7 @@ const MainMenu = () => {
       name: "Horas Extras",
       description: "Sistema de gestión de horas extras",
       icon: Hourglass,
-      path: " ",
+      path: "/extra-hours/ ",
       available: availableModules.horasExtras
     }
   ];

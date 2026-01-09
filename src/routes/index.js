@@ -8,7 +8,8 @@ import LoadingScreen from '../components/LoadingScreen';
 
 const CursoControlModule = React.lazy(() => import('../modules/cursoControl'));
 const ExpenseAuditModule = React.lazy(() => import('../modules/expenseAudit'));
-const PostVentaModule = React.lazy(() => import('../modules/postVentaManagement'))
+const PostVentaModule = React.lazy(() => import('../modules/postVentaManagement'));
+const ExtraHours = React.lazy(() => import('../modules/extraHours'));
 const StyleGuide = React.lazy(() => import('../components/StyleGuide/StyleGuide'));
 
 const AppRoutes = () => {
@@ -39,6 +40,14 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <Suspense fallback={<LoadingScreen />}>
             <PostVentaModule />
+          </Suspense>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/extra-hours/*" element={
+        <ProtectedRoute>
+          <Suspense fallback={<LoadingScreen />}>
+            <ExtraHours />
           </Suspense>
         </ProtectedRoute>
       } />
