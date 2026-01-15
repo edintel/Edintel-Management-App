@@ -1,3 +1,4 @@
+// src/modules/extraHours/components/Request/RequestEdit.js
 import React, { useState, useEffect } from 'react';
 import { X, Save, Loader2, AlertTriangle, Plus, Trash2, CheckCircle } from 'lucide-react';
 import { useExtraHours } from '../../context/extraHoursContext';
@@ -151,6 +152,87 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
     return { horasDiurnas, horasNocturnas };
   };
 
+  // ✅ NUEVA FUNCIÓN: Obtener la fecha máxima permitida (hoy)
+  const getMaxDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  // ✅ NUEVA FUNCIÓN: Validar horarios y reglas de registro de horas extras
+  const validateWorkHours = (dia, horaInicio, horaFin) => {
+    if (!dia || !horaInicio || !horaFin) return { valid: true };
+
+    // Crear fecha local sin conversión de zona horaria
+    const [year, month, day] = dia.split('-');
+    const fecha = new Date(year, month - 1, day);
+    const diaSemana = fecha.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    const esFeriadoDia = esFeriado(fecha);
+
+    // Convertir horas a minutos desde medianoche
+    const [inicioHora, inicioMin] = horaInicio.split(':').map(Number);
+    const [finHora, finMin] = horaFin.split(':').map(Number);
+
+    const inicioMinutos = inicioHora * 60 + inicioMin;
+    const finMinutos = finHora * 60 + finMin;
+
+    // Horarios clave
+    const laboralInicio = 7 * 60 + 30; // 7:30 AM
+    const laboralFin = 17 * 60; // 5:00 PM (17:00)
+    const medianoche = 0; // 12:00 AM
+
+    // REGLA 1: Hora de fin no puede ser menor que hora de inicio en el MISMO día
+    if (finMinutos <= inicioMinutos) {
+      return {
+        valid: false,
+        message: 'La hora de salida debe ser mayor que la hora de inicio. Si trabajó después de medianoche, debe registrar el día siguiente para las horas de 12:00 AM a 7:30 AM'
+      };
+    }
+
+    // Solo validar entre semana (lunes a viernes) que NO sean feriados
+    if (diaSemana >= 1 && diaSemana <= 5 && !esFeriadoDia) {
+      // REGLA 2: Validar rangos permitidos para ENTRE SEMANA
+
+      // Caso A: Horario de tarde/noche (5:00 PM - 11:59 PM)
+      if (inicioMinutos >= laboralFin) {
+        // Permitido: 5:00 PM en adelante
+        // Debe terminar antes de medianoche o hasta 11:59 PM
+        // (la validación de finMinutos > inicioMinutos ya cubre esto)
+        return { valid: true };
+      }
+
+      // Caso B: Horario de madrugada (12:00 AM - 7:30 AM)
+      // Debe marcarse el día SIGUIENTE
+      if (inicioMinutos >= medianoche && inicioMinutos < laboralInicio) {
+        // Este es el día siguiente, verificar que termine antes de 7:30 AM
+        if (finMinutos > laboralInicio) {
+          return {
+            valid: false,
+            message: 'Para horas entre 12:00 AM y 7:30 AM, debe terminar antes de las 7:30 AM'
+          };
+        }
+        return { valid: true };
+      }
+
+      // Caso C: Dentro del horario laboral (7:30 AM - 5:00 PM)
+      if (inicioMinutos >= laboralInicio && inicioMinutos < laboralFin) {
+        return {
+          valid: false,
+          message: 'No se pueden registrar horas extras durante el horario laboral (7:30 AM - 5:00 PM). Las horas extras son desde las 5:00 PM a 11:59 PM del mismo día, o de 12:00 AM a 7:30 AM del día siguiente'
+        };
+      }
+
+      // Caso D: Si termina dentro del horario laboral
+      if (finMinutos > laboralInicio && finMinutos < laboralFin) {
+        return {
+          valid: false,
+          message: 'No se pueden registrar horas extras que terminen durante el horario laboral (7:30 AM - 5:00 PM)'
+        };
+      }
+    }
+
+    return { valid: true };
+  };
+
   // Cargar datos del registro
   useEffect(() => {
     const loadExtraHoursRecord = () => {
@@ -298,6 +380,34 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
       setErrorMessage('Debe agregar al menos un registro de horas extras completo');
       setSubmitStatus('error');
       return;
+    }
+
+    // ✅ NUEVA VALIDACIÓN: Validar fechas futuras
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < formData.extrasInfo.length; i++) {
+      const extra = formData.extrasInfo[i];
+      if (!extra.dia || !extra.horaInicio || !extra.horaFin) continue;
+
+      // Validar que la fecha no sea futura
+      const [year, month, day] = extra.dia.split('-');
+      const fechaExtra = new Date(year, month - 1, day);
+      fechaExtra.setHours(0, 0, 0, 0);
+
+      if (fechaExtra > today) {
+        setErrorMessage(`La fecha del registro ${i + 1} no puede ser mayor a hoy`);
+        setSubmitStatus('error');
+        return;
+      }
+
+      // ✅ NUEVA VALIDACIÓN: Validar horario laboral de lunes a viernes
+      const validation = validateWorkHours(extra.dia, extra.horaInicio, extra.horaFin);
+      if (!validation.valid) {
+        setErrorMessage(`Registro ${i + 1}: ${validation.message}`);
+        setSubmitStatus('error');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -521,6 +631,7 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
                             type="date"
                             value={extra.dia}
                             onChange={(e) => handleExtraInfoChange(index, 'dia', e.target.value)}
+                            max={getMaxDate()}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent"
                             required
                             disabled={isSubmitting}

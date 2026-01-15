@@ -36,13 +36,112 @@ const RequestList = ({ showApprovals = false }) => {
   // Estado para expandir/contraer filas
   const [expandedRows, setExpandedRows] = useState(new Set());
 
+  // ==================== LÓGICA DE CÁLCULO DE HORAS ====================
+
+  // Feriados fijos de Costa Rica
+  const feriadosFijos = [
+    { mes: 1, dia: 1 },
+    { mes: 4, dia: 11 },
+    { mes: 5, dia: 1 },
+    { mes: 7, dia: 25 },
+    { mes: 8, dia: 2 },
+    { mes: 8, dia: 15 },
+    { mes: 8, dia: 31 },
+    { mes: 9, dia: 15 },
+    { mes: 12, dia: 1 },
+    { mes: 12, dia: 25 },
+  ];
+
+  const calcularPascua = (year) => {
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+  };
+
+  const esFeriado = (fecha) => {
+    const mes = fecha.getMonth() + 1;
+    const dia = fecha.getDate();
+    const year = fecha.getFullYear();
+
+    const esFeriadoFijo = feriadosFijos.some(
+      feriado => feriado.mes === mes && feriado.dia === dia
+    );
+
+    if (esFeriadoFijo) return true;
+
+    const pascua = calcularPascua(year);
+    const juevesSanto = new Date(pascua);
+    juevesSanto.setDate(pascua.getDate() - 3);
+    const viernesSanto = new Date(pascua);
+    viernesSanto.setDate(pascua.getDate() - 2);
+
+    const fechaStr = fecha.toDateString();
+    return (
+      fechaStr === juevesSanto.toDateString() ||
+      fechaStr === viernesSanto.toDateString()
+    );
+  };
+
+  const esDomingo = (fecha) => {
+    return fecha.getDay() === 0;
+  };
+
+  const dividirHorasPorSegmento = (horaInicio, horaFin) => {
+    const [hi, mi] = horaInicio.split(':').map(Number);
+    const [hf, mf] = horaFin.split(':').map(Number);
+
+    let inicio = hi + mi / 60;
+    let fin = hf + mf / 60;
+
+    if (fin < inicio) {
+      fin += 24;
+    }
+
+    let horasDiurnas = 0;
+    let horasNocturnas = 0;
+
+    if (inicio >= 6 && fin <= 22) {
+      horasDiurnas = fin - inicio;
+    } else if ((inicio >= 22 && fin <= 30) || (inicio >= 0 && fin <= 6)) {
+      horasNocturnas = fin - inicio;
+    } else if (inicio >= 6 && inicio < 22 && fin > 22) {
+      horasDiurnas = 22 - inicio;
+      horasNocturnas = fin - 22;
+    } else if (inicio >= 0 && inicio < 6 && fin > 6) {
+      horasNocturnas = 6 - inicio;
+      horasDiurnas = fin - 6;
+    } else if (inicio >= 6 && inicio < 22 && fin > 30) {
+      horasDiurnas = 22 - inicio;
+      horasNocturnas = 8;
+      horasDiurnas += (fin - 30);
+    }
+
+    return { horasDiurnas, horasNocturnas };
+  };
+
+  const redondearMediaHora = (horasDecimales) => {
+    return Math.round(horasDecimales * 2) / 2;
+  };
+
+  // ==================== FIN DE LÓGICA DE CÁLCULO ====================
+
   // Función para formatear fecha sin problemas de zona horaria
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    // Extraer solo la parte de fecha (YYYY-MM-DD)
     const datePart = dateString.split('T')[0];
     const [year, month, day] = datePart.split('-');
-    // Crear fecha local (sin conversión de zona horaria)
     return new Date(year, month - 1, day).toLocaleDateString('es-CR');
   };
 
@@ -50,42 +149,31 @@ const RequestList = ({ showApprovals = false }) => {
   const filteredRequests = useMemo(() => {
     let requests = extraHoursRequests;
 
-    // Si es vista de aprobaciones, mostrar según rol
     if (showApprovals) {
       if (userDepartmentRole?.role === 'Colaborador') {
-        // Colaboradores no ven aprobaciones
         return [];
       }
-      // Otros roles ven solicitudes de su departamento
       requests = service?.filterRequestsByDepartment(requests, userDepartmentRole) || [];
     } else {
-      // Vista normal: solo solicitudes del usuario
       requests = requests.filter(req => req.createdBy.email === userEmail);
     }
 
-    // Aplicar filtros
     if (filters.st || filters.dia || filters.cliente) {
       requests = requests.filter(request => {
-        // Verificar que extrasInfo exista y sea un array
         if (!Array.isArray(request.extrasInfo) || request.extrasInfo.length === 0) {
           return false;
         }
 
-        // Filtrar por ST
         const matchesST = !filters.st || request.extrasInfo.some(
           extra => extra.st && extra.st.toLowerCase().includes(filters.st.toLowerCase())
         );
 
-        // Filtrar por fecha
         const matchesDia = !filters.dia || request.extrasInfo.some(extra => {
           if (!extra.dia) return false;
-          // Extraer solo la parte de fecha sin procesar con Date (evita problemas de zona horaria)
-          // extra.dia viene en formato YYYY-MM-DD desde SharePoint
-          const extraDate = extra.dia.split('T')[0]; // Obtener solo la parte de fecha
+          const extraDate = extra.dia.split('T')[0];
           return extraDate === filters.dia;
         });
 
-        // Filtrar por cliente
         const matchesCliente = !filters.cliente || request.extrasInfo.some(
           extra => extra.nombreCliente && extra.nombreCliente.toLowerCase().includes(filters.cliente.toLowerCase())
         );
@@ -119,7 +207,6 @@ const RequestList = ({ showApprovals = false }) => {
 
   // Navegar al detalle
   const handleRequestClick = (request) => {
-    // Pasar el parámetro 'from' para saber desde dónde se navegó
     navigate(`${EXTRA_HOURS_ROUTES.REQUESTS}/${request.id}?from=requests`);
   };
 
@@ -366,7 +453,17 @@ const RequestList = ({ showApprovals = false }) => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {request.extrasInfo?.map((extra, index) => {
-                          const hours = service?.calculateTotalHours([extra]) || 0;
+                          // ✅ Calcular horas con redondeo
+                          let horasCalculadas = 0;
+                          if (extra.dia && extra.horaInicio && extra.horaFin) {
+                            const { horasDiurnas, horasNocturnas } = dividirHorasPorSegmento(
+                              extra.horaInicio,
+                              extra.horaFin
+                            );
+                            horasCalculadas = horasDiurnas + horasNocturnas;
+                          }
+                          const horasRedondeadas = redondearMediaHora(horasCalculadas);
+
                           return (
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm text-gray-900">
@@ -385,7 +482,7 @@ const RequestList = ({ showApprovals = false }) => {
                                 {extra.nombreCliente || '-'}
                               </td>
                               <td className="px-4 py-3 text-sm font-medium text-blue-600">
-                                {hours.toFixed(2)} hrs
+                                {horasRedondeadas.toFixed(2)} hrs
                               </td>
                             </tr>
                           );
