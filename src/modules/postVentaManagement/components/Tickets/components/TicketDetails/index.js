@@ -59,6 +59,7 @@ const TicketDetails = () => {
     handleConfirmDate,
     handleEditTicket,
     handleDeleteTicket,
+    handleReassignTechnicians,
     handleFileDownload,
     handleCreateShareLink,
   } = useTicketActions();
@@ -86,27 +87,15 @@ const TicketDetails = () => {
     navigate(POST_VENTA_ROUTES.TICKETS.LIST);
   };
 
-  // Handler para reasignar técnicos
-  const handleReassignTech = async (ticketId, technicianIds) => {
+  const handleReassign = async (ticketId, technicianIds) => {
     try {
-      setReassigning(true);
-      setReassignError(null);
-
-      // Llamar al servicio para reasignar
-      await service.reassignTechniciansPartial(ticketId, technicianIds);
-
-      // Cerrar modal
+      // Usa el método del hook que SÍ guarda el historial
+      await handleReassignTechnicians(ticketId, technicianIds);
+      // Cierra el modal solo después del éxito
       setIsReassignModalOpen(false);
-
-      // Recargar la página para ver los cambios
-      window.location.reload();
-
     } catch (err) {
-      console.error("Error reassigning technicians:", err);
-      setReassignError(err.message || "Error al reasignar técnicos");
-      // No hacemos throw para que el error se muestre en el modal
-    } finally {
-      setReassigning(false);
+      // El error ya está manejado por el hook en useTicketActions
+      console.error("Error en reasignación:", err);
     }
   };
 
@@ -184,7 +173,7 @@ const TicketDetails = () => {
             siteDetails={siteDetails}
             system={system}
             roles={roles}
-            ticket={ticket} 
+            ticket={ticket}
           />
         </div>
       </div>
@@ -202,16 +191,14 @@ const TicketDetails = () => {
         error={error}
       />
 
+     {/* ✅ ACTUALIZADO: Usa el nuevo handler y el estado del hook */}
       <ReassignTechModal
         isOpen={isReassignModalOpen}
-        onClose={() => {
-          setIsReassignModalOpen(false);
-          setReassignError(null);
-        }}
+        onClose={() => setIsReassignModalOpen(false)}
         ticket={ticket}
-        onReassign={handleReassignTech}
-        processing={reassigning}
-        error={reassignError}
+        onReassign={handleReassign} 
+        processing={processing}  
+        error={error}  
       />
 
       <TicketActionsModal

@@ -56,7 +56,7 @@ const TimelineSection = ({ ticket }) => {
       });
     }
 
-    // Partial work
+    // Partial work - CON TODO EL HISTORIAL
     if (ticket.workNotDone) {
       const event = {
         type: "Trabajo Parcial",
@@ -70,34 +70,66 @@ const TimelineSection = ({ ticket }) => {
         details["Notas"] = ticket.notes;
       }
 
-      // Verificar si hay reasignación de técnicos
-      const hasReassignment = ticket.reassignedTechnicians?.length > 0;
+      // ✅ Procesar historial completo
+      if (ticket.reassignmentHistory && Array.isArray(ticket.reassignmentHistory)) {
+        // Separar reasignaciones y documentos
+        const reassignments = ticket.reassignmentHistory.filter(entry => entry.type === "reassignment");
+        const documents = ticket.reassignmentHistory.filter(entry => entry.type === "partial_document");
 
-      if (hasReassignment) {
-        // Mostrar técnicos reasignados
-        details["Técnicos reasignados"] = ticket.reassignedTechnicians
-          .map(tech => tech.LookupValue)
-          .join(", ");
+        // Agregar reasignaciones al detalle
+        if (reassignments.length > 0) {
+          reassignments.forEach((entry, index) => {
+            const timestamp = new Date(entry.date).toLocaleString("es-ES", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
 
-        // Mostrar fecha de reasignación si existe
-        if (ticket.lastReassignmentDate) {
-          details["Fecha de reasignación"] = new Date(ticket.lastReassignmentDate).toLocaleString("es-ES", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+            const previousTechs = entry.previousTechnicians?.map(t => t.name).join(", ") || "N/A";
+            const newTechs = entry.newTechnicians?.map(t => t.name).join(", ") || "N/A";
+
+            details[`Reasignación ${index + 1}`] = `${timestamp}\n  De: ${previousTechs}\n  A: ${newTechs}`;
           });
         }
-      }
 
-      // Contar cuántas boletas parciales se han subido
-      const partialDocuments = ticket.reassignmentHistory?.filter(
-        entry => entry.type === "partial_document"
-      ) || [];
+        // Agregar documentos parciales al detalle
+        if (documents.length > 0) {
+          documents.forEach((entry, index) => {
+            const timestamp = new Date(entry.date).toLocaleString("es-ES", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
 
-      if (partialDocuments.length > 0) {
-        details["Boletas parciales subidas"] = partialDocuments.length;
+            details[`Boleta Parcial ${index + 1}`] = `${timestamp}\n  Archivo: ${entry.fileName}`;
+          });
+        }
+
+        // Resumen final
+        if (reassignments.length > 0 || documents.length > 0) {
+          details["Resumen"] = `${reassignments.length} reasignación(es), ${documents.length} boleta(s) subida(s)`;
+        }
+      } else {
+        // Fallback: Si NO hay historial detallado pero hay reasignación
+        if (ticket.reassignedTechnicians?.length > 0) {
+          details["Técnicos reasignados"] = ticket.reassignedTechnicians
+            .map(tech => tech.LookupValue)
+            .join(", ");
+
+          if (ticket.lastReassignmentDate) {
+            details["Fecha de reasignación"] = new Date(ticket.lastReassignmentDate).toLocaleString("es-ES", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }
+        }
       }
 
       // Solo agregar detalles si hay algo que mostrar
@@ -122,13 +154,12 @@ const TimelineSection = ({ ticket }) => {
       events.push(event);
     }
 
-    
+    // Closed
     if (ticket.closeDate) {
       const event = {
         type: "Cerrada",
         date: ticket.closeDate,
       };
-      
       
       if (ticket.closeNotes) {
         event.details = {

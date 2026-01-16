@@ -35,6 +35,72 @@ const ListTable = ({
     navigate(POST_VENTA_ROUTES.TICKETS.DETAIL(ticket.id));
   };
 
+  // ✅ Función para obtener TODOS los técnicos únicos de un ticket
+  const getAllUniqueTechnicians = (ticket) => {
+    const techMap = new Map();
+
+    // 1. Agregar técnicos originales
+    if (ticket.technicians && ticket.technicians.length > 0) {
+      ticket.technicians.forEach(tech => {
+        if (tech.LookupId) {
+          techMap.set(tech.LookupId, {
+            id: tech.LookupId,
+            name: tech.LookupValue,
+            type: 'original'
+          });
+        }
+      });
+    }
+
+    // 2. Agregar técnicos del historial de reasignaciones
+    if (ticket.reassignmentHistory && Array.isArray(ticket.reassignmentHistory)) {
+      ticket.reassignmentHistory.forEach(entry => {
+        if (entry.type === "reassignment") {
+          // Agregar técnicos anteriores
+          if (entry.previousTechnicians) {
+            entry.previousTechnicians.forEach(tech => {
+              if (tech.id && !techMap.has(tech.id)) {
+                techMap.set(tech.id, {
+                  id: tech.id,
+                  name: tech.name,
+                  type: 'reassigned'
+                });
+              }
+            });
+          }
+          // Agregar técnicos nuevos
+          if (entry.newTechnicians) {
+            entry.newTechnicians.forEach(tech => {
+              if (tech.id && !techMap.has(tech.id)) {
+                techMap.set(tech.id, {
+                  id: tech.id,
+                  name: tech.name,
+                  type: 'reassigned'
+                });
+              }
+            });
+          }
+        }
+      });
+    }
+
+    // 3. Fallback: Agregar técnicos reasignados actuales si no hay historial
+    if ((!ticket.reassignmentHistory || ticket.reassignmentHistory.length === 0) && 
+        ticket.reassignedTechnicians && ticket.reassignedTechnicians.length > 0) {
+      ticket.reassignedTechnicians.forEach(tech => {
+        if (tech.LookupId && !techMap.has(tech.LookupId)) {
+          techMap.set(tech.LookupId, {
+            id: tech.LookupId,
+            name: tech.LookupValue,
+            type: 'reassigned'
+          });
+        }
+      });
+    }
+
+    return Array.from(techMap.values());
+  };
+
   // Updated columns with width information for fixed-height table
   const columns = [
     {
@@ -42,35 +108,35 @@ const ListTable = ({
       header: "ST",
       width: 2,
       render: (value, row) => {
-        // Combinar técnicos originales y reasignados
-        const originalTechs = row.technicians || [];
-        const reassignedTechs = row.reassignedTechnicians || [];
-        const allTechs = [...originalTechs, ...reassignedTechs];
+        // ✅ Obtener TODOS los técnicos únicos
+        const allTechs = getAllUniqueTechnicians(row);
+        const originalTechs = allTechs.filter(t => t.type === 'original');
+        const reassignedTechs = allTechs.filter(t => t.type === 'reassigned');
 
         return (
           <div className="flex items-center gap-4">
             <span className="font-medium">{value}</span>
             {allTechs.length > 0 && (
               <div className="flex -space-x-2">
-                {/* Mostrar técnicos originales primero */}
-                {originalTechs.slice(0, 3).map((tech, index) => (
+                {/* Mostrar técnicos originales primero (máximo 2) */}
+                {originalTechs.slice(0, 2).map((tech, index) => (
                   <div
-                    key={`orig-${index}`}
+                    key={`orig-${tech.id}`}
                     className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary ring-2 ring-white"
-                    title={tech.LookupValue}
+                    title={`${tech.name} (Original)`}
                   >
-                    {tech.LookupValue.charAt(0)}
+                    {tech.name.charAt(0)}
                   </div>
                 ))}
 
                 {/* Mostrar técnicos reasignados con estilo diferente */}
-                {originalTechs.length < 3 && reassignedTechs.slice(0, 3 - originalTechs.length).map((tech, index) => (
+                {reassignedTechs.slice(0, Math.max(0, 3 - originalTechs.length)).map((tech, index) => (
                   <div
-                    key={`reass-${index}`}
+                    key={`reass-${tech.id}`}
                     className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center text-xs font-medium text-amber-700 ring-2 ring-white"
-                    title={`${tech.LookupValue} (Reasignado)`}
+                    title={`${tech.name} (Reasignado)`}
                   >
-                    {tech.LookupValue.charAt(0)}
+                    {tech.name.charAt(0)}
                   </div>
                 ))}
 
@@ -78,7 +144,7 @@ const ListTable = ({
                 {allTechs.length > 3 && (
                   <div
                     className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 ring-2 ring-white"
-                    title={`${allTechs.length - 3} técnicos más`}
+                    title={`${allTechs.length - 3} técnicos más: ${allTechs.slice(3).map(t => t.name).join(", ")}`}
                   >
                     +{allTechs.length - 3}
                   </div>

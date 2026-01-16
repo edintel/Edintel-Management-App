@@ -68,65 +68,62 @@ export const useTicketActions = () => {
 
 
   const handleReassignTechnicians = useCallback(
-    async (ticketId, newTechnicianIds) => {
-      setProcessing(true);
-      setError(null);
-      try {
+  async (ticketId, newTechnicianIds) => {
+    setProcessing(true);
+    setError(null);
+    try {
+      const currentTicket = await service.getTicketById(ticketId);
 
-        const currentTicket = await service.getTicketById(ticketId);
+      // Determinar cuáles son los técnicos "anteriores"
+      const previousTechIds = currentTicket.reassignedTechnicians?.length > 0
+        ? currentTicket.reassignedTechnicians.map(t => t.LookupId)
+        : currentTicket.technicians.map(t => t.LookupId);
 
-        // Determinar cuáles son los técnicos "anteriores"
-        // Si ya hay reasignados, usar esos. Si no, usar los originales
-        const previousTechIds = currentTicket.reassignedTechnicians?.length > 0
-          ? currentTicket.reassignedTechnicians.map(t => t.LookupId)
-          : currentTicket.technicians.map(t => t.LookupId);
+      // ✅ ACTUALIZADO: Pasar el array de roles como cuarto parámetro
+      await service.reassignTechniciansWithHistory(
+        ticketId,
+        newTechnicianIds,
+        previousTechIds,
+        roles  // ← AGREGAR ESTE PARÁMETRO
+      );
 
-
-        await service.reassignTechniciansWithHistory(
-          ticketId,
-          newTechnicianIds,
-          previousTechIds
+      if (currentTicket.calendarEventId && currentTicket.tentativeDate) {
+        const techDetails = await Promise.all(
+          newTechnicianIds.map(async (techId) => {
+            const techRole = roles.find(
+              role => role.employee?.LookupId.toString() === techId.toString()
+            );
+            return {
+              email: techRole?.employee?.Email,
+              name: techRole?.employee?.LookupValue
+            };
+          })
         );
 
+        const validAttendees = techDetails.filter(tech => tech.email && tech.name);
 
-        if (currentTicket.calendarEventId && currentTicket.tentativeDate) {
-          const techDetails = await Promise.all(
-            newTechnicianIds.map(async (techId) => {
-              const techRole = roles.find(
-                role => role.employee?.LookupId.toString() === techId.toString()
-              );
-              return {
-                email: techRole?.employee?.Email,
-                name: techRole?.employee?.LookupValue
-              };
-            })
+        if (validAttendees.length > 0) {
+          await service.updateCalendarEventAttendees(
+            service.groupId,
+            currentTicket.calendarEventId,
+            validAttendees
           );
-
-          const validAttendees = techDetails.filter(tech => tech.email && tech.name);
-
-          if (validAttendees.length > 0) {
-            await service.updateCalendarEventAttendees(
-              service.groupId,
-              currentTicket.calendarEventId,
-              validAttendees
-            );
-          }
         }
-
-        await loadPostVentaData();
-        closeModal();
-
-        console.log('✅ Reasignación completada con éxito');
-      } catch (err) {
-        console.error("Error al reasignar técnicos:", err);
-        setError(err.message || "Error al reasignar técnicos");
-      } finally {
-        setProcessing(false);
       }
-    },
-    [service, roles, closeModal, loadPostVentaData]
-  );
 
+      await loadPostVentaData();
+      closeModal();
+
+      console.log('✅ Reasignación completada con éxito');
+    } catch (err) {
+      console.error("Error al reasignar técnicos:", err);
+      setError(err.message || "Error al reasignar técnicos");
+    } finally {
+      setProcessing(false);
+    }
+  },
+  [service, roles, closeModal, loadPostVentaData]
+);
   // VERSIÓN CORREGIDA DE handleUpdateStatus
   // Reemplazar el método completo en useTicketActions.js
 
