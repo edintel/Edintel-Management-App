@@ -285,12 +285,12 @@ const TicketForm = () => {
         adminDocs: adminFileLinks,
         waitingEquiment: finalFormData.waitingEquiment,
       });
-            //  await service.sendEmail({
-            //   toRecipients: [supportEmail],
-            //   subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
-            //     }`,
-            //   content: emailContent,
-            // });   
+             await service.sendEmail({
+              toRecipients: [supportEmail],
+               subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
+                }`,
+               content: emailContent,
+             });   
       await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {
