@@ -80,81 +80,42 @@ const Approvals = () => {
     return roles[0];
   };
 
-  // Filtrar solicitudes para aprobación
-  const approvalsRequests = useMemo(() => {
-    if (!canAccessApprovals) {
-      return [];
-    }
+// Filtrar solicitudes para aprobación
+const approvalsRequests = useMemo(() => {
 
-    let requests = extraHoursRequests;
-    const role = getPrimaryRole();
-    const department = userDepartmentRole?.department?.departamento;
 
-    if (role === 'Administrador') {
-      // Administradores ven TODO sin filtros
-      // No aplicamos ningún filtro, mantener todas las solicitudes
-    }
-    else if (role === 'AsistenteJefatura' || role === 'Jefatura') {
-      // Filtrar por departamento (TODAS las del departamento)
-      requests = requests.filter(req => req.departamento === department);
 
-      // Para AsistenteJefatura: mostrar TODAS las solicitudes del departamento
-      // Para Jefatura: mostrar TODAS las que pasaron por AsistenteJefatura (revisadoAsistente !== null)
-      if (role === 'Jefatura') {
-        requests = requests.filter(req => {
-          // Jefatura solo ve las que pasaron por AsistenteJefatura
-          const pasoAsistente = req.revisadoAsistente !== null;
-          return pasoAsistente;
-        });
-      }
-    }
+  let requests = extraHoursRequests;
+  const role = getPrimaryRole();
+  const department = userDepartmentRole?.department?.departamento;
 
-    // Aplicar filtros adicionales
-    if (filters.st || filters.dia || filters.cliente || filters.estado) {
-      requests = requests.filter(request => {
-        // Verificar que extrasInfo exista y sea un array
-        const hasExtrasInfo = Array.isArray(request.extrasInfo) && request.extrasInfo.length > 0;
+ 
 
-        // Filtrar por ST
-        const matchesST = !filters.st || (hasExtrasInfo && request.extrasInfo.some(
-          extra => extra.st && extra.st.toLowerCase().includes(filters.st.toLowerCase())
-        ));
-
-        // Filtrar por fecha
-        const matchesDia = !filters.dia || (hasExtrasInfo && request.extrasInfo.some(extra => {
-          if (!extra.dia) return false;
-          // Extraer solo la parte de fecha sin procesar con Date (evita problemas de zona horaria)
-          // extra.dia viene en formato YYYY-MM-DD desde SharePoint
-          const extraDate = extra.dia.split('T')[0]; // Obtener solo la parte de fecha
-          return extraDate === filters.dia;
-        }));
-
-        // Filtrar por cliente
-        const matchesCliente = !filters.cliente || (hasExtrasInfo && request.extrasInfo.some(
-          extra => extra.nombreCliente && extra.nombreCliente.toLowerCase().includes(filters.cliente.toLowerCase())
-        ));
-
-        // Filtrar por estado
-        let matchesEstado = true;
-        if (filters.estado) {
-          const statusInfo = getRequestStatus(request);
-          if (filters.estado === 'pendiente') {
-            matchesEstado = statusInfo.status === 'pending' ||
-              statusInfo.status === 'in_jefatura' ||
-              statusInfo.status === 'in_rh';
-          } else if (filters.estado === 'aprobada') {
-            matchesEstado = statusInfo.status === 'approved';
-          } else if (filters.estado === 'rechazada') {
-            matchesEstado = statusInfo.status === 'rejected';
-          }
-        }
-
-        return matchesST && matchesDia && matchesCliente && matchesEstado;
+  if (role === 'Administrador') {
+    console.log('✅ Administrador - Mostrando TODAS las solicitudes sin filtros');
+    // Administradores ven TODO sin filtros
+    // No aplicamos ningún filtro, mantener todas las solicitudes
+  }
+  else if (role === 'AsistenteJefatura' || role === 'Jefatura') {
+  
+    requests = requests.filter(req => req.departamento === department);
+ 
+    if (role === 'Jefatura') {
+      
+      const antesJefatura = requests.length;
+      
+      requests = requests.filter(req => {
+        const pasoAsistente = req.revisadoAsistente !== null;
+        return pasoAsistente;
       });
+      
+     
     }
+  }
 
-    return requests.sort((a, b) => b.created?.getTime() - a.created?.getTime());
-  }, [extraHoursRequests, userDepartmentRole, canAccessApprovals, filters]);
+
+  return requests.sort((a, b) => b.created?.getTime() - a.created?.getTime());
+}, [extraHoursRequests, canAccessApprovals, userDepartmentRole, filters, getPrimaryRole, getRequestStatus, service]);
 
   // Manejar aprobación/rechazo usando el helper
   const handleApprovalAction = async (requestId, approved) => {

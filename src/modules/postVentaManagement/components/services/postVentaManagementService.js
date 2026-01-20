@@ -487,7 +487,7 @@ class PostVentaManagementService extends BaseGraphService {
         reportId: item.fields.Informe,
         systemId: item.fields.SistemaIDLookupId,
         notes: item.fields.Notas,
-        closeNotes: item.fields.NotasCierre, 
+        closeNotes: item.fields.NotasCierre,
         link: item.fields.Link,
         calendarEventId: item.fields.calendarEvent,
         created: item.createdDateTime,
@@ -495,7 +495,7 @@ class PostVentaManagementService extends BaseGraphService {
         workNotDone: item.fields.FechaParcial,
         reassignedTechnicians: item.fields.TecnicosReasignados || [],
         lastReassignmentDate: item.fields.FechaUltimaReasignacionParcial,
-        confirmationPostReassignment: item.fields.ConfirmacionPostReasignacion,
+
         waitingEquiment: item.fields.Equiment || false,
         reassignmentHistory: reassignmentHistory,
       };
@@ -787,7 +787,7 @@ class PostVentaManagementService extends BaseGraphService {
           break;
         case "Cerrada":
           fields.Fechacierre = now;
-         
+
           if (closeNotes) {
             fields.NotasCierre = closeNotes;
           }
@@ -1414,7 +1414,15 @@ class PostVentaManagementService extends BaseGraphService {
    * @param {Array} previousTechnicianIds - IDs de los técnicos anteriores
    * @returns {Promise<Object>} Ticket actualizado
    */
-  async reassignTechniciansWithHistory(ticketId, newTechnicianIds, previousTechnicianIds) {
+  /**
+  * Agrega una nueva entrada al historial de reasignaciones
+  * @param {string} ticketId - ID del ticket
+  * @param {Array} newTechnicianIds - IDs de los nuevos técnicos
+  * @param {Array} previousTechnicianIds - IDs de los técnicos anteriores
+  * @param {Array} roles - Array de roles para obtener nombres de técnicos
+  * @returns {Promise<Object>} Ticket actualizado
+  */
+  async reassignTechniciansWithHistory(ticketId, newTechnicianIds, previousTechnicianIds, roles = []) {
     await this.initializeGraphClient();
 
     try {
@@ -1439,32 +1447,25 @@ class PostVentaManagementService extends BaseGraphService {
         }
       }
 
-      // 3. Obtener nombres de técnicos para el historial
-      const getTechNames = async (techIds) => {
-        const names = [];
-        for (const id of techIds) {
-          try {
-            const user = await this.client
-              .api(`/sites/${this.siteId}/lists/${this.config.lists.roles}/items`)
-              .filter(`fields/EmpleadoIDLookupId eq ${id}`)
-              .expand("fields")
-              .get();
+      // 3. ✅ NUEVO: Obtener nombres de técnicos desde el array de roles
+      const getTechNames = (techIds) => {
+        return techIds.map((id) => {
+          const techRole = roles.find(
+            role => role.employee?.LookupId?.toString() === id.toString()
+          );
 
-            if (user.value.length > 0) {
-              names.push({
-                id: id,
-                name: user.value[0].fields.EmpleadoID?.LookupValue || "Desconocido"
-              });
-            }
-          } catch (e) {
-            names.push({ id: id, name: "Desconocido" });
-          }
-        }
-        return names;
+          return {
+            id: id,
+            name: techRole?.employee?.LookupValue || "Desconocido"
+          };
+        });
       };
 
-      const previousTechs = await getTechNames(previousTechnicianIds);
-      const newTechs = await getTechNames(newTechnicianIds);
+      const previousTechs = getTechNames(previousTechnicianIds);
+      const newTechs = getTechNames(newTechnicianIds);
+
+      console.log('📋 Técnicos anteriores:', previousTechs);
+      console.log('📋 Técnicos nuevos:', newTechs);
 
       // 4. Crear nueva entrada en el historial
       const now = new Date().toISOString();
@@ -1502,12 +1503,11 @@ class PostVentaManagementService extends BaseGraphService {
             [`${personColumns[0].name}LookupId@odata.type`]: "Collection(Edm.String)",
             [`${personColumns[0].name}LookupId`]: technicianLookups,
             FechaUltimaReasignacionParcial: now,
-            ConfirmacionPostReasignacion: null,
-            HistorialReasignaciones: JSON.stringify(history) // Guardar historial completo
+            HistorialReasignaciones: JSON.stringify(history)
           },
         });
 
-      console.log(`✅ Reasignación registrada en historial`);
+      console.log(`✅ Reasignación registrada en historial con ${history.length} entradas`);
       return response;
 
     } catch (error) {

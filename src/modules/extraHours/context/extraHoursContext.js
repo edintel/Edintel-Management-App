@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -97,7 +96,7 @@ export function ExtraHoursProvider({ children }) {
   const [service, setService] = React.useState(null);
   const hasLoadedData = useRef(false);
 
-  // ✅ Load all data - MODIFICADO para aceptar servicio como parámetro
+  // Load all data
   const loadExtraHoursData = useCallback(async (serviceInstance = null) => {
     const activeService = serviceInstance || service;
 
@@ -126,41 +125,47 @@ export function ExtraHoursProvider({ children }) {
         const adminRole = userRoles.find(
           (role) => role.roleType === "Administrador"
         );
-
         const jefaturaRole = userRoles.find(
           (role) => role.roleType === "Jefatura"
         );
-
         const asistenteRole = userRoles.find(
           (role) => role.roleType === "AsistenteJefatura"
         );
+        const colaboradorRole = userRoles.find(
+          (role) => role.roleType === "Colaborador"
+        );
 
-        const selectedRole = adminRole || jefaturaRole || asistenteRole || userRoles[0];
+        const primaryRole =
+          adminRole || jefaturaRole || asistenteRole || colaboradorRole;
 
-        userDeptRole = {
-          department: selectedRole.department,
-          role: selectedRole.roleType,  // ✅ Esto debería ser un STRING, no un array
-        };
+        if (primaryRole) {
+          const department = departmentsData.find(
+            (dept) => parseInt(dept.id, 10) === primaryRole.departmentId
+          );
+
+          userDeptRole = {
+            role: primaryRole.roleType,
+            department: department,
+            allRoles: userRoles.map((r) => r.roleType),
+          };
+        }
       }
 
-      // Filter requests based on user's role and permissions
-      const filteredRequests = activeService.filterRequestsByDepartment(
-        requestsData,
-        userDeptRole
-      );
-
-      dispatch({ type: ACTIONS.SET_EXTRA_HOURS, payload: filteredRequests });
+      // Dispatch data to reducer
+      dispatch({ type: ACTIONS.SET_EXTRA_HOURS, payload: requestsData });
       dispatch({ type: ACTIONS.SET_DEPARTMENTS, payload: departmentsData });
       dispatch({ type: ACTIONS.SET_ROLES, payload: rolesData });
       dispatch({ type: ACTIONS.SET_USER_ROLE, payload: userDeptRole });
       dispatch({ type: ACTIONS.SET_LOADING, payload: false });
     } catch (error) {
+      console.error("Error loading extra hours data:", error);
       dispatch({
         type: ACTIONS.SET_ERROR,
-        payload: "Error al cargar los datos",
+        payload: "Error al cargar los datos de horas extras",
       });
+      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
     }
-  }, [service, accounts]);
+  }, [accounts, service]);
 
   // Create new request
   const createRequest = useCallback(
@@ -169,7 +174,6 @@ export function ExtraHoursProvider({ children }) {
 
       try {
         const newRequest = await service.createExtraHoursRequest(requestData);
-        // Reload data to get the formatted request
         await loadExtraHoursData();
         return newRequest;
       } catch (error) {
@@ -189,7 +193,6 @@ export function ExtraHoursProvider({ children }) {
           id,
           updateData
         );
-        // Reload data to get updated request
         await loadExtraHoursData();
         return updatedRequest;
       } catch (error) {
@@ -210,7 +213,6 @@ export function ExtraHoursProvider({ children }) {
           approvalType,
           status
         );
-        // Reload data to reflect changes
         await loadExtraHoursData();
         return updatedRequest;
       } catch (error) {
@@ -220,37 +222,31 @@ export function ExtraHoursProvider({ children }) {
     [service, loadExtraHoursData]
   );
 
-  // ✅ Efecto unificado: Inicializar y cargar datos
+  // Initialize and load data
   useEffect(() => {
     const initAndLoad = async () => {
-      // Solo ejecutar una vez
       if (hasLoadedData.current) {
         return;
       }
 
-      // Verificar que tenemos cuenta
       if (!accounts || accounts.length === 0) {
         return;
       }
 
       try {
-        // Inicializar servicio
         const extraHoursService = new ExtraHoursService(
           instance,
           extraHoursConfig
         );
         await extraHoursService.initialize();
 
-        // ✅ Actualizar estado del servicio
         setService(extraHoursService);
         dispatch({ type: ACTIONS.SET_INITIALIZED, payload: true });
 
-        // ✅ Cargar datos INMEDIATAMENTE con el servicio recién creado
         hasLoadedData.current = true;
-        await loadExtraHoursData(extraHoursService); // ⭐ Pasar el servicio directamente
-
+        await loadExtraHoursData(extraHoursService);
       } catch (error) {
-        hasLoadedData.current = false; // Permitir reintentar
+        hasLoadedData.current = false;
         dispatch({
           type: ACTIONS.SET_ERROR,
           payload: "Error al inicializar el servicio",

@@ -23,18 +23,19 @@ export const canEditRequest = (request, userEmail, userDepartmentRole) => {
     return true;
   }
 
+  // Verificar si la solicitud está rechazada
+  const estaRechazada = request.revisadoAsistente === false ||
+    request.aprobadoJefatura === false ||
+    request.aprobadoRH === false;
+
+  // Verificar si está pendiente (no revisada por AsistenteJefatura)
+  const estaPendiente = request.revisadoAsistente === null;
+
   // El colaborador (creador) puede editar si:
-  // 1. Está pendiente (revisadoAsistente === null)
-  // 2. Fue rechazada en cualquier etapa (puede corregir y reenviar)
-  if (isOwner && role === 'Colaborador') {
-    const estaRechazada = request.revisadoAsistente === false || 
-                          request.aprobadoJefatura === false || 
-                          request.aprobadoRH === false;
-    
-    const estaPendiente = request.revisadoAsistente === null;
-    
-    
-    return  estaRechazada;
+  // 1. Fue rechazada en cualquier etapa (puede corregir y reenviar)
+  // 2. Está pendiente (aún no revisada por AsistenteJefatura)
+  if (isOwner && (estaRechazada || estaPendiente)) {
+    return true;
   }
 
   // AsistenteJefatura y Jefatura NO pueden editar solicitudes de otros
@@ -92,7 +93,7 @@ export const canApproveRequest = (request, userDepartmentRole) => {
   if (role === 'AsistenteJefatura') {
     // Verificar que sea de su departamento
     if (request.departamento !== department) return false;
-    
+
     // Solo si está pendiente (ni true ni false)
     return request.revisadoAsistente !== true && request.revisadoAsistente !== false;
   }
@@ -101,18 +102,18 @@ export const canApproveRequest = (request, userDepartmentRole) => {
   if (role === 'Jefatura') {
     // Verificar que sea de su departamento
     if (request.departamento !== department) return false;
-    
+
     // Solo si asistente ya revisó Y jefatura está pendiente
-    return request.revisadoAsistente === true && 
-           request.aprobadoJefatura !== true && 
-           request.aprobadoJefatura !== false;
+    return request.revisadoAsistente === true &&
+      request.aprobadoJefatura !== true &&
+      request.aprobadoJefatura !== false;
   }
 
   // Administrador (RH): puede aprobar si jefatura aprobó Y RH está pendiente
   if (role === 'Administrador') {
-    return request.aprobadoJefatura === true && 
-           request.aprobadoRH !== true && 
-           request.aprobadoRH !== false;
+    return request.aprobadoJefatura === true &&
+      request.aprobadoRH !== true &&
+      request.aprobadoRH !== false;
   }
 
   return false;
@@ -143,10 +144,10 @@ export const getApprovalTypeByRole = (role) => {
  */
 export const isFullyApproved = (request) => {
   if (!request) return false;
-  
+
   return request.revisadoAsistente === true &&
-         request.aprobadoJefatura === true &&
-         request.aprobadoRH === true;
+    request.aprobadoJefatura === true &&
+    request.aprobadoRH === true;
   // RevisadoConta no se considera para "aprobada" ya que es solo visualización
 };
 
@@ -157,11 +158,11 @@ export const isFullyApproved = (request) => {
  */
 export const isRejected = (request) => {
   if (!request) return false;
-  
+
   return request.revisadoAsistente === false ||
-         request.aprobadoJefatura === false ||
-         request.aprobadoRH === false;
-        //  request.revisadoConta === false;
+    request.aprobadoJefatura === false ||
+    request.aprobadoRH === false;
+  //  request.revisadoConta === false;
 };
 
 /**
@@ -246,19 +247,19 @@ export const getEditRestrictionMessage = (request, userEmail, userDepartmentRole
 
   if (isOwner && role === 'Colaborador') {
     // Verificar si fue rechazada - puede editar para corregir
-    const estaRechazada = request.revisadoAsistente === false || 
-                          request.aprobadoJefatura === false || 
-                          request.aprobadoRH === false;
-    
+    const estaRechazada = request.revisadoAsistente === false ||
+      request.aprobadoJefatura === false ||
+      request.aprobadoRH === false;
+
     if (estaRechazada) {
       return null; // Puede editar solicitudes rechazadas para corregir
     }
-    
+
     // Si fue aprobada, no puede editar
     if (request.revisadoAsistente === true) {
       return 'No puedes editar esta solicitud porque ya fue aprobada y está en proceso.';
     }
-    
+
     return null; // Puede editar (está pendiente)
   }
 

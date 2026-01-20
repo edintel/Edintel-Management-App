@@ -169,7 +169,6 @@ class PermissionService {
         return false;
     }
   }
-
   /**
    * Check if user can edit a request
    * @param {string} userEmail - User email
@@ -179,12 +178,18 @@ class PermissionService {
   canEditRequest(userEmail, request) {
     const userRoles = this.getUserRoles(userEmail);
 
+    // Verificar si el usuario es el creador de la solicitud
+    const isOwner = request.createdBy?.email === userEmail;
+
     // Verificar si la solicitud está rechazada en cualquier punto
     const isRejected =
       request.revisadoAsistente === false ||
       request.aprobadoJefatura === false ||
       request.aprobadoRH === false ||
       request.revisadoConta === false;
+
+    // Verificar si la solicitud NO ha sido revisada por AsistenteJefatura
+    const isPending = request.revisadoAsistente === null;
 
     // Verificar si el usuario es Administrador del departamento de Ingeniería
     const isEngineeringAdmin = userRoles.some(
@@ -200,6 +205,11 @@ class PermissionService {
 
     // REGLA 2: Si el usuario es Administrador de Ingeniería, permitir edición
     if (isEngineeringAdmin) {
+      return true;
+    }
+
+    // REGLA 3: Si es el creador Y la solicitud está pendiente (no revisada), permitir edición
+    if (isOwner && isPending) {
       return true;
     }
 

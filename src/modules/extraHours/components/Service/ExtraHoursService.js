@@ -42,16 +42,19 @@ class ExtraHoursService extends BaseGraphService {
     // Initialize the permission service with the data
     await this.permissionService.initialize(roles, departments);
   }
-
   /**
   * Get all extra hours requests from SharePoint
   * @returns {Array} Array of formatted extra hours request objects
   */
   async getExtraHoursRequests() {
+  
+
     const items = await this.getListItems(
       this.siteId,
       this.config.lists.extraHours
     );
+
+
 
     const formattedRequests = items.map((item) => {
       // Parse ExtrasInfo JSON
@@ -61,9 +64,21 @@ class ExtraHoursService extends BaseGraphService {
           extrasInfo = JSON.parse(item.fields.ExtrasInfo);
         }
       } catch (error) {
+       
         extrasInfo = [];
       }
 
+      // 🔍 Intentar obtener el email de diferentes formas
+      const createdByEmail = item.createdBy?.user?.email ||
+        item.createdBy?.user?.mail ||
+        item.createdBy?.user?.userPrincipalName ||
+        "";
+
+      const createdByName = item.createdBy?.user?.displayName ||
+        item.createdBy?.user?.name ||
+        "";
+
+   
       return {
         id: item.id,
         fechaPeticion: item.fields.FechaPeticion
@@ -84,20 +99,16 @@ class ExtraHoursService extends BaseGraphService {
         revisadoConta: item.fields.RevisadoConta === true ? true :
           item.fields.RevisadoConta === false ? false : null,
         createdBy: {
-          name: item.createdBy?.user?.displayName || "",
-          email: item.createdBy?.user?.email || "",
+          name: createdByName,
+          email: createdByEmail,
           id: item.createdBy?.user?.id || "",
         },
-        created: item.createdDateTime ? new Date(item.createdDateTime) : null,
-        modified: item.lastModifiedDateTime
-          ? new Date(item.lastModifiedDateTime)
-          : null,
+        created: item.createdDateTime ?
+          new Date(item.createdDateTime) : null,
       };
     });
 
-    return formattedRequests.sort(
-      (a, b) => b.created?.getTime() - a.created?.getTime()
-    );
+    return formattedRequests;
   }
 
   // src/modules/extraHours/components/Service/ExtraHoursService.js
@@ -261,11 +272,14 @@ class ExtraHoursService extends BaseGraphService {
     }
   }
 
+
   /**
-   * Get departments from SharePoint
-   * @returns {Array} Array of department objects
-   */
+ * Get departments from SharePoint
+ * @returns {Array} Array of department objects
+ */
   async getDepartments() {
+   
+
     const items = await this.getListItems(
       this.siteId,
       this.config.lists.rolesDepartamentos,
@@ -274,7 +288,6 @@ class ExtraHoursService extends BaseGraphService {
       }
     );
 
-    // Group by department
     const departmentMap = new Map();
 
     items.forEach((item) => {
@@ -321,33 +334,53 @@ class ExtraHoursService extends BaseGraphService {
       }
     });
 
-    return Array.from(departmentMap.values());
+    const departmentsArray = Array.from(departmentMap.values());
+   
+
+    return departmentsArray;
   }
+
+
+
   /**
    * Get roles from SharePoint
    * @returns {Array} Array of role objects
    */
   async getRoles() {
+   
+
     const items = await this.getListItems(
       this.siteId,
       this.config.lists.rolesDepartamentos
     );
 
-    return items.map((item) => ({
-      id: item.id,
-      empleado:
-        Array.isArray(item.fields.field_1) && item.fields.field_1.length > 0  // ✅ field_1 = Empleado
-          ? {
-            email: item.fields.field_1[0].Email,
-            displayName: item.fields.field_1[0].LookupValue,
-            id: item.fields.field_1[0].LookupId,
-          }
-          : null,
-      departamentoId: item.fields.field_3 || null,  // ✅ field_3 = DepartamentoID
-      rol: item.fields.field_4 || null,              // ✅ field_4 = Rol
-    }));
-  }
+   // console.log('📊 Items obtenidos para roles:', items.length);
 
+    const rolesArray = items.map((item) => {
+      // ⭐ MODIFICADO: Extraer rol del array si es array
+      let rolValue = item.fields.field_4 || null;
+      if (Array.isArray(rolValue)) {
+        rolValue = rolValue[0]; // Tomar el primer elemento
+      }
+
+      return {
+        id: item.id,
+        empleado:
+          Array.isArray(item.fields.field_1) && item.fields.field_1.length > 0
+            ? {
+              email: item.fields.field_1[0].Email,
+              displayName: item.fields.field_1[0].LookupValue,
+              id: item.fields.field_1[0].LookupId,
+            }
+            : null,
+        departamentoId: item.fields.field_3 || null,
+        rol: rolValue,  // ⭐ Ahora es string, no array
+      };
+    });
+
+  //
+    return rolesArray;
+  }
 
   /**
    * Filter requests by department and role
