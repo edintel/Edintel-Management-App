@@ -6,12 +6,12 @@ import { useMsal } from '@azure/msal-react';
 import Card from '../../../../components/common/Card';
 import Button from '../../../../components/common/Button';
 import ExtraHoursEdit from './RequestEdit';
-import { 
-  ArrowLeft, 
-  Clock, 
-  Check, 
-  X, 
-  AlertTriangle, 
+import {
+  ArrowLeft,
+  Clock,
+  Check,
+  X,
+  AlertTriangle,
   Edit,
   CheckCircle,
   XCircle,
@@ -215,7 +215,13 @@ const RequestDetail = () => {
     );
   }
 
-  // Cálculo de totales con redondeo
+
+
+  // ============================================================
+  // FRAGMENTO PARA: RequestDetail.js
+  // FUNCIÓN: calculateDetailedTotals()
+  // ============================================================
+
   const calculateDetailedTotals = () => {
     let tiempoMedio = 0;
     let tiempoDoble = 0;
@@ -229,18 +235,29 @@ const RequestDetail = () => {
       };
     }
 
+    // ✅ LÓGICA ESPECIAL PARA DEPARTAMENTO COMERCIAL
+    const esComercial = request.departamento === 'Comercial';
+
     request.extrasInfo.forEach(extra => {
       if (!extra.dia || !extra.horaInicio || !extra.horaFin) return;
-
-      // Crear fecha local sin conversión de zona horaria
-      const fecha = new Date(extra.dia + 'T00:00:00');
-      const esDomingoDia = esDomingo(fecha);
-      const esFeriadoDia = esFeriado(fecha);
 
       const { horasDiurnas, horasNocturnas } = dividirHorasPorSegmento(
         extra.horaInicio,
         extra.horaFin
       );
+
+      const totalHoras = horasDiurnas + horasNocturnas;
+
+      // ✅ SI ES COMERCIAL: TODO es tiempo y medio (1.5x)
+      if (esComercial) {
+        tiempoMedio += totalHoras;
+        return; // Saltar el resto de la lógica
+      }
+
+      // ✅ LÓGICA NORMAL PARA OTROS DEPARTAMENTOS
+      const fecha = new Date(extra.dia + 'T00:00:00');
+      const esDomingoDia = esDomingo(fecha);
+      const esFeriadoDia = esFeriado(fecha);
 
       // Aplicar las reglas según el tipo de día
       if (esDomingoDia || esFeriadoDia) {
@@ -303,7 +320,7 @@ const RequestDetail = () => {
       else if (role === 'Administrador') approvalType = 'rh'; // RH approval
 
       await updateApprovalStatus(request.id, approvalType, approved);
-      
+
       // Refresh request data
       const updatedRequest = extraHoursRequests.find(req => req.id === id);
       setRequest(updatedRequest);
@@ -330,7 +347,7 @@ const RequestDetail = () => {
     if (
       request.revisadoAsistente === false ||
       request.aprobadoJefatura === false ||
-      request.aprobadoRH === false 
+      request.aprobadoRH === false
     ) {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
@@ -396,9 +413,9 @@ const RequestDetail = () => {
               </h1>
               <p className="text-sm text-gray-500">
                 Creada el {request.created?.toLocaleDateString('es-CR')} a las{' '}
-                {request.created?.toLocaleTimeString('es-CR', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
+                {request.created?.toLocaleTimeString('es-CR', {
+                  hour: '2-digit',
+                  minute: '2-digit'
                 })}
               </p>
             </div>
@@ -501,7 +518,7 @@ const RequestDetail = () => {
                     horasCalculadas = horasDiurnas + horasNocturnas;
                   }
                   const horasRedondeadas = redondearMediaHora(horasCalculadas);
-                  
+
                   return (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -573,13 +590,12 @@ const RequestDetail = () => {
           <div className="space-y-4">
             {/* Asistente Jefatura */}
             <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-full ${
-                request.revisadoAsistente === true 
+              <div className={`p-2 rounded-full ${request.revisadoAsistente === true
                   ? 'bg-green-100 text-green-600'
                   : request.revisadoAsistente === false
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-400'
-              }`}>
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
                 {request.revisadoAsistente === true ? (
                   <CheckCircle size={20} />
                 ) : request.revisadoAsistente === false ? (
@@ -594,21 +610,20 @@ const RequestDetail = () => {
                   {request.revisadoAsistente === true
                     ? 'Revisado'
                     : request.revisadoAsistente === false
-                    ? 'Rechazado'
-                    : 'Pendiente de revisión'}
+                      ? 'Rechazado'
+                      : 'Pendiente de revisión'}
                 </p>
               </div>
             </div>
 
             {/* Jefatura */}
             <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-full ${
-                request.aprobadoJefatura === true 
+              <div className={`p-2 rounded-full ${request.aprobadoJefatura === true
                   ? 'bg-green-100 text-green-600'
                   : request.aprobadoJefatura === false
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-400'
-              }`}>
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
                 {request.aprobadoJefatura === true ? (
                   <CheckCircle size={20} />
                 ) : request.aprobadoJefatura === false ? (
@@ -623,21 +638,20 @@ const RequestDetail = () => {
                   {request.aprobadoJefatura === true
                     ? 'Aprobado'
                     : request.aprobadoJefatura === false
-                    ? 'Rechazado'
-                    : 'Pendiente de aprobación'}
+                      ? 'Rechazado'
+                      : 'Pendiente de aprobación'}
                 </p>
               </div>
             </div>
 
             {/* RH */}
             <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-full ${
-                request.aprobadoRH === true 
+              <div className={`p-2 rounded-full ${request.aprobadoRH === true
                   ? 'bg-green-100 text-green-600'
                   : request.aprobadoRH === false
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-400'
-              }`}>
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
                 {request.aprobadoRH === true ? (
                   <CheckCircle size={20} />
                 ) : request.aprobadoRH === false ? (
@@ -652,21 +666,20 @@ const RequestDetail = () => {
                   {request.aprobadoRH === true
                     ? 'Aprobado'
                     : request.aprobadoRH === false
-                    ? 'Rechazado'
-                    : 'Pendiente de aprobación'}
+                      ? 'Rechazado'
+                      : 'Pendiente de aprobación'}
                 </p>
               </div>
             </div>
 
             {/* Contabilidad */}
             <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-full ${
-                request.revisadoConta === true 
+              <div className={`p-2 rounded-full ${request.revisadoConta === true
                   ? 'bg-green-100 text-green-600'
                   : request.revisadoConta === false
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-400'
-              }`}>
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
                 {request.revisadoConta === true ? (
                   <CheckCircle size={20} />
                 ) : request.revisadoConta === false ? (
@@ -681,8 +694,8 @@ const RequestDetail = () => {
                   {request.revisadoConta === true
                     ? 'Revisado'
                     : request.revisadoConta === false
-                    ? 'Rechazado'
-                    : 'Pendiente de revisión'}
+                      ? 'Rechazado'
+                      : 'Pendiente de revisión'}
                 </p>
               </div>
             </div>

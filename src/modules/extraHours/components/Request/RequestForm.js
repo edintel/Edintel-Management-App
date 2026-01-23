@@ -209,25 +209,35 @@ const RequestForm = ({ onClose, editData = null, initialDepartamento = '',
     }
   }, [initialNombreSolicitante]);
 
-
   const calculateTotals = () => {
     let tiempoMedio = 0;
     let tiempoDoble = 0;
     let tiempoDobleDoble = 0;
 
+    // ✅ LÓGICA ESPECIAL PARA DEPARTAMENTO COMERCIAL
+    const esComercial = formData.departamento === 'Comercial';
+
     formData.extrasInfo.forEach(extra => {
       if (!extra.dia || !extra.horaInicio || !extra.horaFin) return;
-
-      const fecha = new Date(extra.dia + 'T00:00:00');
-      const esDomingoDia = esDomingo(fecha);
-      const esFeriadoDia = esFeriado(fecha);
 
       const { horasDiurnas, horasNocturnas } = dividirHorasPorSegmento(
         extra.horaInicio,
         extra.horaFin
       );
 
-      // Aplicar las reglas según el tipo de día
+      const totalHoras = horasDiurnas + horasNocturnas;
+
+      // ✅ SI ES COMERCIAL: TODO es tiempo y medio (1.5x)
+      if (esComercial) {
+        tiempoMedio += totalHoras;
+        return; // Saltar el resto de la lógica
+      }
+
+      // ✅ LÓGICA NORMAL PARA OTROS DEPARTAMENTOS
+      const fecha = new Date(extra.dia + 'T00:00:00');
+      const esDomingoDia = esDomingo(fecha);
+      const esFeriadoDia = esFeriado(fecha);
+
       if (esDomingoDia || esFeriadoDia) {
         if (horasNocturnas > 0) {
           tiempoDobleDoble += horasNocturnas;
@@ -245,7 +255,6 @@ const RequestForm = ({ onClose, editData = null, initialDepartamento = '',
       }
     });
 
-    
     const redondearMediaHora = (horasDecimales) => {
       return Math.round(horasDecimales * 2) / 2;
     };

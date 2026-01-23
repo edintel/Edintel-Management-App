@@ -1,9 +1,5 @@
 // src/modules/extraHours/utils/permissions.helper.js
 
-/**
- * Helper de permisos para el módulo de Horas Extras
- * Centraliza toda la lógica de permisos para consistencia
- */
 
 /**
  * Verifica si el usuario puede editar una solicitud

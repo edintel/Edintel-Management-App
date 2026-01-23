@@ -5,7 +5,7 @@ import { useExtraHours } from '../../context/extraHoursContext';
 
 const ExtraHoursEdit = ({ onClose, requestId }) => {
   const { service, extraHoursRequests, loadExtraHoursData } = useExtraHours();
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -238,7 +238,7 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
     const loadExtraHoursRecord = () => {
       try {
         setLoadingData(true);
-        
+
         const record = extraHoursRequests.find(req => req.id === requestId);
 
         if (!record) {
@@ -252,17 +252,17 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
           departamento: record.departamento || '',
           numeroCedula: record.numeroCedula?.toString() || '',
           nombreSolicitante: record.nombreSolicitante?.displayName || '',
-          extrasInfo: record.extrasInfo && record.extrasInfo.length > 0 
-            ? record.extrasInfo 
+          extrasInfo: record.extrasInfo && record.extrasInfo.length > 0
+            ? record.extrasInfo
             : [{
-                dia: '',
-                horaInicio: '',
-                horaFin: '',
-                st: '',
-                nombreCliente: ''
-              }]
+              dia: '',
+              horaInicio: '',
+              horaFin: '',
+              st: '',
+              nombreCliente: ''
+            }]
         });
-        
+
         setLoadingData(false);
       } catch (err) {
         setErrorMessage('Error al cargar el registro de horas extras');
@@ -286,19 +286,30 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
     let tiempoDoble = 0;
     let tiempoDobleDoble = 0;
 
+    // ✅ LÓGICA ESPECIAL PARA DEPARTAMENTO COMERCIAL
+    const esComercial = formData.departamento === 'Comercial';
+
     formData.extrasInfo.forEach(extra => {
       if (!extra.dia || !extra.horaInicio || !extra.horaFin) return;
-
-      const fecha = new Date(extra.dia + 'T00:00:00');
-      const esDomingoDia = esDomingo(fecha);
-      const esFeriadoDia = esFeriado(fecha);
 
       const { horasDiurnas, horasNocturnas } = dividirHorasPorSegmento(
         extra.horaInicio,
         extra.horaFin
       );
 
-      // Aplicar las reglas según el tipo de día
+      const totalHoras = horasDiurnas + horasNocturnas;
+
+      // ✅ SI ES COMERCIAL: TODO es tiempo y medio (1.5x)
+      if (esComercial) {
+        tiempoMedio += totalHoras;
+        return; // Saltar el resto de la lógica
+      }
+
+      // ✅ LÓGICA NORMAL PARA OTROS DEPARTAMENTOS
+      const fecha = new Date(extra.dia + 'T00:00:00');
+      const esDomingoDia = esDomingo(fecha);
+      const esFeriadoDia = esFeriado(fecha);
+
       if (esDomingoDia || esFeriadoDia) {
         if (horasNocturnas > 0) {
           tiempoDobleDoble += horasNocturnas;
@@ -425,8 +436,8 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
       // Verificar si la solicitud estaba rechazada
       const request = extraHoursRequests.find(req => req.id === requestId);
       const estabaRechazada = request && (
-        request.revisadoAsistente === false || 
-        request.aprobadoJefatura === false || 
+        request.revisadoAsistente === false ||
+        request.aprobadoJefatura === false ||
         request.aprobadoRH === false
       );
 
@@ -475,8 +486,8 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
   // Verificar si la solicitud está rechazada para mostrar el banner
   const request = extraHoursRequests.find(req => req.id === requestId);
   const estaRechazada = request && (
-    request.revisadoAsistente === false || 
-    request.aprobadoJefatura === false || 
+    request.revisadoAsistente === false ||
+    request.aprobadoJefatura === false ||
     request.aprobadoRH === false
   );
 
@@ -499,11 +510,10 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
 
         {/* Success/Error Messages */}
         {submitStatus && (
-          <div className={`mx-6 mt-4 p-4 rounded-lg flex items-center gap-3 ${
-            submitStatus === 'success'
+          <div className={`mx-6 mt-4 p-4 rounded-lg flex items-center gap-3 ${submitStatus === 'success'
               ? 'bg-green-50 border border-green-200'
               : 'bg-red-50 border border-red-200'
-          }`}>
+            }`}>
             {submitStatus === 'success' ? (
               <>
                 <CheckCircle className="text-green-600" size={24} />
@@ -531,7 +541,7 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
             <div className="flex-1">
               <p className="font-medium text-blue-900">Solicitud Rechazada - Modo Corrección</p>
               <p className="text-sm text-blue-700 mt-1">
-                Esta solicitud fue rechazada en una etapa de aprobación. Realiza las correcciones necesarias y al guardar, 
+                Esta solicitud fue rechazada en una etapa de aprobación. Realiza las correcciones necesarias y al guardar,
                 la solicitud volverá a entrar al flujo de aprobaciones desde el inicio.
               </p>
             </div>
