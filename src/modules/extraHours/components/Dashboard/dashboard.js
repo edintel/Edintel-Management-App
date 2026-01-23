@@ -9,6 +9,10 @@ import Button from "../../../../components/common/Button";
 import { Plus, Clock, Check, AlertTriangle, X, FileText } from "lucide-react";
 import { EXTRA_HOURS_ROUTES } from "../../routes";
 import RequestForm from "../Request/RequestForm";
+import {
+  dividirHorasPorSegmento,
+  redondearMediaHora
+} from "../Service/InsideServices/ExtraHoursCalculationService";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,105 +20,6 @@ const Dashboard = () => {
   const { accounts } = useMsal();
   const userEmail = accounts[0]?.username;
   const [showFormModal, setShowFormModal] = useState(false);
-
-  // ==================== LÓGICA DE CÁLCULO DE HORAS ====================
-
-  // Feriados fijos de Costa Rica
-  const feriadosFijos = [
-    { mes: 1, dia: 1 },    // 1 enero
-    { mes: 4, dia: 11 },   // 11 abril (Juan Santamaría)
-    { mes: 5, dia: 1 },    // 1 mayo
-    { mes: 7, dia: 25 },   // 25 julio (Anexión Guanacaste)
-    { mes: 8, dia: 2 },    // 2 agosto (Virgen de los Ángeles)
-    { mes: 8, dia: 15 },   // 15 agosto (Día de la Madre)
-    { mes: 8, dia: 31 },   // 31 agosto (Día de la Persona Negra)
-    { mes: 9, dia: 15 },   // 15 septiembre (Independencia)
-    { mes: 12, dia: 1 },   // 1 diciembre (Abolición del Ejército)
-    { mes: 12, dia: 25 },  // 25 diciembre (Navidad)
-  ];
-
-  const calcularPascua = (year) => {
-    const a = year % 19;
-    const b = Math.floor(year / 100);
-    const c = year % 100;
-    const d = Math.floor(b / 4);
-    const e = b % 4;
-    const f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4);
-    const k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const month = Math.floor((h + l - 7 * m + 114) / 31);
-    const day = ((h + l - 7 * m + 114) % 31) + 1;
-    return new Date(year, month - 1, day);
-  };
-
-  const esFeriado = (fecha) => {
-    const mes = fecha.getMonth() + 1;
-    const dia = fecha.getDate();
-    const year = fecha.getFullYear();
-
-    const esFeriadoFijo = feriadosFijos.some(
-      feriado => feriado.mes === mes && feriado.dia === dia
-    );
-
-    if (esFeriadoFijo) return true;
-
-    const pascua = calcularPascua(year);
-    const juevesSanto = new Date(pascua);
-    juevesSanto.setDate(pascua.getDate() - 3);
-    const viernesSanto = new Date(pascua);
-    viernesSanto.setDate(pascua.getDate() - 2);
-
-    const fechaStr = fecha.toDateString();
-    return (
-      fechaStr === juevesSanto.toDateString() ||
-      fechaStr === viernesSanto.toDateString()
-    );
-  };
-
-  const esDomingo = (fecha) => {
-    return fecha.getDay() === 0;
-  };
-
-  const dividirHorasPorSegmento = (horaInicio, horaFin) => {
-    const [hi, mi] = horaInicio.split(':').map(Number);
-    const [hf, mf] = horaFin.split(':').map(Number);
-
-    let inicio = hi + mi / 60;
-    let fin = hf + mf / 60;
-
-    if (fin < inicio) {
-      fin += 24;
-    }
-
-    let horasDiurnas = 0;
-    let horasNocturnas = 0;
-
-    if (inicio >= 6 && fin <= 22) {
-      horasDiurnas = fin - inicio;
-    } else if ((inicio >= 22 && fin <= 30) || (inicio >= 0 && fin <= 6)) {
-      horasNocturnas = fin - inicio;
-    } else if (inicio >= 6 && inicio < 22 && fin > 22) {
-      horasDiurnas = 22 - inicio;
-      horasNocturnas = fin - 22;
-    } else if (inicio >= 0 && inicio < 6 && fin > 6) {
-      horasNocturnas = 6 - inicio;
-      horasDiurnas = fin - 6;
-    } else if (inicio >= 6 && inicio < 22 && fin > 30) {
-      horasDiurnas = 22 - inicio;
-      horasNocturnas = 8;
-      horasDiurnas += (fin - 30);
-    }
-
-    return { horasDiurnas, horasNocturnas };
-  };
-
-  const redondearMediaHora = (horasDecimales) => {
-    return Math.round(horasDecimales * 2) / 2;
-  };
 
   /**
    * Calcula el total de horas de una solicitud con redondeo
@@ -139,8 +44,6 @@ const Dashboard = () => {
 
     return redondearMediaHora(totalHoras);
   };
-
-  // ==================== FIN DE LÓGICA DE CÁLCULO ====================
 
   // Define date range for the dashboard (last 30 days)
   const getLastMonthRange = () => {
