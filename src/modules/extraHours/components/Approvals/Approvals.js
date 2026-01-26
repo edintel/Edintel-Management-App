@@ -15,7 +15,9 @@ import {
   ChevronUp,
   FileText,
   CheckCircle,
-  XCircle
+  XCircle,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { EXTRA_HOURS_ROUTES } from '../../routes';
 import {
@@ -23,19 +25,24 @@ import {
   getApprovalTypeByRole,
   getRequestStatus
 } from '../../../../utils/permissions.helper';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const Approvals = () => {
   const navigate = useNavigate();
-  const { extraHoursRequests, loading, service, userDepartmentRole, updateApprovalStatus } = useExtraHours();
+  const { extraHoursRequests, loading, service, userDepartmentRole, updateApprovalStatus, roles } = useExtraHours();
   const { accounts } = useMsal();
   const userEmail = accounts[0]?.username;
 
 
   const [filters, setFilters] = useState({
     st: '',
-    dia: '',
+    persona: '',
     cliente: '',
     estado: '',
+    fechaDesde: '',
+    fechaHasta: '',
   });
 
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -89,7 +96,7 @@ const approvalsRequests = useMemo(() => {
   const role = getPrimaryRole();
   const department = userDepartmentRole?.department?.departamento;
 
- 
+
 
   if (role === 'Administrador') {
     console.log('✅ Administrador - Mostrando TODAS las solicitudes sin filtros');
@@ -97,22 +104,97 @@ const approvalsRequests = useMemo(() => {
     // No aplicamos ningún filtro, mantener todas las solicitudes
   }
   else if (role === 'AsistenteJefatura' || role === 'Jefatura') {
-  
+
     requests = requests.filter(req => req.departamento === department);
- 
+
     if (role === 'Jefatura') {
-      
+
       const antesJefatura = requests.length;
-      
+
       requests = requests.filter(req => {
         const pasoAsistente = req.revisadoAsistente !== null;
         return pasoAsistente;
       });
-      
-     
+
+
     }
   }
 
+  // Aplicar filtros
+  if (filters.st) {
+    requests = requests.filter(req =>
+      req.extrasInfo?.some(extra =>
+        extra.st?.toLowerCase().includes(filters.st.toLowerCase())
+      )
+    );
+  }
+
+  if (filters.persona) {
+    requests = requests.filter(req => {
+      const nombreCompleto = (req.nombreSolicitante?.displayName || req.createdBy?.name || '').toLowerCase();
+      return nombreCompleto.includes(filters.persona.toLowerCase());
+    });
+  }
+
+  if (filters.cliente) {
+    requests = requests.filter(req =>
+      req.extrasInfo?.some(extra =>
+        extra.nombreCliente?.toLowerCase().includes(filters.cliente.toLowerCase())
+      )
+    );
+  }
+
+  if (filters.estado) {
+    requests = requests.filter(req => {
+      const status = getRequestStatus(req);
+      if (filters.estado === 'pendiente') {
+        return status.status === 'pending' || status.status === 'in_jefatura' || status.status === 'in_rh';
+      }
+      if (filters.estado === 'aprobada') {
+        return status.status === 'approved';
+      }
+      if (filters.estado === 'rechazada') {
+        return status.status === 'rejected';
+      }
+      return true;
+    });
+  }
+
+  // Filtro por rango de fechas de creación
+  if (filters.fechaDesde) {
+    const [year, month, day] = filters.fechaDesde.split('-');
+    const fechaDesde = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
+    requests = requests.filter(req => {
+      if (!req.created) return false;
+      const fechaCreacion = new Date(req.created);
+      const fechaCreacionNormalizada = new Date(
+        fechaCreacion.getFullYear(),
+        fechaCreacion.getMonth(),
+        fechaCreacion.getDate(),
+        0, 0, 0, 0
+      );
+      return fechaCreacionNormalizada >= fechaDesde;
+    });
+  }
+
+  if (filters.fechaHasta) {
+    const [year, month, day] = filters.fechaHasta.split('-');
+    const fechaHasta = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 23, 59, 59, 999);
+    requests = requests.filter(req => {
+      if (!req.created) return false;
+      const fechaCreacion = new Date(req.created);
+      const fechaCreacionNormalizada = new Date(
+        fechaCreacion.getFullYear(),
+        fechaCreacion.getMonth(),
+        fechaCreacion.getDate(),
+        fechaCreacion.getHours(),
+        fechaCreacion.getMinutes(),
+        fechaCreacion.getSeconds(),
+        fechaCreacion.getMilliseconds()
+      );
+      return fechaCreacionNormalizada <= fechaHasta;
+    });
+  }
 
   return requests.sort((a, b) => b.created?.getTime() - a.created?.getTime());
 }, [extraHoursRequests, canAccessApprovals, userDepartmentRole, filters, getPrimaryRole, getRequestStatus, service]);
@@ -171,15 +253,113 @@ const approvalsRequests = useMemo(() => {
   const clearFilters = () => {
     setFilters({
       st: '',
-      dia: '',
+      persona: '',
       cliente: '',
       estado: '',
+      fechaDesde: '',
+      fechaHasta: '',
     });
   };
 
   const handleViewDetails = (request) => {
     // Pasar el parámetro 'from' para saber desde dónde se navegó
     navigate(`${EXTRA_HOURS_ROUTES.REQUESTS}/${request.id}?from=approvals`);
+  };
+
+  // Función para exportar a PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF('l', 'mm', 'a4'); // landscape orientation
+
+    // Título
+    doc.setFontSize(16);
+    doc.text('Historial de Aprobaciones de Horas Extras', 14, 15);
+
+    // Subtítulo con fecha
+    doc.setFontSize(10);
+    doc.text(`Generado: ${new Date().toLocaleDateString('es-CR')}`, 14, 22);
+
+    // Preparar datos para la tabla
+    const tableData = [];
+    approvalsRequests.forEach(request => {
+      const status = getRequestStatus(request);
+      request.extrasInfo?.forEach(extra => {
+        const hours = service?.calculateTotalHours([extra]) || 0;
+        tableData.push([
+          request.nombreSolicitante?.displayName || request.createdBy.name,
+          request.departamento,
+          formatDate(extra.dia),
+          extra.horaInicio || '-',
+          extra.horaFin || '-',
+          extra.st || '-',
+          extra.nombreCliente || '-',
+          hours.toFixed(2),
+          status.label,
+          request.created?.toLocaleDateString('es-CR') || 'N/A'
+        ]);
+      });
+    });
+
+    // Generar tabla
+    autoTable(doc, {
+      startY: 28,
+      head: [['Solicitante', 'Departamento', 'Día', 'Hora Inicio', 'Hora Fin', 'ST', 'Cliente', 'Horas', 'Estado', 'Fecha Creación']],
+      body: tableData,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [59, 130, 246] },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+    });
+
+    // Guardar PDF
+    doc.save(`historial-aprobaciones-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  // Función para exportar a Excel
+  const exportToExcel = () => {
+    // Preparar datos para Excel
+    const excelData = [];
+    approvalsRequests.forEach(request => {
+      const status = getRequestStatus(request);
+      request.extrasInfo?.forEach(extra => {
+        const hours = service?.calculateTotalHours([extra]) || 0;
+        excelData.push({
+          'Solicitante': request.nombreSolicitante?.displayName || request.createdBy.name,
+          'Departamento': request.departamento,
+          'Cédula': request.numeroCedula || 'N/A',
+          'Día': formatDate(extra.dia),
+          'Hora Inicio': extra.horaInicio || '-',
+          'Hora Fin': extra.horaFin || '-',
+          'ST': extra.st || '-',
+          'Cliente': extra.nombreCliente || '-',
+          'Horas': hours.toFixed(2),
+          'Estado': status.label,
+          'Fecha Creación': request.created?.toLocaleDateString('es-CR') || 'N/A'
+        });
+      });
+    });
+
+    // Crear libro de Excel
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Historial Aprobaciones');
+
+    // Ajustar ancho de columnas
+    const columnWidths = [
+      { wch: 25 }, // Solicitante
+      { wch: 15 }, // Departamento
+      { wch: 12 }, // Cédula
+      { wch: 12 }, // Día
+      { wch: 12 }, // Hora Inicio
+      { wch: 12 }, // Hora Fin
+      { wch: 15 }, // ST
+      { wch: 20 }, // Cliente
+      { wch: 8 },  // Horas
+      { wch: 15 }, // Estado
+      { wch: 15 }  // Fecha Creación
+    ];
+    ws['!cols'] = columnWidths;
+
+    // Guardar Excel
+    XLSX.writeFile(wb, `historial-aprobaciones-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // Status badge usando el helper
@@ -246,7 +426,7 @@ const approvalsRequests = useMemo(() => {
         </p>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros y Exportación */}
       <Card className="mb-6">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
@@ -254,18 +434,39 @@ const approvalsRequests = useMemo(() => {
               <Filter size={20} className="text-gray-600" />
               <h3 className="font-semibold text-gray-900">Filtros</h3>
             </div>
-            {(filters.st || filters.dia || filters.cliente || filters.estado) && (
-              <button
-                onClick={clearFilters}
-                className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            <div className="flex items-center gap-2">
+              {/* Botones de exportación */}
+              <Button
+                variant="outline"
+                size="small"
+                onClick={exportToPDF}
+                disabled={approvalsRequests.length === 0}
+                startIcon={<Download size={16} />}
               >
-                <X size={16} />
-                Limpiar filtros
-              </button>
-            )}
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="small"
+                onClick={exportToExcel}
+                disabled={approvalsRequests.length === 0}
+                startIcon={<FileSpreadsheet size={16} />}
+              >
+                Excel
+              </Button>
+              {(filters.st || filters.persona || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta) && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 ml-2"
+                >
+                  <X size={16} />
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 ST (Service Ticket)
@@ -281,14 +482,39 @@ const approvalsRequests = useMemo(() => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Día
+                Solicitante
               </label>
-              <input
-                type="date"
-                value={filters.dia}
-                onChange={(e) => setFilters(prev => ({ ...prev, dia: e.target.value }))}
+              <select
+                value={filters.persona}
+                onChange={(e) => setFilters(prev => ({ ...prev, persona: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              >
+                <option value="">Todos</option>
+                {roles && roles
+                  .filter(role => role.empleado && role.empleado.displayName) // Filtrar solo roles con empleado válido
+                  .sort((a, b) => {
+                    const nameA = a.empleado?.displayName || '';
+                    const nameB = b.empleado?.displayName || '';
+                    return nameA.localeCompare(nameB);
+                  })
+                  .reduce((uniqueRoles, role) => {
+                    // Eliminar duplicados basados en displayName
+                    const displayName = role.empleado.displayName;
+                    if (!uniqueRoles.find(r => r.empleado.displayName === displayName)) {
+                      uniqueRoles.push(role);
+                    }
+                    return uniqueRoles;
+                  }, [])
+                  .map((role, index) => {
+                    const displayName = role.empleado.displayName;
+                    return (
+                      <option key={`${role.empleado.email}-${index}`} value={displayName}>
+                        {displayName}
+                      </option>
+                    );
+                  })
+                }
+              </select>
             </div>
 
             <div>
@@ -320,6 +546,32 @@ const approvalsRequests = useMemo(() => {
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha Creación Desde
+              </label>
+              <input
+                type="date"
+                value={filters.fechaDesde}
+                onChange={(e) => setFilters(prev => ({ ...prev, fechaDesde: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha Creación Hasta
+              </label>
+              <input
+                type="date"
+                value={filters.fechaHasta}
+                onChange={(e) => setFilters(prev => ({ ...prev, fechaHasta: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -339,11 +591,11 @@ const approvalsRequests = useMemo(() => {
                 No hay solicitudes en el historial
               </h3>
               <p className="text-sm text-gray-500 mb-4">
-                {filters.st || filters.dia || filters.cliente || filters.estado
+                {filters.st || filters.persona || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta
                   ? 'Intenta ajustar los filtros de búsqueda'
                   : 'Aún no hay solicitudes en tu historial de aprobaciones'}
               </p>
-              {(filters.st || filters.dia || filters.cliente || filters.estado) && (
+              {(filters.st || filters.persona || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta) && (
                 <Button variant="outline" onClick={clearFilters}>
                   Limpiar filtros
                 </Button>
