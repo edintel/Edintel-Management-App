@@ -24,6 +24,7 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
     numeroCedula: '',
     nombreSolicitante: '',
     disponibilidadCelular: false,
+    diasDisponibilidad: 0,
     extrasInfo: [
       {
         dia: '',
@@ -59,11 +60,28 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
           return;
         }
 
+        // Buscar si hay una entrada de disponibilidad en extrasInfo
+        const disponibilidadEntry = record.extrasInfo?.find(
+          extra => extra.st === 'DISPONIBILIDAD_CELULAR'
+        );
+
+        // Si hay entrada de disponibilidad, extraer los días del horaFin
+        let diasDisponibilidad = record.diasDisponibilidad || 0;
+        let disponibilidadCelular = record.disponibilidadCelular || false;
+
+        if (disponibilidadEntry && disponibilidadEntry.horaFin) {
+          // Extraer las horas del formato "HH:00" (ej: "02:00" = 2 días)
+          const [horas] = disponibilidadEntry.horaFin.split(':').map(Number);
+          diasDisponibilidad = horas;
+          disponibilidadCelular = true;
+        }
+
         setFormData({
           departamento: record.departamento || '',
           numeroCedula: record.numeroCedula?.toString() || '',
           nombreSolicitante: record.nombreSolicitante?.displayName || '',
-          disponibilidadCelular: record.disponibilidadCelular || false,
+          disponibilidadCelular,
+          diasDisponibilidad,
           extrasInfo: record.extrasInfo && record.extrasInfo.length > 0
             ? record.extrasInfo
             : [{
@@ -88,18 +106,51 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
     }
   }, [requestId, extraHoursRequests]);
 
-  // Calcular totales cuando cambie extrasInfo o disponibilidadCelular
+  // Calcular totales cuando cambie extrasInfo, disponibilidadCelular o diasDisponibilidad
   useEffect(() => {
     const totales = calcularTotalesHorasExtras(formData.extrasInfo, formData.departamento);
-
-    // Si tiene disponibilidad de celular, agregar 1 hora a tiempo medio
-    if (formData.disponibilidadCelular) {
-      const tiempoMedioActual = parseFloat(totales.tiempoMedio);
-      totales.tiempoMedio = (tiempoMedioActual + 1).toFixed(2);
-    }
-
     setTotals(totales);
-  }, [formData.extrasInfo, formData.departamento, formData.disponibilidadCelular]);
+  }, [formData.extrasInfo, formData.departamento, formData.disponibilidadCelular, formData.diasDisponibilidad]);
+
+  // Gestionar entrada automática de disponibilidad de celular
+  useEffect(() => {
+    if (formData.disponibilidadCelular && formData.diasDisponibilidad > 0) {
+      // Agregar o actualizar la entrada de disponibilidad
+      const disponibilidadIndex = formData.extrasInfo.findIndex(
+        extra => extra.st === 'DISPONIBILIDAD_CELULAR'
+      );
+
+      const disponibilidadEntry = {
+        dia: '—',
+        horaInicio: '00:00',
+        horaFin: `${String(formData.diasDisponibilidad).padStart(2, '0')}:00`,
+        st: 'DISPONIBILIDAD_CELULAR',
+        nombreCliente: 'Disponibilidad de Celular'
+      };
+
+      if (disponibilidadIndex === -1) {
+        // Agregar nueva entrada al final
+        setFormData(prev => ({
+          ...prev,
+          extrasInfo: [...prev.extrasInfo, disponibilidadEntry]
+        }));
+      } else {
+        // Actualizar entrada existente
+        setFormData(prev => ({
+          ...prev,
+          extrasInfo: prev.extrasInfo.map((extra, i) =>
+            i === disponibilidadIndex ? disponibilidadEntry : extra
+          )
+        }));
+      }
+    } else {
+      // Remover la entrada de disponibilidad si existe
+      setFormData(prev => ({
+        ...prev,
+        extrasInfo: prev.extrasInfo.filter(extra => extra.st !== 'DISPONIBILIDAD_CELULAR')
+      }));
+    }
+  }, [formData.disponibilidadCelular, formData.diasDisponibilidad]);
 
   const handleAddRow = () => {
     setFormData(prev => ({
@@ -118,7 +169,12 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
   };
 
   const handleRemoveRow = (index) => {
-    if (formData.extrasInfo.length === 1) return;
+    const extraToRemove = formData.extrasInfo[index];
+
+    // No permitir eliminar si es la única fila O si es la entrada de disponibilidad
+    if (formData.extrasInfo.length === 1 || extraToRemove.st === 'DISPONIBILIDAD_CELULAR') {
+      return;
+    }
 
     setFormData(prev => ({
       ...prev,
@@ -127,6 +183,11 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
   };
 
   const handleExtraInfoChange = (index, field, value) => {
+    // No permitir editar las entradas de disponibilidad
+    if (formData.extrasInfo[index].st === 'DISPONIBILIDAD_CELULAR') {
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       extrasInfo: prev.extrasInfo.map((item, i) =>
@@ -152,9 +213,9 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
       return;
     }
 
-    // Validar que al menos una fila tenga datos completos
+    // Validar que al menos una fila tenga datos completos (excluyendo disponibilidad)
     const hasValidRow = formData.extrasInfo.some(
-      extra => extra.dia && extra.horaInicio && extra.horaFin
+      extra => extra.st !== 'DISPONIBILIDAD_CELULAR' && extra.dia && extra.horaInicio && extra.horaFin
     );
 
     if (!hasValidRow) {
@@ -163,9 +224,13 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
       return;
     }
 
-    // Validar fechas futuras y horarios de trabajo
+    // Validar fechas futuras y horarios de trabajo (excluyendo la entrada de disponibilidad)
     for (let i = 0; i < formData.extrasInfo.length; i++) {
       const extra = formData.extrasInfo[i];
+
+      // Saltar validación para la entrada de disponibilidad
+      if (extra.st === 'DISPONIBILIDAD_CELULAR') continue;
+
       if (!extra.dia || !extra.horaInicio || !extra.horaFin) continue;
 
       // Validar que la fecha no sea futura
@@ -193,9 +258,8 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
       const updateData = {
         numeroCedula: formData.numeroCedula,
         disponibilidadCelular: formData.disponibilidadCelular,
-        extrasInfo: formData.extrasInfo.filter(
-          extra => extra.dia && extra.horaInicio && extra.horaFin
-        )
+        diasDisponibilidad: formData.diasDisponibilidad,
+        extrasInfo: formData.extrasInfo
       };
 
       // Verificar si la solicitud estaba rechazada
@@ -376,11 +440,15 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
             {/* Disponibilidad de Celular - Solo para Ingeniería */}
             {formData.departamento === 'Ingeniería' && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
+                <div className="flex items-start gap-3 mb-3">
                   <input
                     type="checkbox"
                     checked={formData.disponibilidadCelular}
-                    onChange={(e) => setFormData(prev => ({ ...prev, disponibilidadCelular: e.target.checked }))}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      disponibilidadCelular: e.target.checked,
+                      diasDisponibilidad: e.target.checked ? prev.diasDisponibilidad : 0
+                    }))}
                     disabled={isSubmitting || blockPeriodStatus.isBlocked}
                     className="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   />
@@ -389,10 +457,35 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
                       Disponibilidad de celular
                     </span>
                     <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                      Marque esta opción si tuvo disponibilidad de celular durante este período. Se agregará 1 hora adicional a tiempo medio (1.5x).
+                      Marque esta opción si tuvo disponibilidad de celular durante este período. Se agregará 1 hora de tiempo medio (1.5x) por cada día de disponibilidad.
                     </p>
                   </div>
-                </label>
+                </div>
+
+                {formData.disponibilidadCelular && (
+                  <div className="ml-7">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Cantidad de días con disponibilidad <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={formData.diasDisponibilidad}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        diasDisponibilidad: parseInt(e.target.value) || 0
+                      }))}
+                      className="w-full sm:w-48 px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder="Ej: 7"
+                      disabled={isSubmitting || blockPeriodStatus.isBlocked}
+                      required={formData.disponibilidadCelular}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Total de horas por disponibilidad: {formData.diasDisponibilidad} hora(s) de tiempo medio
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -440,168 +533,176 @@ const ExtraHoursEdit = ({ onClose, requestId }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {formData.extrasInfo.map((extra, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <input
-                            type="date"
-                            value={extra.dia}
-                            onChange={(e) => handleExtraInfoChange(index, 'dia', e.target.value)}
-                            max={obtenerFechaMaxima()}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            required
-                            disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="time"
-                            value={extra.horaInicio}
-                            onChange={(e) => handleExtraInfoChange(index, 'horaInicio', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            required
-                            disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="time"
-                            value={extra.horaFin}
-                            onChange={(e) => handleExtraInfoChange(index, 'horaFin', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            required
-                            disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="text"
-                            value={extra.st}
-                            onChange={(e) => handleExtraInfoChange(index, 'st', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            placeholder="ST"
-                            disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="text"
-                            value={extra.nombreCliente}
-                            onChange={(e) => handleExtraInfoChange(index, 'nombreCliente', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            placeholder="Cliente"
-                            disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveRow(index)}
-                            disabled={formData.extrasInfo.length === 1 || isSubmitting || blockPeriodStatus.isBlocked}
-                            className="text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                            title="Eliminar fila"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {formData.extrasInfo.map((extra, index) => {
+                      const esDisponibilidad = extra.st === 'DISPONIBILIDAD_CELULAR';
+                      return (
+                        <tr key={index} className={`hover:bg-gray-50 ${esDisponibilidad ? 'bg-blue-50' : ''}`}>
+                          <td className="px-4 py-3">
+                            <input
+                              type="date"
+                              value={extra.dia}
+                              onChange={(e) => handleExtraInfoChange(index, 'dia', e.target.value)}
+                              max={obtenerFechaMaxima()}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              required
+                              disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              value={extra.horaInicio}
+                              onChange={(e) => handleExtraInfoChange(index, 'horaInicio', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              required
+                              disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              value={extra.horaFin}
+                              onChange={(e) => handleExtraInfoChange(index, 'horaFin', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              required
+                              disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={extra.st}
+                              onChange={(e) => handleExtraInfoChange(index, 'st', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              placeholder="ST"
+                              disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={extra.nombreCliente}
+                              onChange={(e) => handleExtraInfoChange(index, 'nombreCliente', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              placeholder="Cliente"
+                              disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRow(index)}
+                              disabled={formData.extrasInfo.length === 1 || isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                              className="text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              title={esDisponibilidad ? "No se puede eliminar la entrada de disponibilidad" : "Eliminar fila"}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               {/* Vista Mobile - Tarjetas */}
               <div className="md:hidden space-y-4">
-                {formData.extrasInfo.map((extra, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-gray-700">
-                        Registro #{index + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveRow(index)}
-                        disabled={formData.extrasInfo.length === 1 || isSubmitting || blockPeriodStatus.isBlocked}
-                        className="text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1"
-                        title="Eliminar registro"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
+                {formData.extrasInfo.map((extra, index) => {
+                  const esDisponibilidad = extra.st === 'DISPONIBILIDAD_CELULAR';
+                  return (
+                    <div key={index} className={`border border-gray-200 rounded-lg p-4 space-y-3 ${esDisponibilidad ? 'bg-blue-50 border-blue-200' : 'bg-white'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {esDisponibilidad ? '📱 Disponibilidad' : `Registro #${index + 1}`}
+                        </span>
+                        {!esDisponibilidad && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRow(index)}
+                            disabled={formData.extrasInfo.length === 1 || isSubmitting || blockPeriodStatus.isBlocked}
+                            className="text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        )}
+                      </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Día <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={extra.dia}
-                        onChange={(e) => handleExtraInfoChange(index, 'dia', e.target.value)}
-                        max={obtenerFechaMaxima()}
-                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        required
-                        disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Hora Inicio <span className="text-red-500">*</span>
+                          Día <span className="text-red-500">*</span>
                         </label>
                         <input
-                          type="time"
-                          value={extra.horaInicio}
-                          onChange={(e) => handleExtraInfoChange(index, 'horaInicio', e.target.value)}
+                          type="date"
+                          value={extra.dia}
+                          onChange={(e) => handleExtraInfoChange(index, 'dia', e.target.value)}
+                          max={obtenerFechaMaxima()}
                           className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                           required
-                          disabled={isSubmitting || blockPeriodStatus.isBlocked}
+                          disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
                         />
                       </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Hora Inicio <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            value={extra.horaInicio}
+                            onChange={(e) => handleExtraInfoChange(index, 'horaInicio', e.target.value)}
+                            className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            required
+                            disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Hora Salida <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="time"
+                            value={extra.horaFin}
+                            onChange={(e) => handleExtraInfoChange(index, 'horaFin', e.target.value)}
+                            className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            required
+                            disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                          />
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Hora Salida <span className="text-red-500">*</span>
+                          ST
                         </label>
                         <input
-                          type="time"
-                          value={extra.horaFin}
-                          onChange={(e) => handleExtraInfoChange(index, 'horaFin', e.target.value)}
+                          type="text"
+                          value={extra.st}
+                          onChange={(e) => handleExtraInfoChange(index, 'st', e.target.value)}
                           className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          required
-                          disabled={isSubmitting || blockPeriodStatus.isBlocked}
+                          placeholder="ST"
+                          disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Cliente
+                        </label>
+                        <input
+                          type="text"
+                          value={extra.nombreCliente}
+                          onChange={(e) => handleExtraInfoChange(index, 'nombreCliente', e.target.value)}
+                          className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          placeholder="Nombre del Cliente"
+                          disabled={isSubmitting || blockPeriodStatus.isBlocked || esDisponibilidad}
                         />
                       </div>
                     </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        ST
-                      </label>
-                      <input
-                        type="text"
-                        value={extra.st}
-                        onChange={(e) => handleExtraInfoChange(index, 'st', e.target.value)}
-                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        placeholder="ST"
-                        disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Cliente
-                      </label>
-                      <input
-                        type="text"
-                        value={extra.nombreCliente}
-                        onChange={(e) => handleExtraInfoChange(index, 'nombreCliente', e.target.value)}
-                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        placeholder="Nombre del Cliente"
-                        disabled={isSubmitting || blockPeriodStatus.isBlocked}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

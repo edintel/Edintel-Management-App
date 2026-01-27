@@ -42,7 +42,7 @@ const HORARIOS = {
  */
 const PERIODOS_BLOQUEO = {
   PRIMER_PERIODO: { inicio: 9, fin: 14 },  // Antes del día 15
-  SEGUNDO_PERIODO: { inicio: 27, fin: 29 }, // Antes del día 30
+  SEGUNDO_PERIODO: { inicio: 24, fin: 29 }, // Antes del día 30
 };
 
 // ============================================
@@ -236,7 +236,7 @@ export const redondearMediaHora = (horasDecimales) => {
 
 /**
  * Calcula los totales de horas extras según el tipo de día y horario
- * @param {Array} extrasInfo - Array de objetos con { dia, horaInicio, horaFin }
+ * @param {Array} extrasInfo - Array de objetos con { dia, horaInicio, horaFin, st }
  * @param {string} departamento - Nombre del departamento (para lógica especial de "Comercial")
  * @returns {Object} { tiempoMedio, tiempoDoble, tiempoDobleDoble }
  */
@@ -249,6 +249,15 @@ export const calcularTotalesHorasExtras = (extrasInfo, departamento = '') => {
 
   extrasInfo.forEach(extra => {
     if (!extra.dia || !extra.horaInicio || !extra.horaFin) return;
+
+    // ✅ Caso especial: Disponibilidad de celular
+    // Se identifica por el ST especial y se cuenta como tiempo medio (1.5x)
+    if (extra.st === 'DISPONIBILIDAD_CELULAR') {
+      // La hora fin contiene los días en formato HH:MM (ej: "07:00" = 7 días = 7 horas)
+      const [horas] = extra.horaFin.split(':').map(Number);
+      tiempoMedio += horas;
+      return;
+    }
 
     const { horasDiurnas, horasNocturnas } = dividirHorasPorSegmento(
       extra.horaInicio,
