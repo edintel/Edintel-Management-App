@@ -37,6 +37,13 @@ export const useApprovalList = () => {
     title: "",
     message: "",
     expenseId: null,
+    isBulkAction: false,
+  });
+  const [bulkApprovalProgress, setBulkApprovalProgress] = useState({
+    isProcessing: false,
+    total: 0,
+    completed: 0,
+    failed: 0,
   });
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -222,11 +229,135 @@ export const useApprovalList = () => {
       message:
         "¿Está seguro que desea rechazar este gasto? Debe proporcionar una nota de revisión.",
       expenseId: id,
+      isBulkAction: false,
     });
   }, []);
 
+  // Nueva función para aprobar todas las pendientes
+  const handleApproveAll = useCallback(() => {
+    // Obtener solo los gastos que el usuario puede aprobar
+    const pendingExpenses = filteredExpenses.filter(
+      expense => approvalEligibility[expense.id] === true
+    );
+
+    if (pendingExpenses.length === 0) {
+      alert('No hay gastos pendientes de aprobación');
+      return;
+    }
+
+    setConfirmDialog({
+      isOpen: true,
+      type: "approve",
+      title: "¿Aprobar todas las solicitudes pendientes?",
+      message: `Se aprobarán ${pendingExpenses.length} solicitud(es) pendiente(s). Esta acción no se puede deshacer.`,
+      expenseId: null,
+      isBulkAction: true,
+    });
+  }, [filteredExpenses, approvalEligibility]);
+
   const handleConfirmAction = useCallback(
     async (notes = "") => {
+      // Manejar aprobación masiva
+      if (confirmDialog.isBulkAction) {
+        const pendingExpenses = filteredExpenses.filter(
+          expense => approvalEligibility[expense.id] === true
+        );
+
+        setBulkApprovalProgress({
+          isProcessing: true,
+          total: pendingExpenses.length,
+          completed: 0,
+          failed: 0,
+        });
+
+        let completed = 0;
+        let failed = 0;
+
+        for (const expense of pendingExpenses) {
+          try {
+            const approvalType = approvalFlowService.getNextApprovalType(
+              expense,
+              userEmail
+            );
+
+            if (!approvalType) {
+              failed++;
+              continue;
+            }
+
+            await service.updateApprovalStatus(
+              expense.id,
+              "Aprobada",
+              approvalType,
+              notes || "Aprobación masiva"
+            );
+
+            completed++;
+
+            // Actualizar el estado local
+            setExpenseReports((prevReports) =>
+              prevReports.map((report) => {
+                if (report.id !== expense.id) return report;
+
+                const updatedReport = {
+                  ...report,
+                  bloqueoEdicion: true,
+                  notasRevision: notes || "Aprobación masiva",
+                };
+
+                switch (approvalType) {
+                  case "assistant":
+                  case "accounting_assistant":
+                    updatedReport.aprobacionAsistente = "Aprobada";
+                    break;
+                  case "boss":
+                  case "accounting_boss":
+                    updatedReport.aprobacionJefatura = "Aprobada";
+                    if (approvalType === "accounting_boss") {
+                      updatedReport.aprobacionContabilidad = "Aprobada";
+                    }
+                    break;
+                  default:
+                    break;
+                }
+
+                return updatedReport;
+              })
+            );
+
+            // Actualizar progreso
+            setBulkApprovalProgress(prev => ({
+              ...prev,
+              completed,
+              failed,
+            }));
+
+          } catch (error) {
+            console.error(`Error aprobando gasto ${expense.id}:`, error);
+            failed++;
+            setBulkApprovalProgress(prev => ({
+              ...prev,
+              completed,
+              failed,
+            }));
+          }
+        }
+
+        // Finalizar
+        setTimeout(() => {
+          setBulkApprovalProgress({
+            isProcessing: false,
+            total: 0,
+            completed: 0,
+            failed: 0,
+          });
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        }, 2000);
+
+        return;
+      }
+
+      // Manejar aprobación individual (código existente)
       try {
         const expense = expenseReports.find(
           (exp) => exp.id === confirmDialog.expenseId
@@ -291,6 +422,8 @@ export const useApprovalList = () => {
     [
       confirmDialog,
       expenseReports,
+      filteredExpenses,
+      approvalEligibility,
       service,
       approvalFlowService,
       setExpenseReports,
@@ -313,6 +446,7 @@ export const useApprovalList = () => {
     confirmDialog,
     loading,
     approvalEligibility,
+    bulkApprovalProgress,
     setSearchTerm,
     setViewMode,
     setSelectedPerson,
@@ -321,6 +455,7 @@ export const useApprovalList = () => {
     setConfirmDialog,
     handleApprove,
     handleReject,
+    handleApproveAll,
     handleConfirmAction,
     canViewApprovals,
   };

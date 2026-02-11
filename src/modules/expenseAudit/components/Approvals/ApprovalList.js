@@ -7,6 +7,7 @@ import { EXPENSE_AUDIT_ROUTES } from "../../routes";
 import ApprovalFilters from "./components/ApprovalFilters";
 import ApprovalTable from "./components/ApprovalTable";
 import useApprovalList from "./hooks/useApprovalList";
+import { CheckCircle } from "lucide-react";
 
 const ApprovalList = () => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const ApprovalList = () => {
     confirmDialog,
     loading,
     approvalEligibility,
+    bulkApprovalProgress,
     setSearchTerm,
     setViewMode,
     setSelectedPerson,
@@ -34,6 +36,7 @@ const ApprovalList = () => {
     setConfirmDialog,
     handleApprove,
     handleReject,
+    handleApproveAll,
     handleConfirmAction,
     canViewApprovals,
   } = useApprovalList();
@@ -82,18 +85,41 @@ const ApprovalList = () => {
   return (
     <>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Aprobaciones</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {filteredExpenses.length} gastos{" "}
-            {viewMode === "all"
-              ? "en el sistema"
-              : viewMode === "pending"
-                ? "pendientes de aprobación"
-                : viewMode === "approved"
-                  ? "aprobados"
-                  : "rechazados"}
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Aprobaciones</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {filteredExpenses.length} gastos{" "}
+              {viewMode === "all"
+                ? "en el sistema"
+                : viewMode === "pending"
+                  ? "pendientes de aprobación"
+                  : viewMode === "approved"
+                    ? "aprobados"
+                    : "rechazados"}
+            </p>
+          </div>
+
+          {/* Botón Aprobar Todas - Solo visible en modo pendiente */}
+          {viewMode === "pending" && filteredExpenses.filter(e => approvalEligibility[e.id]).length > 0 && (
+            <button
+              onClick={handleApproveAll}
+              disabled={bulkApprovalProgress.isProcessing}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
+            >
+              {bulkApprovalProgress.isProcessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Aprobando ({bulkApprovalProgress.completed}/{bulkApprovalProgress.total})
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={18} />
+                  Aprobar Todas ({filteredExpenses.filter(e => approvalEligibility[e.id]).length})
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Filters */}
@@ -157,7 +183,11 @@ const ApprovalList = () => {
       {/* Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={confirmDialog.isOpen}
-        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onClose={() => {
+          if (!bulkApprovalProgress.isProcessing) {
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+          }
+        }}
         onConfirm={handleConfirmAction}
         type={confirmDialog.type}
         title={confirmDialog.title}

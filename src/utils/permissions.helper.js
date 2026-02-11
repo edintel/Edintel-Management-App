@@ -105,28 +105,48 @@ export const canApproveRequest = (request, userDepartmentRole) => {
       request.aprobadoJefatura !== false;
   }
 
-  // Administrador (RH): puede aprobar si jefatura aprobó Y RH está pendiente
+  // Administrador puede aprobar en dos etapas:
+  // 1. Como RH: si jefatura aprobó Y RH está pendiente
+  // 2. Como Contabilidad: si RH aprobó Y Conta está pendiente
   if (role === 'Administrador') {
-    return request.aprobadoJefatura === true &&
+    const canApproveAsRH = request.aprobadoJefatura === true &&
       request.aprobadoRH !== true &&
       request.aprobadoRH !== false;
+
+    const canApproveAsConta = request.aprobadoRH === true &&
+      request.revisadoConta !== true &&
+      request.revisadoConta !== false;
+
+    return canApproveAsRH || canApproveAsConta;
   }
 
   return false;
 };
 
 /**
- * Obtiene el tipo de aprobación según el rol
+ * Obtiene el tipo de aprobación según el rol y el estado de la solicitud
  * @param {string} role - Rol del usuario
+ * @param {Object} request - La solicitud (opcional, necesario para Administrador)
  * @returns {string|null} - Tipo de aprobación
  */
-export const getApprovalTypeByRole = (role) => {
+export const getApprovalTypeByRole = (role, request = null) => {
   switch (role) {
     case 'AsistenteJefatura':
       return 'asistente';
     case 'Jefatura':
       return 'jefatura';
     case 'Administrador':
+      // Si no se pasa la solicitud, retornar 'rh' por defecto (compatibilidad)
+      if (!request) return 'rh';
+
+      // Si RH está pendiente, aprobar como RH
+      if (request.aprobadoRH !== true && request.aprobadoRH !== false) {
+        return 'rh';
+      }
+      // Si RH ya aprobó, aprobar como Contabilidad
+      if (request.aprobadoRH === true) {
+        return 'conta';
+      }
       return 'rh';
     default:
       return null;

@@ -126,13 +126,49 @@ const RequestDetail = () => {
     const role = userDepartmentRole?.role;
 
     if (role === 'Colaborador') return false;
-    if (role === 'Administrador') return true;
+
+    // Administrador puede aprobar en dos etapas:
+    // 1. Como RH: después de que Jefatura aprobó
+    // 2. Como Contabilidad: después de que RH aprobó
+    if (role === 'Administrador') {
+      // Puede aprobar como RH si jefatura aprobó y RH está pendiente
+      const canApproveAsRH = request.aprobadoJefatura === true &&
+        request.aprobadoRH !== true &&
+        request.aprobadoRH !== false;
+
+      // Puede aprobar como Contabilidad si RH aprobó y Conta está pendiente
+      const canApproveAsConta = request.aprobadoRH === true &&
+        request.revisadoConta !== true &&
+        request.revisadoConta !== false;
+
+      return canApproveAsRH || canApproveAsConta;
+    }
 
     // Lógica de aprobación por etapas
     if (role === 'AsistenteJefatura' && !request.revisadoAsistente) return true;
     if (role === 'Jefatura' && request.revisadoAsistente && !request.aprobadoJefatura) return true;
 
     return false;
+  };
+
+  // Obtener el texto del botón de aprobación según el rol y etapa
+  const getApprovalButtonText = () => {
+    const role = userDepartmentRole?.role;
+
+    if (role === 'AsistenteJefatura') return 'Aprobar (Asistente)';
+    if (role === 'Jefatura') return 'Aprobar (Jefatura)';
+    if (role === 'Administrador') {
+      // Si RH está pendiente, aprobar como RH
+      if (request.aprobadoRH !== true && request.aprobadoRH !== false) {
+        return 'Aprobar (RH)';
+      }
+      // Si RH ya aprobó, aprobar como Contabilidad
+      if (request.aprobadoRH === true) {
+        return 'Aprobar (Contabilidad)';
+      }
+    }
+
+    return 'Aprobar';
   };
 
   // Handle approval/rejection
@@ -142,15 +178,44 @@ const RequestDetail = () => {
       const role = userDepartmentRole?.role;
       let approvalType = '';
 
-      if (role === 'AsistenteJefatura') approvalType = 'asistente';
-      else if (role === 'Jefatura') approvalType = 'jefatura';
-      else if (role === 'Administrador') approvalType = 'rh'; // RH approval
+      if (role === 'AsistenteJefatura') {
+        approvalType = 'asistente';
+      } else if (role === 'Jefatura') {
+        approvalType = 'jefatura';
+      } else if (role === 'Administrador') {
+        // Determinar si debe aprobar como RH o como Contabilidad
+        // Si RH está pendiente → aprobar como RH
+        // Si RH ya aprobó y Conta está pendiente → aprobar como Contabilidad
+        if (request.aprobadoRH !== true && request.aprobadoRH !== false) {
+          approvalType = 'rh';
+        } else if (request.aprobadoRH === true) {
+          approvalType = 'conta';
+        }
+      }
 
       await updateApprovalStatus(request.id, approvalType, approved);
 
-      // Refresh request data
-      const updatedRequest = extraHoursRequests.find(req => req.id === id);
-      setRequest(updatedRequest);
+      // Update local state immediately to reflect the change
+      setRequest(prevRequest => {
+        const updatedRequest = { ...prevRequest };
+
+        switch (approvalType) {
+          case 'asistente':
+            updatedRequest.revisadoAsistente = approved;
+            break;
+          case 'jefatura':
+            updatedRequest.aprobadoJefatura = approved;
+            break;
+          case 'rh':
+            updatedRequest.aprobadoRH = approved;
+            break;
+          case 'conta':
+            updatedRequest.revisadoConta = approved;
+            break;
+        }
+
+        return updatedRequest;
+      });
     } catch (error) {
       alert('Error al procesar la aprobación');
     } finally {
@@ -565,7 +630,7 @@ const RequestDetail = () => {
               onClick={() => handleApproval(true)}
               disabled={isProcessing}
             >
-              {isProcessing ? 'Procesando...' : 'Aprobar'}
+              {isProcessing ? 'Procesando...' : getApprovalButtonText()}
             </Button>
           </>
         )}

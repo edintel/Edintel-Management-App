@@ -28,6 +28,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { calcularTotalesHorasExtras } from '../Service/InsideServices/ExtraHoursCalculationService';
 
 const Approvals = () => {
   const navigate = useNavigate();
@@ -199,6 +200,26 @@ const approvalsRequests = useMemo(() => {
   return requests.sort((a, b) => b.created?.getTime() - a.created?.getTime());
 }, [extraHoursRequests, canAccessApprovals, userDepartmentRole, filters, getPrimaryRole, getRequestStatus, service]);
 
+  // Obtener el texto del botón de aprobación según el rol y etapa
+  const getApprovalButtonText = (request) => {
+    const role = getPrimaryRole();
+
+    if (role === 'AsistenteJefatura') return 'Aprobar';
+    if (role === 'Jefatura') return 'Aprobar';
+    if (role === 'Administrador') {
+      // Si RH está pendiente, aprobar como RH
+      if (request.aprobadoRH !== true && request.aprobadoRH !== false) {
+        return 'Aprobar (RH)';
+      }
+      // Si RH ya aprobó, aprobar como Contabilidad
+      if (request.aprobadoRH === true) {
+        return 'Aprobar (Conta)';
+      }
+    }
+
+    return 'Aprobar';
+  };
+
   // Manejar aprobación/rechazo usando el helper
   const handleApprovalAction = async (requestId, approved) => {
     const request = approvalsRequests.find(r => r.id === requestId);
@@ -222,7 +243,7 @@ const approvalsRequests = useMemo(() => {
       return;
     }
 
-    const approvalType = getApprovalTypeByRole(role);
+    const approvalType = getApprovalTypeByRole(role, request);
 
     if (!approvalType) {
       alert('Rol no válido para aprobación');
@@ -278,35 +299,116 @@ const approvalsRequests = useMemo(() => {
     doc.setFontSize(10);
     doc.text(`Generado: ${new Date().toLocaleDateString('es-CR')}`, 14, 22);
 
-    // Preparar datos para la tabla
-    const tableData = [];
+    // Agrupar solicitudes por persona
+    const personasMap = new Map();
+    let totalGeneral = { tiempoMedio: 0, tiempoDoble: 0, tiempoDobleDoble: 0 };
+
     approvalsRequests.forEach(request => {
+      const nombrePersona = request.nombreSolicitante?.displayName || request.createdBy.name;
+
+      if (!personasMap.has(nombrePersona)) {
+        personasMap.set(nombrePersona, {
+          departamento: request.departamento,
+          registros: [],
+          tiempoMedio: 0,
+          tiempoDoble: 0,
+          tiempoDobleDoble: 0
+        });
+      }
+
+      const persona = personasMap.get(nombrePersona);
       const status = getRequestStatus(request);
+
+      // Calcular totales de esta solicitud
+      const totales = calcularTotalesHorasExtras(request.extrasInfo, request.departamento);
+      persona.tiempoMedio += parseFloat(totales.tiempoMedio);
+      persona.tiempoDoble += parseFloat(totales.tiempoDoble);
+      persona.tiempoDobleDoble += parseFloat(totales.tiempoDobleDoble);
+
+      // Agregar al total general
+      totalGeneral.tiempoMedio += parseFloat(totales.tiempoMedio);
+      totalGeneral.tiempoDoble += parseFloat(totales.tiempoDoble);
+      totalGeneral.tiempoDobleDoble += parseFloat(totales.tiempoDobleDoble);
+
       request.extrasInfo?.forEach(extra => {
-        const hours = service?.calculateTotalHours([extra]) || 0;
-        tableData.push([
-          request.nombreSolicitante?.displayName || request.createdBy.name,
-          request.departamento,
-          formatDate(extra.dia),
-          extra.horaInicio || '-',
-          extra.horaFin || '-',
-          extra.st || '-',
-          extra.nombreCliente || '-',
-          hours.toFixed(2),
-          status.label,
-          request.created?.toLocaleDateString('es-CR') || 'N/A'
-        ]);
+        persona.registros.push({
+          dia: formatDate(extra.dia),
+          horaInicio: extra.horaInicio || '-',
+          horaFin: extra.horaFin || '-',
+          st: extra.st || '-',
+          cliente: extra.nombreCliente || '-',
+          estado: status.label,
+          fechaCreacion: request.created?.toLocaleDateString('es-CR') || 'N/A'
+        });
       });
     });
 
+    // Preparar datos para la tabla con subtotales
+    const tableData = [];
+    let currentY = 28;
+
+    personasMap.forEach((persona, nombrePersona) => {
+      // Agregar filas de registros de esta persona
+      persona.registros.forEach(registro => {
+        tableData.push([
+          nombrePersona,
+          persona.departamento,
+          registro.dia,
+          registro.horaInicio,
+          registro.horaFin,
+          registro.st,
+          registro.cliente,
+          '', '', '', // Columnas de totales vacías
+          registro.estado,
+          registro.fechaCreacion
+        ]);
+      });
+
+      // Agregar fila de subtotales por persona
+      tableData.push([
+        { content: `TOTAL ${nombrePersona.toUpperCase()}`, colSpan: 7, styles: { fontStyle: 'bold', fillColor: [220, 237, 255] } },
+        { content: persona.tiempoMedio.toFixed(2), styles: { fontStyle: 'bold', fillColor: [220, 237, 255], halign: 'center' } },
+        { content: persona.tiempoDoble.toFixed(2), styles: { fontStyle: 'bold', fillColor: [220, 237, 255], halign: 'center' } },
+        { content: persona.tiempoDobleDoble.toFixed(2), styles: { fontStyle: 'bold', fillColor: [220, 237, 255], halign: 'center' } },
+        '', ''
+      ]);
+    });
+
+    // Agregar fila de total general
+    tableData.push([
+      { content: 'TOTAL GENERAL', colSpan: 7, styles: { fontStyle: 'bold', fillColor: [59, 130, 246], textColor: [255, 255, 255] } },
+      { content: totalGeneral.tiempoMedio.toFixed(2), styles: { fontStyle: 'bold', fillColor: [59, 130, 246], textColor: [255, 255, 255], halign: 'center' } },
+      { content: totalGeneral.tiempoDoble.toFixed(2), styles: { fontStyle: 'bold', fillColor: [59, 130, 246], textColor: [255, 255, 255], halign: 'center' } },
+      { content: totalGeneral.tiempoDobleDoble.toFixed(2), styles: { fontStyle: 'bold', fillColor: [59, 130, 246], textColor: [255, 255, 255], halign: 'center' } },
+      '', ''
+    ]);
+
     // Generar tabla
     autoTable(doc, {
-      startY: 28,
-      head: [['Solicitante', 'Departamento', 'Día', 'Hora Inicio', 'Hora Fin', 'ST', 'Cliente', 'Horas', 'Estado', 'Fecha Creación']],
+      startY: currentY,
+      head: [[
+        'Solicitante',
+        'Departamento',
+        'Día',
+        'Hora Inicio',
+        'Hora Fin',
+        'ST',
+        'Cliente',
+        'T.Medio\n(1.5x)',
+        'T.Doble\n(2x)',
+        'T.Doble²\n(4x)',
+        'Estado',
+        'Fecha Creación'
+      ]],
       body: tableData,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 6, cellPadding: 1.5 },
+      headStyles: { fillColor: [59, 130, 246], fontSize: 7, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: {
+        7: { halign: 'center', fontStyle: 'bold' },
+        8: { halign: 'center', fontStyle: 'bold' },
+        9: { halign: 'center', fontStyle: 'bold' },
+      }
     });
 
     // Guardar PDF
@@ -315,26 +417,124 @@ const approvalsRequests = useMemo(() => {
 
   // Función para exportar a Excel
   const exportToExcel = () => {
-    // Preparar datos para Excel
-    const excelData = [];
+    // Agrupar solicitudes por persona
+    const personasMap = new Map();
+    let totalGeneral = { tiempoMedio: 0, tiempoDoble: 0, tiempoDobleDoble: 0 };
+
     approvalsRequests.forEach(request => {
+      const nombrePersona = request.nombreSolicitante?.displayName || request.createdBy.name;
+
+      if (!personasMap.has(nombrePersona)) {
+        personasMap.set(nombrePersona, {
+          departamento: request.departamento,
+          cedula: request.numeroCedula || 'N/A',
+          registros: [],
+          tiempoMedio: 0,
+          tiempoDoble: 0,
+          tiempoDobleDoble: 0
+        });
+      }
+
+      const persona = personasMap.get(nombrePersona);
       const status = getRequestStatus(request);
+
+      // Calcular totales de esta solicitud
+      const totales = calcularTotalesHorasExtras(request.extrasInfo, request.departamento);
+      persona.tiempoMedio += parseFloat(totales.tiempoMedio);
+      persona.tiempoDoble += parseFloat(totales.tiempoDoble);
+      persona.tiempoDobleDoble += parseFloat(totales.tiempoDobleDoble);
+
+      // Agregar al total general
+      totalGeneral.tiempoMedio += parseFloat(totales.tiempoMedio);
+      totalGeneral.tiempoDoble += parseFloat(totales.tiempoDoble);
+      totalGeneral.tiempoDobleDoble += parseFloat(totales.tiempoDobleDoble);
+
       request.extrasInfo?.forEach(extra => {
-        const hours = service?.calculateTotalHours([extra]) || 0;
-        excelData.push({
-          'Solicitante': request.nombreSolicitante?.displayName || request.createdBy.name,
-          'Departamento': request.departamento,
-          'Cédula': request.numeroCedula || 'N/A',
-          'Día': formatDate(extra.dia),
-          'Hora Inicio': extra.horaInicio || '-',
-          'Hora Fin': extra.horaFin || '-',
-          'ST': extra.st || '-',
-          'Cliente': extra.nombreCliente || '-',
-          'Horas': hours.toFixed(2),
-          'Estado': status.label,
-          'Fecha Creación': request.created?.toLocaleDateString('es-CR') || 'N/A'
+        persona.registros.push({
+          dia: formatDate(extra.dia),
+          horaInicio: extra.horaInicio || '-',
+          horaFin: extra.horaFin || '-',
+          st: extra.st || '-',
+          cliente: extra.nombreCliente || '-',
+          estado: status.label,
+          fechaCreacion: request.created?.toLocaleDateString('es-CR') || 'N/A'
         });
       });
+    });
+
+    // Preparar datos para Excel con subtotales
+    const excelData = [];
+
+    personasMap.forEach((persona, nombrePersona) => {
+      // Agregar registros de esta persona
+      persona.registros.forEach(registro => {
+        excelData.push({
+          'Solicitante': nombrePersona,
+          'Departamento': persona.departamento,
+          'Cédula': persona.cedula,
+          'Día': registro.dia,
+          'Hora Inicio': registro.horaInicio,
+          'Hora Fin': registro.horaFin,
+          'ST': registro.st,
+          'Cliente': registro.cliente,
+          'Tiempo Medio (1.5x)': '',
+          'Tiempo Doble (2x)': '',
+          'Tiempo Doble² (4x)': '',
+          'Estado': registro.estado,
+          'Fecha Creación': registro.fechaCreacion
+        });
+      });
+
+      // Agregar fila de subtotales
+      excelData.push({
+        'Solicitante': `TOTAL ${nombrePersona.toUpperCase()}`,
+        'Departamento': '',
+        'Cédula': '',
+        'Día': '',
+        'Hora Inicio': '',
+        'Hora Fin': '',
+        'ST': '',
+        'Cliente': '',
+        'Tiempo Medio (1.5x)': persona.tiempoMedio.toFixed(2),
+        'Tiempo Doble (2x)': persona.tiempoDoble.toFixed(2),
+        'Tiempo Doble² (4x)': persona.tiempoDobleDoble.toFixed(2),
+        'Estado': '',
+        'Fecha Creación': ''
+      });
+
+      // Agregar fila vacía como separador
+      excelData.push({
+        'Solicitante': '',
+        'Departamento': '',
+        'Cédula': '',
+        'Día': '',
+        'Hora Inicio': '',
+        'Hora Fin': '',
+        'ST': '',
+        'Cliente': '',
+        'Tiempo Medio (1.5x)': '',
+        'Tiempo Doble (2x)': '',
+        'Tiempo Doble² (4x)': '',
+        'Estado': '',
+        'Fecha Creación': ''
+      });
+    });
+
+    // Agregar total general
+    excelData.push({
+      'Solicitante': 'TOTAL GENERAL',
+      'Departamento': '',
+      'Cédula': '',
+      'Día': '',
+      'Hora Inicio': '',
+      'Hora Fin': '',
+      'ST': '',
+      'Cliente': '',
+      'Tiempo Medio (1.5x)': totalGeneral.tiempoMedio.toFixed(2),
+      'Tiempo Doble (2x)': totalGeneral.tiempoDoble.toFixed(2),
+      'Tiempo Doble² (4x)': totalGeneral.tiempoDobleDoble.toFixed(2),
+      'Estado': '',
+      'Fecha Creación': ''
     });
 
     // Crear libro de Excel
@@ -352,7 +552,9 @@ const approvalsRequests = useMemo(() => {
       { wch: 12 }, // Hora Fin
       { wch: 15 }, // ST
       { wch: 20 }, // Cliente
-      { wch: 8 },  // Horas
+      { wch: 15 }, // Tiempo Medio
+      { wch: 15 }, // Tiempo Doble
+      { wch: 15 }, // Tiempo Doble²
       { wch: 15 }, // Estado
       { wch: 15 }  // Fecha Creación
     ];
@@ -735,7 +937,7 @@ const approvalsRequests = useMemo(() => {
                             disabled={processingId === request.id}
                             startIcon={<CheckCircle size={16} />}
                           >
-                            {processingId === request.id ? 'Procesando...' : 'Aprobar'}
+                            {processingId === request.id ? 'Procesando...' : getApprovalButtonText(request)}
                           </Button>
                         </div>
                       )}
