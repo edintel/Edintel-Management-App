@@ -1,4 +1,4 @@
-// src/modules/extraHours/components/Approvals/Approvals.js
+
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExtraHours } from '../../context/extraHoursContext';
@@ -100,7 +100,7 @@ const approvalsRequests = useMemo(() => {
 
 
   if (role === 'Administrador') {
-    console.log('✅ Administrador - Mostrando TODAS las solicitudes sin filtros');
+   
     // Administradores ven TODO sin filtros
     // No aplicamos ningún filtro, mantener todas las solicitudes
   }
