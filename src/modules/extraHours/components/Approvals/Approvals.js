@@ -299,11 +299,19 @@ const approvalsRequests = useMemo(() => {
     doc.setFontSize(10);
     doc.text(`Generado: ${new Date().toLocaleDateString('es-CR')}`, 14, 22);
 
+    // Solo incluir solicitudes con los 4 niveles de aprobación completos
+    const fullyApprovedRequests = approvalsRequests.filter(r =>
+      r.revisadoAsistente === true &&
+      r.aprobadoJefatura === true &&
+      r.aprobadoRH === true &&
+      r.revisadoConta === true
+    );
+
     // Agrupar solicitudes por persona
     const personasMap = new Map();
     let totalGeneral = { tiempoMedio: 0, tiempoDoble: 0, tiempoDobleDoble: 0 };
 
-    approvalsRequests.forEach(request => {
+    fullyApprovedRequests.forEach(request => {
       const nombrePersona = request.nombreSolicitante?.displayName || request.createdBy.name;
 
       if (!personasMap.has(nombrePersona)) {
@@ -417,11 +425,19 @@ const approvalsRequests = useMemo(() => {
 
   // Función para exportar a Excel
   const exportToExcel = () => {
+    // Solo incluir solicitudes con los 4 niveles de aprobación completos
+    const fullyApprovedRequests = approvalsRequests.filter(r =>
+      r.revisadoAsistente === true &&
+      r.aprobadoJefatura === true &&
+      r.aprobadoRH === true &&
+      r.revisadoConta === true
+    );
+
     // Agrupar solicitudes por persona
     const personasMap = new Map();
     let totalGeneral = { tiempoMedio: 0, tiempoDoble: 0, tiempoDobleDoble: 0 };
 
-    approvalsRequests.forEach(request => {
+    fullyApprovedRequests.forEach(request => {
       const nombrePersona = request.nombreSolicitante?.displayName || request.createdBy.name;
 
       if (!personasMap.has(nombrePersona)) {
