@@ -525,7 +525,7 @@ const TicketForm = () => {
               onDisplayNameChange={updateAdminDocName}
               showDisplayName={true}
               maxSize={20 * 1024 * 1024}
-              maxFiles={5}
+              maxFiles={10}
               error={adminDocsError}
               disabled={processing}
             />

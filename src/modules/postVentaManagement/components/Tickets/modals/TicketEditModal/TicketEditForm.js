@@ -569,7 +569,7 @@ const TicketEditForm = ({
             files={serviceTicketsFiles.files}
             onFilesChange={serviceTicketsFiles.addFiles}
             onRemove={serviceTicketsFiles.removeFile}
-            maxFiles={5}
+            maxFiles={10}
             maxSize={10 * 1024 * 1024}
             error={errors.serviceTickets}
           />
@@ -694,7 +694,7 @@ const TicketEditForm = ({
                 adminDocsFiles.setFiles(newFiles);
               }}
               showDisplayName={true}
-              maxFiles={5}
+              maxFiles={10}
               maxSize={20 * 1024 * 1024}
               error={errors.adminDocs}
               disabled={processing}
