@@ -295,9 +295,14 @@ const approvalsRequests = useMemo(() => {
     doc.setFontSize(16);
     doc.text('Historial de Aprobaciones de Horas Extras', 14, 15);
 
-    // Subtítulo con fecha
+    // Subtítulo con fecha y filtros usados
     doc.setFontSize(10);
     doc.text(`Generado: ${new Date().toLocaleDateString('es-CR')}`, 14, 22);
+
+    const periodoTexto = filters.fechaDesde || filters.fechaHasta
+      ? `Período: ${filters.fechaDesde ? new Date(filters.fechaDesde + 'T00:00:00').toLocaleDateString('es-CR') : 'inicio'} — ${filters.fechaHasta ? new Date(filters.fechaHasta + 'T00:00:00').toLocaleDateString('es-CR') : 'hoy'}`
+      : 'Período: Todas las fechas';
+    doc.text(periodoTexto, 14, 28);
 
     // Solo incluir solicitudes con los 4 niveles de aprobación completos
     const fullyApprovedRequests = approvalsRequests.filter(r =>
@@ -553,8 +558,20 @@ const approvalsRequests = useMemo(() => {
       'Fecha Creación': ''
     });
 
-    // Crear libro de Excel
-    const ws = XLSX.utils.json_to_sheet(excelData);
+    // Crear libro de Excel con filas de encabezado informativo
+    const periodoTexto = filters.fechaDesde || filters.fechaHasta
+      ? `${filters.fechaDesde ? new Date(filters.fechaDesde + 'T00:00:00').toLocaleDateString('es-CR') : 'inicio'} — ${filters.fechaHasta ? new Date(filters.fechaHasta + 'T00:00:00').toLocaleDateString('es-CR') : 'hoy'}`
+      : 'Todas las fechas';
+
+    const headerRows = [
+      ['Historial de Aprobaciones de Horas Extras'],
+      [`Generado: ${new Date().toLocaleDateString('es-CR')}`],
+      [`Período: ${periodoTexto}`],
+      [], // fila vacía separadora
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(headerRows);
+    XLSX.utils.sheet_add_json(ws, excelData, { origin: headerRows.length });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Historial Aprobaciones');
 
