@@ -42,7 +42,7 @@ const HORARIOS = {
  */
 const PERIODOS_BLOQUEO = {
   PRIMER_PERIODO: { inicio: 9, fin: 14 },  // Antes del día 15
-  SEGUNDO_PERIODO: { inicio: 25, fin: 29 }, // Antes del día 30
+  SEGUNDO_PERIODO: { inicio: 24, fin: 29 }, // Antes del día 30
 };
 
 // ============================================
