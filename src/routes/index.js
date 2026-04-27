@@ -10,6 +10,8 @@ const CursoControlModule = React.lazy(() => import('../modules/cursoControl'));
 const ExpenseAuditModule = React.lazy(() => import('../modules/expenseAudit'));
 const PostVentaModule = React.lazy(() => import('../modules/postVentaManagement'));
 const ExtraHours = React.lazy(() => import('../modules/extraHours'));
+const Vacaciones = React.lazy(() => import('../modules/vacaciones'));
+const Incapacidades = React.lazy(() => import('../modules/incapacidades'));
 const StyleGuide = React.lazy(() => import('../components/StyleGuide/StyleGuide'));
 
 const AppRoutes = () => {
@@ -48,6 +50,22 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <Suspense fallback={<LoadingScreen />}>
             <ExtraHours />
+          </Suspense>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/vacaciones/*" element={
+        <ProtectedRoute>
+          <Suspense fallback={<LoadingScreen />}>
+            <Vacaciones />
+          </Suspense>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/incapacidades/*" element={
+        <ProtectedRoute>
+          <Suspense fallback={<LoadingScreen />}>
+            <Incapacidades />
           </Suspense>
         </ProtectedRoute>
       } />

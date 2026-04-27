@@ -5,12 +5,14 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { useMsal } from "@azure/msal-react";
 import Card from "./common/Card";
-import { FileText, Ticket, Loader2, BookOpen, Hourglass } from "lucide-react";
+import { FileText, Ticket, Loader2, BookOpen, Hourglass, Palmtree, Activity } from "lucide-react";
 import BaseGraphService from "../services/BaseGraphService";
 import { expenseAuditConfig } from "../modules/expenseAudit/config/expenseAudit.config";
 import { postVentaConfig } from "../modules/postVentaManagement/config/postVentaManagement.config";
 import { extraHoursConfig } from "../modules/extraHours/config/extraHours.config"
 import { cursoControlConfig } from "../modules/cursoControl/config/cursoControl.config";
+import { vacacionesConfig } from "../modules/vacaciones/config/vacaciones.config";
+import { incapacidadesConfig } from '../modules/incapacidades/config/incapacidades.config';
 
 const MainMenu = () => {
   const navigate = useNavigate();
@@ -22,6 +24,8 @@ const MainMenu = () => {
     postVenta: false,
     cursoControl: false,
     horasExtras: false,
+    vacaciones: false,
+    incapacidades: false,
   });
 
   useEffect(() => {
@@ -70,6 +74,35 @@ const MainMenu = () => {
           setAvailableModules(prev => ({ ...prev, postVenta: userHasPostVentaRole }));
         } catch (error) {
           console.log("No access to PostVenta", error);
+        }
+
+        // Check Vacaciones access (same site as Extra Hours)
+        try {
+          const vacacionesSiteId = vacacionesConfig.siteId;
+          try {
+            await baseService.getListItems(
+              vacacionesSiteId,
+              vacacionesConfig.lists.rolesDepartamentos,
+              { top: 1 }
+            );
+            setAvailableModules(prev => ({ ...prev, vacaciones: true }));
+          } catch (listError) {
+            console.log("No access to Vacaciones lists", listError);
+          }
+        } catch (error) {
+          console.log("No access to Vacaciones site", error);
+        }
+
+        // Check Incapacidades access (same site as Vacaciones)
+        try {
+          await baseService.getListItems(
+            incapacidadesConfig.siteId,
+            incapacidadesConfig.lists.rolesDepartamentos,
+            { top: 1 }
+          );
+          setAvailableModules(prev => ({ ...prev, incapacidades: true }));
+        } catch (error) {
+          console.log("No access to Incapacidades", error);
         }
 
         // Check Curso Control access
@@ -135,7 +168,23 @@ const MainMenu = () => {
       icon: Hourglass,
       path: "/extra-hours/ ",
       available: availableModules.horasExtras
-    }
+    },
+    {
+      id: "vacaciones",
+      name: "Vacaciones",
+      description: "Solicitud y aprobación de vacaciones",
+      icon: Palmtree,
+      path: "/vacaciones/",
+      available: availableModules.vacaciones
+    },
+    {
+      id: "incapacidades",
+      name: "Incapacidades",
+      description: "Registro y control de incapacidades médicas",
+      icon: Activity,
+      path: "/incapacidades",
+      available: availableModules.incapacidades
+    },
   ];
 
   if (loading) {
