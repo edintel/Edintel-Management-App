@@ -55,8 +55,12 @@ const Approvals = () => {
 
   const role = userDepartmentRole?.role;
   const department = userDepartmentRole?.department?.departamento;
+  // Todos los roles del usuario (puede tener más de uno, ej: Jefatura + Gerencia, Administrador + Gerencia)
+  const allRoles = userDepartmentRole?.allRoles || (role ? [role] : []);
 
-  const canAccessApprovals = ['Administrador', 'Jefatura', 'Gerencia', 'GerenciaGeneral'].includes(role);
+  const canAccessApprovals = allRoles.some(r =>
+    ['Administrador', 'Jefatura', 'Gerencia', 'GerenciaGeneral'].includes(r)
+  );
 
   const canApproveRequest = request => {
     if (request.aprobadoJefatura === false || request.aprobadoRH === false) return false;
@@ -64,20 +68,16 @@ const Approvals = () => {
     const requesterHighestRole = permissionService?.getUserHighestRole(request.createdBy?.email) || 'Colaborador';
 
     if (request.aprobadoJefatura === null) {
-      if (role === 'Jefatura') {
-        return request.departamento === department &&
-          (requesterHighestRole === 'Colaborador');
-      }
-      if (role === 'Gerencia') {
-        return request.departamento === department &&
-          requesterHighestRole === 'Jefatura';
-      }
-      if (role === 'GerenciaGeneral') {
-        return requesterHighestRole === 'Gerencia';
-      }
+      // Jefatura aprueba solicitudes de Colaboradores en su depto
+      if (allRoles.includes('Jefatura') && request.departamento === department && requesterHighestRole === 'Colaborador') return true;
+      // Gerencia aprueba solicitudes de Jefaturas en su depto
+      if (allRoles.includes('Gerencia') && request.departamento === department && requesterHighestRole === 'Jefatura') return true;
+      // GerenciaGeneral aprueba solicitudes de Gerencias (de cualquier depto)
+      if (allRoles.includes('GerenciaGeneral') && requesterHighestRole === 'Gerencia') return true;
     }
 
-    if (role === 'Administrador') {
+    // Administrador aprueba la etapa final (RH) — sin restricción de departamento
+    if (allRoles.includes('Administrador')) {
       return request.aprobadoJefatura === true && request.aprobadoRH === null;
     }
 
@@ -87,7 +87,9 @@ const Approvals = () => {
   const approvalsRequests = useMemo(() => {
     let requests = vacacionesRequests;
 
-    if (role === 'Jefatura' || role === 'Gerencia') {
+    // Administrador y GerenciaGeneral ven TODO — aunque su rol primario sea otro
+    const seesAll = allRoles.includes('Administrador') || allRoles.includes('GerenciaGeneral');
+    if (!seesAll && (role === 'Jefatura' || role === 'Gerencia')) {
       requests = requests.filter(r => r.departamento === department);
     }
     // Administrador y GerenciaGeneral ven todo
@@ -114,7 +116,7 @@ const Approvals = () => {
     }
 
     return requests.sort((a, b) => b.created?.getTime() - a.created?.getTime());
-  }, [vacacionesRequests, role, department, filters]);
+  }, [vacacionesRequests, role, department, allRoles, filters]);
 
   const handleApprovalAction = async (requestId, approved) => {
     const request = approvalsRequests.find(r => r.id === requestId);
@@ -123,7 +125,10 @@ const Approvals = () => {
       return;
     }
 
-    const approvalType = role === 'Administrador' ? 'rh' : 'jefatura';
+    // Determinar etapa por estado de la solicitud, no por rol
+    const approvalType = (request.aprobadoJefatura === true && request.aprobadoRH === null)
+      ? 'rh'
+      : 'jefatura';
 
     setProcessingId(requestId);
     try {

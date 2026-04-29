@@ -325,9 +325,12 @@ class VacacionesService extends BaseGraphService {
 
   getAllAdministradoresEmails() {
     const departments = this.permissionService?.departments || [];
-    const rhDept = departments.find(d => d.departamento === 'Recursos Humanos');
-    if (!rhDept) return [];
-    return (rhDept.administradores || []).map(a => a.email).filter(Boolean);
+    // Recolectar de TODOS los departamentos (no solo 'Recursos Humanos')
+    // para evitar fallos por nombre exacto o asignación de depto
+    const emails = departments
+      .flatMap(d => (d.administradores || []).map(a => a.email))
+      .filter(Boolean);
+    return [...new Set(emails)];
   }
 
   getGerenciaEmailsForDepartment(deptName) {
