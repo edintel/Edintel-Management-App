@@ -86,7 +86,7 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
         nombreSolicitante: formData.nombreSolicitante,
         numeroCedula: formData.numeroCedula,
         motivo: formData.motivo,
-        requesterRole: userDepartmentRole?.role || 'Colaborador',
+        requesterRole: userDepartmentRole?.chainRole || 'Colaborador',
       };
 
       await createRequest(requestData);

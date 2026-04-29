@@ -65,15 +65,30 @@ const Approvals = () => {
   const canApproveRequest = request => {
     if (request.aprobadoJefatura === false || request.aprobadoRH === false) return false;
 
-    const requesterHighestRole = permissionService?.getUserHighestRole(request.createdBy?.email) || 'Colaborador';
+    // Roles del SOLICITANTE como array — sin colapsar a uno solo
+    const requesterRoles = (permissionService?.getUserRoles(request.createdBy?.email) || [])
+      .map(r => r.roleType);
 
     if (request.aprobadoJefatura === null) {
-      // Jefatura aprueba solicitudes de Colaboradores en su depto
-      if (allRoles.includes('Jefatura') && request.departamento === department && requesterHighestRole === 'Colaborador') return true;
-      // Gerencia aprueba solicitudes de Jefaturas en su depto
-      if (allRoles.includes('Gerencia') && request.departamento === department && requesterHighestRole === 'Jefatura') return true;
-      // GerenciaGeneral aprueba solicitudes de Gerencias (de cualquier depto)
-      if (allRoles.includes('GerenciaGeneral') && requesterHighestRole === 'Gerencia') return true;
+      // Jefatura aprueba si el solicitante NO tiene ningún rol de cadena superior (es Colaborador)
+      if (allRoles.includes('Jefatura') && request.departamento === department) {
+        const isColaboradorLevel = !requesterRoles.some(r => ['Jefatura', 'Gerencia', 'GerenciaGeneral'].includes(r));
+        if (isColaboradorLevel) return true;
+      }
+      // Gerencia aprueba si el solicitante tiene Jefatura pero no Gerencia ni superior
+      if (allRoles.includes('Gerencia') && request.departamento === department) {
+        const isJefaturaLevel = requesterRoles.includes('Jefatura') &&
+          !requesterRoles.some(r => ['Gerencia', 'GerenciaGeneral'].includes(r));
+        if (isJefaturaLevel) return true;
+      }
+      // GerenciaGeneral aprueba si el solicitante tiene Gerencia pero no GerenciaGeneral
+      if (allRoles.includes('GerenciaGeneral')) {
+        const isGerenciaLevel = requesterRoles.includes('Gerencia') &&
+          !requesterRoles.includes('GerenciaGeneral');
+        if (isGerenciaLevel) return true;
+      }
+      // Administrador aprueba directamente si el solicitante es GerenciaGeneral
+      if (allRoles.includes('Administrador') && requesterRoles.includes('GerenciaGeneral')) return true;
     }
 
     // Administrador aprueba la etapa final (RH) — sin restricción de departamento

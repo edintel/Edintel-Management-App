@@ -110,10 +110,17 @@ export function VacacionesProvider({ children }) {
             dept => parseInt(dept.id, 10) === primaryRole.departmentId
           );
 
+          // chainRole: el rol más alto en la cadena de aprobación (ignorando Administrador),
+          // usado para determinar quién debe aprobar la solicitud de ESTE usuario
+          const chainRoleOrder = ['GerenciaGeneral', 'Gerencia', 'Jefatura'];
+          const allRoleTypes = userRoles.map(r => r.roleType);
+          const chainRole = chainRoleOrder.find(r => allRoleTypes.includes(r)) || 'Colaborador';
+
           userDeptRole = {
             role: primaryRole.roleType,
+            chainRole,
             department,
-            allRoles: userRoles.map(r => r.roleType),
+            allRoles: allRoleTypes,
           };
         }
       }

@@ -101,10 +101,12 @@ class PermissionService {
 
     if (request.createdBy?.email === userEmail) return true;
 
-    if (userRoles.some(r => r.roleType === 'Administrador')) return true;
+    // Administrador y GerenciaGeneral ven todas las solicitudes
+    if (userRoles.some(r => ['Administrador', 'GerenciaGeneral'].includes(r.roleType))) return true;
 
+    // Jefatura y Gerencia ven solicitudes de su departamento
     return userRoles.some(r =>
-      r.roleType === 'Jefatura' &&
+      ['Jefatura', 'Gerencia'].includes(r.roleType) &&
       r.department?.departamento === request.departamento
     );
   }
