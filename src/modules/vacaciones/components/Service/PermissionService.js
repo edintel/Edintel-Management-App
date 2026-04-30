@@ -30,7 +30,7 @@ class PermissionService {
   getUserHighestRole(userEmail) {
     if (!userEmail) return 'Colaborador';
     const userRoles = this.getUserRoles(userEmail);
-    for (const r of ['GerenciaGeneral', 'Gerencia', 'Jefatura']) {
+    for (const r of ['Gerencia General', 'Gerencia', 'Jefatura']) {
       if (userRoles.some(role => role.roleType === r)) return r;
     }
     return 'Colaborador';
@@ -50,7 +50,7 @@ class PermissionService {
 
   canSeeDepartmentRequests(userEmail) {
     return this.getUserRoles(userEmail).some(r =>
-      ['Jefatura', 'Gerencia', 'GerenciaGeneral', 'Administrador'].includes(r.roleType)
+      ['Jefatura', 'Gerencia', 'Gerencia General', 'Administrador'].includes(r.roleType)
     );
   }
 
@@ -68,7 +68,7 @@ class PermissionService {
     switch (approvalType) {
       case 'jefatura':
         return userRoles.some(r =>
-          ['Jefatura', 'Gerencia', 'GerenciaGeneral'].includes(r.roleType)
+          ['Jefatura', 'Gerencia', 'Gerencia General'].includes(r.roleType)
         );
       case 'rh':
         return userRoles.some(r => r.roleType === 'Administrador');
@@ -102,7 +102,7 @@ class PermissionService {
     if (request.createdBy?.email === userEmail) return true;
 
     // Administrador y GerenciaGeneral ven todas las solicitudes
-    if (userRoles.some(r => ['Administrador', 'GerenciaGeneral'].includes(r.roleType))) return true;
+    if (userRoles.some(r => ['Administrador', 'Gerencia General'].includes(r.roleType))) return true;
 
     // Jefatura y Gerencia ven solicitudes de su departamento
     return userRoles.some(r =>

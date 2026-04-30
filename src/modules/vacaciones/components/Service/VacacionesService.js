@@ -224,7 +224,7 @@ class VacacionesService extends BaseGraphService {
                 department.gerencias.push(empleado);
               }
               break;
-            case 'GerenciaGeneral':
+            case 'Gerencia General':
               if (!department.gerenciaGeneral.some(g => g.email === empleado.email)) {
                 department.gerenciaGeneral.push(empleado);
               }
@@ -389,7 +389,7 @@ class VacacionesService extends BaseGraphService {
               <p style="margin:0 0 8px 0;"><strong>Días hábiles:</strong> ${dias}</p>
               ${motivo}
             </div>
-            ${actionUrl ? `<p style="margin:16px 0 0 0;"><a href="${actionUrl}" style="display:inline-block; background:#1a56db; color:#ffffff; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:600;">Ver solicitud</a></p>` : ''}
+            ${actionUrl ? `<p style="margin:16px 0 0 0;"><a href="${actionUrl}" style="display:inline-block; background:#1a56db; color:#000000; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:600;">Ver solicitud</a></p>` : ''}
             <p style="color:#888; font-size:12px; margin-top:24px;">Mensaje automático del Sistema de Vacaciones Edintel.</p>
           </div>
         </div>
@@ -409,13 +409,12 @@ class VacacionesService extends BaseGraphService {
       let title;
       let message;
 
-      if (requesterRole === 'GerenciaGeneral') {
+      if (requesterRole === 'Gerencia General') {
         recipients = this.getAllAdministradoresEmails();
         title = 'Nueva solicitud de vacaciones (Gerencia General)';
         message = `La Gerencia General ha registrado una nueva solicitud de vacaciones que requiere revisión de RH.`;
       } else if (requesterRole === 'Gerencia') {
         recipients = this.getGerenciaGeneralEmails();
-        if (!recipients.length) recipients = this.getAllAdministradoresEmails();
         title = 'Nueva solicitud de vacaciones (Gerencia)';
         message = `La Gerencia del departamento <strong>${dept}</strong> ha registrado una nueva solicitud de vacaciones que requiere su aprobación.`;
       } else if (requesterRole === 'Jefatura') {
@@ -448,7 +447,7 @@ class VacacionesService extends BaseGraphService {
       const approverEmail = this.msalInstance.getAllAccounts()[0]?.username;
       const approverRoles = this.permissionService?.getUserRoles(approverEmail) || [];
       const approverHighestRole = (() => {
-        for (const r of ['GerenciaGeneral', 'Gerencia', 'Jefatura']) {
+        for (const r of ['Gerencia General', 'Gerencia', 'Jefatura']) {
           if (approverRoles.some(ar => ar.roleType === r)) return r;
         }
         return 'Administrador';
@@ -471,7 +470,7 @@ class VacacionesService extends BaseGraphService {
             if (!recipients.length) recipients = this.getAllAdministradoresEmails();
             title = 'Solicitud de vacaciones aprobada por Gerencia';
             message = `La Gerencia del departamento <strong>${request.departamento}</strong> aprobó una solicitud. Requiere aprobación de Gerencia General.`;
-          } else if (approverHighestRole === 'GerenciaGeneral') {
+          } else if (approverHighestRole === 'Gerencia General') {
             recipients = this.getAllAdministradoresEmails();
             title = 'Solicitud de vacaciones aprobada por Gerencia General';
             message = `La Gerencia General aprobó una solicitud de vacaciones. Requiere revisión final de RH.`;

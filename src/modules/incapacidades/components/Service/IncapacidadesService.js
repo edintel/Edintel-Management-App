@@ -314,7 +314,7 @@ class IncapacidadesService extends BaseGraphService {
               ${motivo}
             </div>
             <p style="margin:16px 0 0 0;">
-              <a href="${baseUrl}/incapacidades/todas" style="display:inline-block;background:#1a56db;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-weight:600;">Ver incapacidades</a>
+              <a href="${baseUrl}/incapacidades/todas" style="display:inline-block;background:#1a56db;color:#000000;padding:10px 20px;text-decoration:none;border-radius:6px;font-weight:600;">Ver incapacidades</a>
             </p>
             <p style="color:#888;font-size:12px;margin-top:24px;">Mensaje automático del Sistema de Incapacidades Edintel.</p>
           </div>

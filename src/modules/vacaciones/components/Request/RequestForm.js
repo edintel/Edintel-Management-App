@@ -180,7 +180,7 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
                 value={formData.numeroCedula}
                 onChange={e => setFormData(prev => ({ ...prev, numeroCedula: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm disabled:opacity-50"
-                placeholder="Ej: 1-2345-6789"
+                placeholder="Ej: 123456789"
                 required
                 disabled={isSubmitting}
               />
