@@ -198,18 +198,6 @@ const RequestForm = () => {
               </div>
             )}
 
-            {/* Motivo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico / Motivo</label>
-              <textarea
-                name="motivo"
-                value={form.motivo}
-                onChange={handleChange}
-                rows={3}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                placeholder="Ej: Fractura, gripe, cirugía..."
-              />
-            </div>
 
             {/* Comprobante upload */}
             <div>

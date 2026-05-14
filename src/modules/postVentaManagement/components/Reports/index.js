@@ -39,6 +39,26 @@ const Reports = () => {
   }, []);
 
 
+  // Función para calcular duración de trabajo (horas y minutos entre inicio y fin)
+  const calculateWorkDuration = (startDate, endDate) => {
+    if (!startDate || !endDate) return null;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffMs = end - start;
+    if (diffMs <= 0) return null;
+    const totalMinutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return { hours, minutes, totalMinutes };
+  };
+
+  const formatWorkDuration = (duration) => {
+    if (!duration) return '-';
+    if (duration.hours === 0) return `${duration.minutes}m`;
+    if (duration.minutes === 0) return `${duration.hours}h`;
+    return `${duration.hours}h ${duration.minutes}m`;
+  };
+
   // Función para calcular días hábiles entre dos fechas
   const calculateBusinessDays = (startDate, endDate) => {
     if (!startDate || !endDate) return null;
@@ -104,6 +124,9 @@ const Reports = () => {
       const closeDate = ticket.workEndDate;
       const resolutionDays = calculateBusinessDays(openDate, closeDate);
 
+      // Calcular duración del trabajo (trabajo iniciado → trabajo finalizado)
+      const workDuration = calculateWorkDuration(ticket.workStartDate, ticket.workEndDate);
+
       // Determinar si cumple SLA (2 días hábiles para correctivos)
       const isCorrectiveType = ticket.type?.includes('Correctiva');
       const meetsSLA = !isCorrectiveType || (resolutionDays !== null && resolutionDays <= 2);
@@ -115,6 +138,7 @@ const Reports = () => {
         companyName: company?.name || '-',
         systemName: system?.name || '-',
         resolutionDays,
+        workDuration,
         meetsSLA,
         isCorrectiveType
       };
@@ -257,6 +281,7 @@ const Reports = () => {
       'Fecha Trabajo Finalizado': formatDateTime(ticket.workEndDate),
       'Fecha Cierre': formatDateTime(ticket.closeDate),
       'Días Resolución': ticket.resolutionDays || '-',
+      'Duración Trabajo': formatWorkDuration(ticket.workDuration),
       'Cumple (2 días)': ticket.isCorrectiveType ? (ticket.meetsSLA ? 'Sí' : 'No') : 'N/A',
       'Técnicos Asignados': ticket.technicians?.map(t => t.LookupValue).join(', ') || '-',
       'Notas': ticket.notes || '-',
@@ -285,6 +310,7 @@ const Reports = () => {
       { wch: 20 }, // Fecha Trabajo Finalizado
       { wch: 20 }, // Fecha Cierre
       { wch: 15 }, // Días Resolución
+      { wch: 15 }, // Duración Trabajo
       { wch: 15 }, // Cumple SLA
       { wch: 30 }, // Técnicos
       { wch: maxWidth }, // Notas
@@ -573,13 +599,14 @@ const Reports = () => {
                   >
                     Días {getSortIcon('resolutionDays')}
                   </th>
+                  <th className="px-2 py-3 text-center">Duración trabajo</th>
                   <th className="px-2 py-3 text-center">Cumplimiento</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="10" className="text-center py-8">
+                    <td colSpan="11" className="text-center py-8">
                       <div className="inline-flex items-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         <span className="ml-2">Cargando...</span>
@@ -588,7 +615,7 @@ const Reports = () => {
                   </tr>
                 ) : sortedTickets.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="text-center py-8 text-gray-500">
+                    <td colSpan="11" className="text-center py-8 text-gray-500">
                       No se encontraron tickets con los filtros aplicados
                     </td>
                   </tr>
@@ -626,6 +653,9 @@ const Reports = () => {
                         <td className="px-2 py-2 text-center">
                           {ticket.resolutionDays || '-'}
                         </td>
+                        <td className="px-2 py-2 text-center font-medium">
+                          {formatWorkDuration(ticket.workDuration)}
+                        </td>
                         <td className="px-2 py-2 text-center">
                           {ticket.isCorrectiveType ? (
                             ticket.meetsSLA ? (
@@ -640,7 +670,7 @@ const Reports = () => {
                       </tr>
                       {expandedRows[ticket.id] && (
                         <tr className="bg-gray-50">
-                          <td colSpan="10" className="px-4 py-4">
+                          <td colSpan="11" className="px-4 py-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                               <div>
                                 <h4 className="font-semibold mb-2">Información General</h4>
