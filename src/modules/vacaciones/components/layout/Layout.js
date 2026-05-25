@@ -10,13 +10,13 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const { userDepartmentRole } = useVacaciones();
 
-  const isColaborador =
-    !userDepartmentRole ||
-    (userDepartmentRole?.role !== 'Administrador' && userDepartmentRole?.role !== 'Jefatura');
+  const canSeeApprovals = userDepartmentRole?.allRoles?.some(r =>
+    ['Administrador', 'Jefatura', 'Gerencia', 'Gerencia General', 'GerenciaGeneral'].includes(r)
+  );
 
   const navigation = [
     { name: 'Dashboard', path: VACACIONES_ROUTES.DASHBOARD },
-    ...(!isColaborador
+    ...(canSeeApprovals
       ? [{ name: 'Aprobaciones', path: VACACIONES_ROUTES.APPROVALS }]
       : []),
     { name: 'Menu principal', path: '/' },

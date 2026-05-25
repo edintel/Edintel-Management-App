@@ -23,7 +23,6 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
     numeroCedula: '',
     fechaInicio: '',
     fechaFin: '',
-    motivo: '',
   });
 
   const fechaMinima = obtenerFechaMinima();
@@ -85,7 +84,6 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
         departamento: formData.departamento,
         nombreSolicitante: formData.nombreSolicitante,
         numeroCedula: formData.numeroCedula,
-        motivo: formData.motivo,
         requesterRole: userDepartmentRole?.chainRole || 'Colaborador',
       };
 
@@ -238,20 +236,6 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
               )}
             </div>
 
-            {/* Motivo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Motivo / Observaciones
-              </label>
-              <textarea
-                value={formData.motivo}
-                onChange={e => setFormData(prev => ({ ...prev, motivo: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm disabled:opacity-50"
-                placeholder="Opcional: descripción o comentarios adicionales"
-                rows={3}
-                disabled={isSubmitting}
-              />
-            </div>
           </div>
 
           {/* Footer */}
