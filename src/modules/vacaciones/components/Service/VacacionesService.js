@@ -460,21 +460,12 @@ class VacacionesService extends BaseGraphService {
 
       if (approvalType === 'jefatura') {
         if (approved) {
-          if (approverHighestRole === 'Jefatura') {
-            recipients = this.getGerenciaEmailsForDepartment(request.departamento);
-            if (!recipients.length) recipients = this.getAllAdministradoresEmails();
-            title = 'Solicitud de vacaciones aprobada por Jefatura';
-            message = `La Jefatura del departamento <strong>${request.departamento}</strong> aprobó una solicitud. Requiere aprobación de Gerencia.`;
-          } else if (approverHighestRole === 'Gerencia') {
-            recipients = this.getGerenciaGeneralEmails();
-            if (!recipients.length) recipients = this.getAllAdministradoresEmails();
-            title = 'Solicitud de vacaciones aprobada por Gerencia';
-            message = `La Gerencia del departamento <strong>${request.departamento}</strong> aprobó una solicitud. Requiere aprobación de Gerencia General.`;
-          } else if (approverHighestRole === 'Gerencia General') {
-            recipients = this.getAllAdministradoresEmails();
-            title = 'Solicitud de vacaciones aprobada por Gerencia General';
-            message = `La Gerencia General aprobó una solicitud de vacaciones. Requiere revisión final de RH.`;
-          }
+          recipients = this.getAllAdministradoresEmails();
+          const approverLabel = approverHighestRole === 'Gerencia' ? 'Gerencia'
+            : approverHighestRole === 'Gerencia General' ? 'Gerencia General'
+            : 'Jefatura';
+          title = `Solicitud de vacaciones aprobada por ${approverLabel}`;
+          message = `La ${approverLabel} del departamento <strong>${request.departamento}</strong> aprobó una solicitud de vacaciones. Requiere revisión final de RH.`;
         } else {
           if (request.createdBy?.email) recipients = [request.createdBy.email];
           title = 'Solicitud de vacaciones rechazada';
