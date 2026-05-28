@@ -11,7 +11,7 @@ const Layout = ({ children }) => {
   const { userDepartmentRole } = useVacaciones();
 
   const canSeeApprovals = userDepartmentRole?.allRoles?.some(r =>
-    ['Administrador', 'Jefatura', 'Gerencia', 'Gerencia General', 'GerenciaGeneral'].includes(r)
+    ['Administrador', 'Jefatura', 'Gerencia', 'Gerencia General'].includes(r)
   );
 
   const navigation = [

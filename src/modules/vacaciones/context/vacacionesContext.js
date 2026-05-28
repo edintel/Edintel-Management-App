@@ -97,7 +97,7 @@ export function VacacionesProvider({ children }) {
       let userDeptRole = null;
 
       if (userRoles.length > 0) {
-        const gerenciaGeneralRole = userRoles.find(r => r.roleType === 'GerenciaGeneral');
+        const gerenciaGeneralRole = userRoles.find(r => r.roleType === 'Gerencia General');
         const gerenciaRole = userRoles.find(r => r.roleType === 'Gerencia');
         const adminRole = userRoles.find(r => r.roleType === 'Administrador');
         const jefaturaRole = userRoles.find(r => r.roleType === 'Jefatura');
@@ -112,7 +112,7 @@ export function VacacionesProvider({ children }) {
 
           // chainRole: el rol más alto en la cadena de aprobación (ignorando Administrador),
           // usado para determinar quién debe aprobar la solicitud de ESTE usuario
-          const chainRoleOrder = ['GerenciaGeneral', 'Gerencia', 'Jefatura'];
+          const chainRoleOrder = ['Gerencia General', 'Gerencia', 'Jefatura'];
           const allRoleTypes = userRoles.map(r => r.roleType);
           const chainRole = chainRoleOrder.find(r => allRoleTypes.includes(r)) || 'Colaborador';
 

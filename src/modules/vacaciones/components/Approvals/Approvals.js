@@ -59,7 +59,7 @@ const Approvals = () => {
   const allRoles = userDepartmentRole?.allRoles || (role ? [role] : []);
 
   const canAccessApprovals = allRoles.some(r =>
-    ['Administrador', 'Jefatura', 'Gerencia', 'GerenciaGeneral'].includes(r)
+    ['Administrador', 'Jefatura', 'Gerencia', 'Gerencia General'].includes(r)
   );
 
   const canApproveRequest = request => {
@@ -72,23 +72,23 @@ const Approvals = () => {
     if (request.aprobadoJefatura === null) {
       // Jefatura aprueba si el solicitante NO tiene ningún rol de cadena superior (es Colaborador)
       if (allRoles.includes('Jefatura') && request.departamento === department) {
-        const isColaboradorLevel = !requesterRoles.some(r => ['Jefatura', 'Gerencia', 'GerenciaGeneral'].includes(r));
+        const isColaboradorLevel = !requesterRoles.some(r => ['Jefatura', 'Gerencia', 'Gerencia General'].includes(r));
         if (isColaboradorLevel) return true;
       }
       // Gerencia aprueba si el solicitante tiene Jefatura pero no Gerencia ni superior
       if (allRoles.includes('Gerencia') && request.departamento === department) {
         const isJefaturaLevel = requesterRoles.includes('Jefatura') &&
-          !requesterRoles.some(r => ['Gerencia', 'GerenciaGeneral'].includes(r));
+          !requesterRoles.some(r => ['Gerencia', 'Gerencia General'].includes(r));
         if (isJefaturaLevel) return true;
       }
-      // GerenciaGeneral aprueba si el solicitante tiene Gerencia pero no GerenciaGeneral
-      if (allRoles.includes('GerenciaGeneral')) {
-        const isGerenciaLevel = requesterRoles.includes('Gerencia') &&
-          !requesterRoles.includes('GerenciaGeneral');
-        if (isGerenciaLevel) return true;
+      // GerenciaGeneral aprueba solicitudes de quienes tienen Jefatura o Gerencia (pero no GerenciaGeneral)
+      if (allRoles.includes('Gerencia General')) {
+        const isJefaturaOrGerenciaLevel = requesterRoles.some(r => ['Jefatura', 'Gerencia'].includes(r)) &&
+          !requesterRoles.includes('Gerencia General');
+        if (isJefaturaOrGerenciaLevel) return true;
       }
       // Administrador aprueba directamente si el solicitante es GerenciaGeneral
-      if (allRoles.includes('Administrador') && requesterRoles.includes('GerenciaGeneral')) return true;
+      if (allRoles.includes('Administrador') && requesterRoles.includes('Gerencia General')) return true;
     }
 
     // Administrador aprueba la etapa final (RH) — sin restricción de departamento
@@ -103,7 +103,7 @@ const Approvals = () => {
     let requests = vacacionesRequests;
 
     // Administrador y GerenciaGeneral ven TODO — aunque su rol primario sea otro
-    const seesAll = allRoles.includes('Administrador') || allRoles.includes('GerenciaGeneral');
+    const seesAll = allRoles.includes('Administrador') || allRoles.includes('Gerencia General');
     if (!seesAll && (role === 'Jefatura' || role === 'Gerencia')) {
       requests = requests.filter(r => r.departamento === department);
     }
@@ -189,7 +189,7 @@ const Approvals = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Aprobaciones de Vacaciones</h1>
         <p className="text-sm text-gray-500 mt-1">
-          {role === 'Administrador' || role === 'GerenciaGeneral'
+          {role === 'Administrador' || role === 'Gerencia General'
             ? 'Todas las solicitudes de todos los departamentos'
             : `Solicitudes del departamento de ${department}`}
         </p>
