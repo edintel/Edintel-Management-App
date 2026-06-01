@@ -92,8 +92,8 @@ class VacacionesService extends BaseGraphService {
       NombreSolicitante: requestData.nombreSolicitante,
       NumeroCedula: numeroCedulaLimpio ? parseInt(numeroCedulaLimpio, 10) : 0,
       Motivo: requestData.motivo || '',
-      // Si el solicitante es Jefatura, se auto-aprueba la etapa de jefatura
-      AprobadoJefatura: null,
+      // Si el solicitante es Gerencia General, se auto-aprueba la primera etapa (solo falta RH)
+      AprobadoJefatura: requestData.requesterRole === 'Gerencia General' ? true : null,
       AprobadoRH: null,
     };
 
@@ -418,7 +418,8 @@ class VacacionesService extends BaseGraphService {
         title = 'Nueva solicitud de vacaciones (Gerencia)';
         message = `La Gerencia del departamento <strong>${dept}</strong> ha registrado una nueva solicitud de vacaciones que requiere su aprobación.`;
       } else if (requesterRole === 'Jefatura') {
-        recipients = this.getGerenciaEmailsForDepartment(dept);
+        // La solicitud de una Jefatura la aprueba Gerencia General
+        recipients = this.getGerenciaGeneralEmails();
         if (!recipients.length) recipients = this.getAllAdministradoresEmails();
         title = 'Nueva solicitud de vacaciones (Jefatura)';
         message = `La Jefatura del departamento <strong>${dept}</strong> ha registrado una nueva solicitud de vacaciones que requiere su aprobación.`;

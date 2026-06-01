@@ -402,6 +402,44 @@ class BaseGraphService {
     return messageId;
   }
 
+  /**
+   * Envía un correo con reintentos automáticos.
+   * Útil para absorber throttling (429) o tokens por expirar al final de flujos largos.
+   */
+  async sendEmailWithRetry(params, maxAttempts = 2, delayMs = 2500) {
+    let lastError;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        if (attempt > 1) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          console.log(`[sendEmail] Reintentando (${attempt}/${maxAttempts})...`);
+        }
+        return await this.sendEmail(params);
+      } catch (err) {
+        lastError = err;
+        const status = err.statusCode || err.status || 'N/A';
+        const code   = err.code || err.errorCode || 'N/A';
+        console.error(
+          `[sendEmail] Intento ${attempt}/${maxAttempts} falló — ` +
+          `HTTP ${status} | código Graph: ${code} | ${err.message}`
+        );
+        // Si es throttling, esperar lo que indica el header Retry-After
+        if (status === 429 || status === '429') {
+          const retryAfter = ((err.headers || {})['retry-after'] || 5) * 1000;
+          console.warn(`[sendEmail] Throttling detectado. Esperando ${retryAfter / 1000}s antes de reintentar...`);
+          await new Promise(resolve => setTimeout(resolve, retryAfter));
+        }
+      }
+    }
+
+    // Todos los intentos fallaron — lanzar error enriquecido
+    const enriched = new Error(lastError?.message || 'Error al enviar correo');
+    enriched.statusCode = lastError?.statusCode || lastError?.status || null;
+    enriched.graphCode  = lastError?.code || lastError?.errorCode || null;
+    throw enriched;
+  }
+
   async checkListItemExists(siteId, listName, itemId) {
     const response = await this.client
       .api(`/sites/${siteId}/lists/${listName}/items`)

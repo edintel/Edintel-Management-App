@@ -266,11 +266,13 @@ const TicketForm = () => {
           };
         })
       );
+      const systemName  = systems.find((s) => s.id === finalFormData.systemId)?.name;
+      const emailSubject = `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systemName}`;
       const emailContent = generateEmailContent({
         st: finalFormData.st,
         type: finalFormData.type,
         scope: finalFormData.scope,
-        system: systems.find((s) => s.id === finalFormData.systemId)?.name,
+        system: systemName,
         company: company.name,
         building: building.name,
         link: formData.link,
@@ -285,12 +287,37 @@ const TicketForm = () => {
         adminDocs: adminFileLinks,
         waitingEquiment: finalFormData.waitingEquiment,
       });
-             await service.sendEmail({
-              toRecipients: [supportEmail],
-               subject: `ST ${finalFormData.st} / ${company.name} / ${finalFormData.type} / ${systems.find((s) => s.id === finalFormData.systemId)?.name
-                }`,
-               content: emailContent,
-             });   
+
+      // El correo va en su propio bloque: si falla, la ST ya fue creada y no se pierde
+      try {
+        await service.sendEmailWithRetry({
+          toRecipients: [supportEmail],
+          subject: emailSubject,
+          content: emailContent,
+        });
+        // Limpiar cualquier correo pendiente anterior de esta sesión
+        localStorage.removeItem('pendingSTEmail');
+      } catch (emailErr) {
+        console.error(
+          `[ST ${finalFormData.st}] Correo no enviado después de 2 intentos — ` +
+          `HTTP ${emailErr.statusCode || 'N/A'} | Graph: ${emailErr.graphCode || 'N/A'} | ${emailErr.message}`
+        );
+        // Guardar datos para reenvío posterior (solo en este navegador/pestaña)
+        localStorage.setItem('pendingSTEmail', JSON.stringify({
+          stNumber: finalFormData.st,
+          ticketId: response.id,
+          toRecipients: [supportEmail],
+          subject: emailSubject,
+          emailContent,
+          error: {
+            message: emailErr.message,
+            statusCode: emailErr.statusCode || null,
+            graphCode: emailErr.graphCode || null,
+          },
+          timestamp: new Date().toISOString(),
+        }));
+      }
+
       await loadPostVentaData();
       navigate(POST_VENTA_ROUTES.TICKETS.LIST);
     } catch (err) {
