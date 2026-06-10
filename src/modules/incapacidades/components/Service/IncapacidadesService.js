@@ -132,6 +132,14 @@ class IncapacidadesService extends BaseGraphService {
     };
   }
 
+  async getComprobanteUrl(fileId) {
+    await this.initializeGraphClient();
+    const response = await this.client
+      .api(`/sites/${this.siteId}/drives/${this.driveId}/items/${fileId}`)
+      .get();
+    return response['@microsoft.graph.downloadUrl'];
+  }
+
   async updateComprobantes(itemId, comprobantes) {
     await this.initializeGraphClient();
     await this.client

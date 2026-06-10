@@ -14,9 +14,10 @@ const RequestDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { accounts } = useMsal();
-  const { requests, userRole, markRecibido } = useIncapacidades();
+  const { requests, userRole, markRecibido, service } = useIncapacidades();
   const [request, setRequest] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     const found = requests.find(r => r.id === id);
@@ -28,6 +29,19 @@ const RequestDetail = () => {
     return new Date(iso + 'T00:00:00').toLocaleDateString('es-CR', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
+  };
+
+  const handleDownload = async (comprobante) => {
+    if (!service || downloadingId === comprobante.id) return;
+    setDownloadingId(comprobante.id);
+    try {
+      const url = await service.getComprobanteUrl(comprobante.id);
+      window.open(url, '_blank', 'noreferrer');
+    } catch {
+      alert('No se pudo obtener el archivo. Intente de nuevo.');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const handleMarcarRecibido = async () => {
@@ -155,16 +169,17 @@ const RequestDetail = () => {
             <h2 className="text-base font-semibold text-gray-900 mb-4">Comprobante médico</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {request.comprobantes.map((c, i) => (
-                <a
+                <button
                   key={i}
-                  href={c.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex flex-col items-center justify-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700 text-center"
+                  onClick={() => handleDownload(c)}
+                  disabled={downloadingId === c.id}
+                  className="flex flex-col items-center justify-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700 text-center disabled:opacity-60 disabled:cursor-not-allowed w-full"
                 >
-                  <Download size={20} className="text-blue-600" />
+                  {downloadingId === c.id
+                    ? <Loader2 size={20} className="text-blue-600 animate-spin" />
+                    : <Download size={20} className="text-blue-600" />}
                   <span className="truncate w-full">{c.name || `Archivo ${i + 1}`}</span>
-                </a>
+                </button>
               ))}
             </div>
           </div>
