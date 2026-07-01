@@ -430,6 +430,7 @@ const Reports = () => {
                 <option value="Instalación Menor">Instalación Menor</option>
                 <option value="Instalación">Instalación</option>
                 <option value="Proyectos">Proyectos</option>
+                <option value="Servicios Adicionales">Servicios Adicionales</option>
               </select>
             </div>
 

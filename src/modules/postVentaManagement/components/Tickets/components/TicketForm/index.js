@@ -355,6 +355,7 @@ const TicketForm = () => {
                 <option value="Correctiva-No Cobrable">Correctiva-No Cobrable</option>
                 <option value="Correctiva-Cobrable">Correctiva-Cobrable</option>
                 <option value="Instalación Menor">Instalación Menor</option>
+                <option value="Servicios Adicionales">Servicios Adicionales</option>
               </select>
             </div>
             <div className="space-y-2">
