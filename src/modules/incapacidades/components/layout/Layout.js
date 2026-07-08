@@ -13,8 +13,8 @@ const Layout = ({ children }) => {
 
   const navigation = [
     { name: 'Dashboard', path: INCAPACIDADES_ROUTES.DASHBOARD },
-    { name: 'Mis incapacidades', path: INCAPACIDADES_ROUTES.MY_REQUESTS },
-    ...(isAdmin ? [{ name: 'Todas las incapacidades', path: INCAPACIDADES_ROUTES.ALL_REQUESTS }] : []),
+    { name: 'Mis comprobantes', path: INCAPACIDADES_ROUTES.MY_REQUESTS },
+    ...(isAdmin ? [{ name: 'Todos los comprobantes', path: INCAPACIDADES_ROUTES.ALL_REQUESTS }] : []),
     { name: 'Menú principal', path: '/' },
   ];
 
@@ -43,7 +43,7 @@ const Layout = ({ children }) => {
         }`}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b">
-          <span className="font-semibold text-gray-800">Incapacidades</span>
+          <span className="font-semibold text-gray-800">Comprobantes</span>
           <button
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
             onClick={() => setIsSidebarOpen(false)}

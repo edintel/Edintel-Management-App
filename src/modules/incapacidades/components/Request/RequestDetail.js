@@ -6,7 +6,7 @@ import Card from '../../../../components/common/Card';
 import Button from '../../../../components/common/Button';
 import {
   ArrowLeft, User, Building2, Calendar, FileText,
-  CheckCircle, Clock, Download, Loader2, AlertTriangle,
+  CheckCircle, Clock, Download, Loader2, AlertTriangle, Tag,
 } from 'lucide-react';
 import { INCAPACIDADES_ROUTES } from '../../routes';
 
@@ -61,7 +61,7 @@ const RequestDetail = () => {
         <Card className="p-12">
           <div className="flex flex-col items-center justify-center text-center">
             <AlertTriangle size={48} className="text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">Incapacidad no encontrada</h3>
+            <h3 className="text-lg font-medium text-gray-900">Comprobante no encontrado</h3>
             <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>Volver</Button>
           </div>
         </Card>
@@ -86,7 +86,7 @@ const RequestDetail = () => {
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Incapacidad</h1>
+              <h1 className="text-xl font-bold text-gray-900">Comprobante</h1>
               <p className="text-sm text-gray-500 mt-1">
                 Registrada el {request.created?.toLocaleDateString('es-CR')}
               </p>
@@ -102,7 +102,7 @@ const RequestDetail = () => {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-start gap-2">
               <User size={18} className="text-blue-600 mt-0.5 shrink-0" />
               <div>
@@ -115,6 +115,15 @@ const RequestDetail = () => {
               <div>
                 <p className="text-xs text-gray-500">Departamento</p>
                 <p className="text-sm font-semibold">{request.departamento || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Tag size={18} className="text-blue-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs text-gray-500">Tipo de comprobante</p>
+                <p className="text-sm font-semibold">
+                  {request.tipoComprobante?.length > 0 ? request.tipoComprobante.join(', ') : '-'}
+                </p>
               </div>
             </div>
             <div className="flex items-start gap-2">
@@ -153,12 +162,6 @@ const RequestDetail = () => {
               <p className="text-3xl font-bold text-green-600">{request.diasIncapacidad}</p>
             </div>
           </div>
-          {request.motivo && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-xs font-medium text-gray-600 mb-1">Diagnóstico / Motivo</p>
-              <p className="text-sm text-gray-900">{request.motivo}</p>
-            </div>
-          )}
         </div>
       </Card>
 

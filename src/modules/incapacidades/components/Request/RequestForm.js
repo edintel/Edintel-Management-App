@@ -7,6 +7,9 @@ import Button from '../../../../components/common/Button';
 import { ArrowLeft, Upload, X, Image, Loader2, AlertTriangle } from 'lucide-react';
 import { INCAPACIDADES_ROUTES } from '../../routes';
 
+const DEPARTAMENTOS = ['Ingeniería', 'Contabilidad', 'Operaciones', 'Comercial'];
+const TIPOS_COMPROBANTE = ['Asistencias Médicas', 'Incapacidades', 'Otros'];
+
 const calculateDays = (start, end) => {
   if (!start || !end) return 0;
   const s = new Date(start + 'T00:00:00');
@@ -25,28 +28,31 @@ const calculateDays = (start, end) => {
 const RequestForm = () => {
   const navigate = useNavigate();
   const { accounts } = useMsal();
-  const { createRequest, service } = useIncapacidades();
+  const { createRequest } = useIncapacidades();
 
   const fileInputRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [previewFiles, setPreviewFiles] = useState([]);
 
-  const userEmail = accounts[0]?.username || '';
-
   const [form, setForm] = useState({
     nombreSolicitante: accounts[0]?.name || '',
     numeroCedula: '',
     departamento: '',
+    tipoComprobante: '',
     fechaInicio: '',
     fechaFin: '',
-    motivo: '',
   });
 
   const dias = calculateDays(form.fechaInicio, form.fechaFin);
 
   const handleChange = e => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setError('');
+  };
+
+  const handleRadio = value => {
+    setForm(prev => ({ ...prev, tipoComprobante: value }));
     setError('');
   };
 
@@ -75,16 +81,20 @@ const RequestForm = () => {
     e.preventDefault();
     setError('');
 
+    if (!form.tipoComprobante) {
+      setError('Debe seleccionar el tipo de comprobante.');
+      return;
+    }
+    if (!form.departamento) {
+      setError('El departamento es requerido.');
+      return;
+    }
     if (!form.fechaInicio || !form.fechaFin) {
       setError('Las fechas de inicio y fin son requeridas.');
       return;
     }
     if (new Date(form.fechaFin) < new Date(form.fechaInicio)) {
       setError('La fecha de fin no puede ser anterior a la fecha de inicio.');
-      return;
-    }
-    if (!form.departamento.trim()) {
-      setError('El departamento es requerido.');
       return;
     }
     if (previewFiles.length === 0) {
@@ -119,7 +129,7 @@ const RequestForm = () => {
 
       <Card>
         <div className="p-6">
-          <h1 className="text-xl font-bold text-gray-900 mb-6">Nueva Incapacidad</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-6">Nuevo Comprobante</h1>
 
           {error && (
             <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6 text-sm">
@@ -141,6 +151,28 @@ const RequestForm = () => {
               />
             </div>
 
+            {/* Tipo de comprobante */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de comprobante <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-6">
+                {TIPOS_COMPROBANTE.map(tipo => (
+                  <label key={tipo} className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="radio"
+                      name="tipoComprobante"
+                      value={tipo}
+                      checked={form.tipoComprobante === tipo}
+                      onChange={() => handleRadio(tipo)}
+                      className="w-4 h-4 border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm text-gray-700">{tipo}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {/* Cédula + Departamento */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -153,14 +185,21 @@ const RequestForm = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Departamento <span className="text-red-500">*</span></label>
-                <input
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Departamento <span className="text-red-500">*</span>
+                </label>
+                <select
                   name="departamento"
                   value={form.departamento}
                   onChange={handleChange}
                   required
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                >
+                  <option value="">Seleccionar departamento...</option>
+                  {DEPARTAMENTOS.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -194,10 +233,9 @@ const RequestForm = () => {
             {/* Días calculados */}
             {dias > 0 && (
               <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-800">
-                <strong>{dias} día(s) hábil(es)</strong> de incapacidad
+                <strong>{dias} día(s) hábil(es)</strong> de ausencia
               </div>
             )}
-
 
             {/* Comprobante upload */}
             <div>
@@ -254,7 +292,7 @@ const RequestForm = () => {
               <Button variant="primary" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <span className="flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Enviando...</span>
-                ) : 'Enviar incapacidad'}
+                ) : 'Enviar comprobante'}
               </Button>
             </div>
           </form>

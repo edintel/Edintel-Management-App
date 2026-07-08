@@ -179,8 +179,8 @@ const MainMenu = () => {
     },
     {
       id: "incapacidades",
-      name: "Incapacidades",
-      description: "Registro y control de incapacidades médicas",
+      name: "Comprobantes",
+      description: "Registro de comprobantes de asistencia y ausencias",
       icon: Activity,
       path: "/incapacidades",
       available: availableModules.incapacidades

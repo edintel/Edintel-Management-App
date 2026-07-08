@@ -92,6 +92,11 @@ const Dashboard = () => {
       render: value => `${value || 0} días`,
     },
     {
+      key: 'tipoComprobante',
+      header: 'Tipo',
+      render: value => (Array.isArray(value) && value.length ? value.join(', ') : '-'),
+    },
+    {
       key: 'departamento',
       header: 'Departamento',
       render: value => value || 'N/A',
@@ -128,21 +133,16 @@ const Dashboard = () => {
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Incapacidades</h1>
-          <p className="text-sm text-gray-500 mt-1">Gestión de incapacidades médicas</p>
+          <h1 className="text-2xl font-bold text-gray-900">Comprobantes</h1>
+          <p className="text-sm text-gray-500 mt-1">Gestión de comprobantes de asistencia</p>
         </div>
         <div className="flex items-center gap-2">
-          {userRole === 'Administrador' && (
-            <Button variant="outline" onClick={() => navigate(INCAPACIDADES_ROUTES.ALL_REQUESTS)}>
-              Ver todas las incapacidades
-            </Button>
-          )}
           <button
             onClick={() => navigate(INCAPACIDADES_ROUTES.NEW_REQUEST)}
             className="flex items-center gap-2 bg-blue-800 text-white px-4 py-2 hover:bg-blue-900 transition-colors text-sm font-medium shadow-md rounded-lg"
           >
             <Plus size={18} />
-            <span>Nueva incapacidad</span>
+            <span>Nuevo comprobante</span>
           </button>
         </div>
       </div>
@@ -165,8 +165,8 @@ const Dashboard = () => {
       </div>
 
       <Card
-        title="Mis Incapacidades Recientes"
-        subtitle={`Últimas ${recentRequests.length} incapacidades`}
+        title="Mis Comprobantes Recientes"
+        subtitle={`Últimos ${recentRequests.length} comprobantes`}
         action={
           myRequests.length > 0 && (
             <Button
@@ -186,16 +186,16 @@ const Dashboard = () => {
           emptyMessage={
             <div className="flex flex-col items-center justify-center py-12">
               <FileText size={48} className="text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-1">No hay incapacidades</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No hay comprobantes</h3>
               <p className="text-sm text-gray-500 mb-4">
-                Aún no has registrado incapacidades médicas
+                Aún no has registrado comprobantes
               </p>
               <button
                 onClick={() => navigate(INCAPACIDADES_ROUTES.NEW_REQUEST)}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
                 <Plus size={16} />
-                Nueva incapacidad
+                Nuevo comprobante
               </button>
             </div>
           }

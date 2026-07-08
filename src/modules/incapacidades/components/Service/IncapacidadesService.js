@@ -39,7 +39,7 @@ class IncapacidadesService extends BaseGraphService {
               }
             : null,
         rol: rolValue,
-        departamento: item.fields.field_2 || null, // nombre del departamento
+        departamento: item.fields.field_2 || null,
       };
     });
   }
@@ -70,15 +70,22 @@ class IncapacidadesService extends BaseGraphService {
         comprobantes = [];
       }
 
+      const rawTipo = item.fields.TipoComprobante;
+      const tipoComprobante = Array.isArray(rawTipo)
+        ? rawTipo
+        : rawTipo
+        ? [rawTipo]
+        : [];
+
       return {
         id: item.id,
         nombreSolicitante: item.fields.NombreSolicitante || '',
         numeroCedula: item.fields.NumeroCedula || null,
         departamento: item.fields.Departamento || '',
+        tipoComprobante,
         fechaInicio: item.fields.FechaInicio ? item.fields.FechaInicio.split('T')[0] : null,
         fechaFin: item.fields.FechaFin ? item.fields.FechaFin.split('T')[0] : null,
         diasIncapacidad: item.fields.DiasIncapacidad || 0,
-        motivo: item.fields.Motivo || '',
         recibido: item.fields.Recibido === true ? true : null,
         fechaRecibido: item.fields.FechaRecibido ? new Date(item.fields.FechaRecibido) : null,
         recibidoPor: item.fields.RecibidoPor || null,
@@ -97,16 +104,16 @@ class IncapacidadesService extends BaseGraphService {
     await this.initializeGraphClient();
 
     const fields = {
-      Title: `Incapacidad ${requestData.nombreSolicitante}`,
+      Title: `Comprobante ${requestData.nombreSolicitante}`,
       NombreSolicitante: requestData.nombreSolicitante || '',
       NumeroCedula: requestData.numeroCedula
         ? parseInt(requestData.numeroCedula.toString().replace(/\D/g, ''), 10) || 0
         : 0,
       Departamento: requestData.departamento || '',
+      TipoComprobante: requestData.tipoComprobante || '',
       FechaInicio: requestData.fechaInicio,
       FechaFin: requestData.fechaFin,
       DiasIncapacidad: requestData.diasIncapacidad || 0,
-      Motivo: requestData.motivo || '',
       Recibido: null,
       Comprobantes: '[]',
     };
@@ -168,7 +175,7 @@ class IncapacidadesService extends BaseGraphService {
   }
 
   // ========================
-  // Notificación Teams a RH
+  // Emails por rol
   // ========================
 
   getAllAdministradoresEmails() {
@@ -180,6 +187,21 @@ class IncapacidadesService extends BaseGraphService {
       )
       .map(r => r.empleado.email);
   }
+
+  getJefaturaEmailsByDepartamento(departamento) {
+    if (!departamento) return [];
+    return (this._roles || [])
+      .filter(r =>
+        r.rol === 'Jefatura' &&
+        r.empleado?.email &&
+        r.departamento === departamento
+      )
+      .map(r => r.empleado.email);
+  }
+
+  // ========================
+  // Teams
+  // ========================
 
   async acquireTeamsToken() {
     const accounts = this.msalInstance.getAllAccounts();
@@ -289,7 +311,9 @@ class IncapacidadesService extends BaseGraphService {
 
   async notifyNewIncapacidad(requestData) {
     try {
-      const recipients = this.getAllAdministradoresEmails();
+      const rhEmails = this.getAllAdministradoresEmails();
+      const jefaturaEmails = this.getJefaturaEmailsByDepartamento(requestData.departamento);
+      const recipients = [...new Set([...rhEmails, ...jefaturaEmails])];
       if (!recipients.length) return;
 
       const fmtDate = iso => {
@@ -300,41 +324,44 @@ class IncapacidadesService extends BaseGraphService {
 
       const nombre = requestData.nombreSolicitante || '';
       const depto = requestData.departamento || '-';
+      const tipoRaw = requestData.tipoComprobante;
+      const tipos = Array.isArray(tipoRaw)
+        ? (tipoRaw.length ? tipoRaw.join(', ') : '-')
+        : (tipoRaw || '-');
       const inicio = fmtDate(requestData.fechaInicio);
       const fin = fmtDate(requestData.fechaFin);
       const dias = requestData.diasIncapacidad || 0;
-      const motivo = requestData.motivo ? `<p style="margin:0 0 8px 0;"><strong>Diagnóstico:</strong> ${requestData.motivo}</p>` : '';
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
       const html = `
         <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;color:#333;background:#f4f6f9;margin:0;padding:20px;">
         <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
           <div style="background:#1a56db;color:#fff;padding:18px 24px;">
-            <h2 style="margin:0;font-size:18px;">Nueva incapacidad registrada</h2>
+            <h2 style="margin:0;font-size:18px;">Nuevo comprobante registrado</h2>
           </div>
           <div style="padding:24px;">
-            <p style="margin:0 0 16px 0;">Se registró una nueva incapacidad médica que requiere su atención como RH.</p>
+            <p style="margin:0 0 16px 0;">Se registró un nuevo comprobante que requiere su atención.</p>
             <div style="background:#f5f7fb;border-left:4px solid #1a56db;padding:16px;border-radius:4px;margin:16px 0;">
               <p style="margin:0 0 8px 0;"><strong>Colaborador:</strong> ${nombre}</p>
               <p style="margin:0 0 8px 0;"><strong>Departamento:</strong> ${depto}</p>
+              <p style="margin:0 0 8px 0;"><strong>Tipo:</strong> ${tipos}</p>
               <p style="margin:0 0 8px 0;"><strong>Período:</strong> ${inicio} al ${fin}</p>
               <p style="margin:0 0 8px 0;"><strong>Días:</strong> ${dias}</p>
-              ${motivo}
             </div>
             <p style="margin:16px 0 0 0;">
-              <a href="${baseUrl}/incapacidades/todas" style="display:inline-block;background:#1a56db;color:#000000;padding:10px 20px;text-decoration:none;border-radius:6px;font-weight:600;">Ver incapacidades</a>
+              <a href="${baseUrl}/incapacidades/todas" style="display:inline-block;background:#1a56db;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-weight:600;">Ver comprobantes</a>
             </p>
-            <p style="color:#888;font-size:12px;margin-top:24px;">Mensaje automático del Sistema de Incapacidades Edintel.</p>
+            <p style="color:#888;font-size:12px;margin-top:24px;">Mensaje automático del Sistema de Comprobantes Edintel.</p>
           </div>
         </div></body></html>
       `;
 
       await this.notifyTeamsUsers(recipients, {
-        subject: `Nueva incapacidad - ${nombre}`,
+        subject: `Nuevo comprobante - ${nombre} (${tipos})`,
         htmlContent: html,
       });
     } catch (err) {
-      console.error('Error enviando notificación de incapacidad:', err);
+      console.error('Error enviando notificación de comprobante:', err);
     }
   }
 }

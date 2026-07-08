@@ -17,7 +17,7 @@ const RequestList = ({ showAll = false }) => {
       !search ||
       r.nombreSolicitante?.toLowerCase().includes(search.toLowerCase()) ||
       r.departamento?.toLowerCase().includes(search.toLowerCase()) ||
-      r.motivo?.toLowerCase().includes(search.toLowerCase());
+      (r.tipoComprobante || []).some(t => t.toLowerCase().includes(search.toLowerCase()));
 
     const matchFilter =
       filter === 'all' ||
@@ -44,7 +44,7 @@ const RequestList = ({ showAll = false }) => {
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          {showAll && userRole === 'Administrador' ? 'Todas las incapacidades' : 'Mis incapacidades'}
+          {showAll && userRole === 'Administrador' ? 'Todos los comprobantes' : 'Mis comprobantes'}
         </h1>
         <Button
           variant="primary"
@@ -83,7 +83,7 @@ const RequestList = ({ showAll = false }) => {
         <Card>
           <div className="p-12 text-center text-gray-500">
             <Clock size={48} className="mx-auto mb-3 text-gray-300" />
-            <p>No se encontraron incapacidades.</p>
+            <p>No se encontraron comprobantes.</p>
           </div>
         </Card>
       ) : (
@@ -106,11 +106,10 @@ const RequestList = ({ showAll = false }) => {
                   </div>
                   <p className="font-medium text-gray-900 truncate">{r.nombreSolicitante}</p>
                   <p className="text-sm text-gray-500">
-                    {r.departamento} · {fmtDate(r.fechaInicio)} al {fmtDate(r.fechaFin)}
+                    {r.departamento}
+                    {r.tipoComprobante?.length > 0 && ` · ${r.tipoComprobante.join(', ')}`}
+                    {' · '}{fmtDate(r.fechaInicio)} al {fmtDate(r.fechaFin)}
                   </p>
-                  {r.motivo && (
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{r.motivo}</p>
-                  )}
                 </div>
                 <Button
                   variant="outline"
