@@ -1,5 +1,5 @@
 // src/modules/postVentaManagement/components/Tickets/modals/DeleteTicketModal/index.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import Button from '../../../../../../components/common/Button';
 import TentativeDate from '../../components/common/TentativeDate';
@@ -12,7 +12,17 @@ const DeleteTicketModal = ({
   processing = false,
   error = null,
 }) => {
+  const [reason, setReason] = useState('');
+
+  // Limpiar el motivo cada vez que se abre/cierra el modal
+  useEffect(() => {
+    if (isOpen) setReason('');
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const trimmedReason = reason.trim();
+  const canDelete = trimmedReason.length > 0 && !processing;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -64,6 +74,24 @@ const DeleteTicketModal = ({
           </dl>
         </div>
 
+        {/* Motivo de eliminación (requerido) */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Motivo de la eliminación <span className="text-error">*</span>
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            disabled={processing}
+            rows={3}
+            placeholder="Describa por qué se elimina esta ST..."
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Este motivo se incluirá en el correo de notificación.
+          </p>
+        </div>
+
         {/* Actions */}
         <div className="flex justify-end gap-3">
           <Button
@@ -75,8 +103,8 @@ const DeleteTicketModal = ({
           </Button>
           <Button
             variant="error"
-            onClick={() => onConfirm(ticket.id)}
-            disabled={processing}
+            onClick={() => onConfirm(trimmedReason)}
+            disabled={!canDelete}
           >
             {processing ? (
               <>

@@ -1319,6 +1319,9 @@ class PostVentaManagementService extends BaseGraphService {
           return '3';
         case 'correctiva-no cobrable':
           return '3';
+        case 'garantías':
+        case 'garantias':
+          return '3';
         case "instalación menor":
           return '1';
         default:

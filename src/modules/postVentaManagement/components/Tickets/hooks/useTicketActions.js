@@ -1,11 +1,13 @@
 // src/modules/postVentaManagement/components/Tickets/hooks/useTicketActions.js
 import { useState, useCallback } from "react";
+import { useMsal } from "@azure/msal-react";
 import { usePostVentaManagement } from "../../../context/postVentaManagementContext";
 import { MODAL_TYPES } from "../modals";
 import emailConfig from "../../../../expenseAudit/config/expenseAudit.config";
 
 export const useTicketActions = () => {
   const { service, loadPostVentaData, roles } = usePostVentaManagement();
+  const { accounts } = useMsal();
 
   // Modal state
   const [currentModal, setCurrentModal] = useState(null);
@@ -505,12 +507,76 @@ export const useTicketActions = () => {
     [service, closeModal, loadPostVentaData]
   );
 
-  const handleDeleteTicket = useCallback(async () => {
+  const handleDeleteTicket = useCallback(async (reason = "") => {
     if (!selectedTicket?.id) return;
 
     setProcessing(true);
     setError(null);
     try {
+      // 1) Enviar correo de notificación de eliminación ANTES de borrar
+      //    (después de borrar ya no tendríamos los datos de la ST).
+      //    Si el correo falla, no bloqueamos la eliminación: se registra el error.
+      try {
+        const ticketId = selectedTicket.id;
+
+        const ticketDetails = await service.client
+          .api(`/sites/${service.siteId}/lists/${service.config.lists.controlPV}/items/${ticketId}`)
+          .expand("fields")
+          .get();
+
+        const siteDetails = await service.client
+          .api(`/sites/${service.siteId}/lists/${service.config.lists.sites}/items/${ticketDetails.fields.SitioIDLookupId}`)
+          .expand("fields")
+          .get();
+
+        const buildingDetails = await service.client
+          .api(`/sites/${service.siteId}/lists/${service.config.lists.buildings}/items/${siteDetails.fields.EdificioIDLookupId}`)
+          .expand("fields")
+          .get();
+
+        const companyDetails = await service.client
+          .api(`/sites/${service.siteId}/lists/${service.config.lists.companies}/items/${buildingDetails.fields.EmpresaIDLookupId}`)
+          .expand("fields")
+          .get();
+
+        const systemName = (await service.client
+          .api(`/sites/${service.siteId}/lists/${service.config.lists.systems}/items/${ticketDetails.fields.SistemaIDLookupId}`)
+          .get()).fields.Title;
+
+        const deletedByName = accounts[0]?.name || accounts[0]?.username || "Usuario desconocido";
+        const deletedByEmail = accounts[0]?.username || "";
+        const deletedAt = new Date().toLocaleString("es-CR", {
+          dateStyle: "full",
+          timeStyle: "short",
+        });
+
+        const emailSubject = `ELIMINAR ST ${ticketDetails.fields.Title} / ${companyDetails.fields.Title} / ${ticketDetails.fields.Tipo} / ${systemName}`;
+        const emailContent = generateDeleteEmailContent({
+          st: ticketDetails.fields.Title,
+          type: ticketDetails.fields.Tipo,
+          system: systemName,
+          company: companyDetails.fields.Title,
+          building: buildingDetails.fields.Title,
+          site: siteDetails.fields.Title,
+          reason,
+          deletedByName,
+          deletedByEmail,
+          deletedAt,
+        });
+
+        await service.sendEmailWithRetry({
+          toRecipients: [supportEmail],
+          subject: emailSubject,
+          content: emailContent,
+        });
+      } catch (emailErr) {
+        console.error(
+          "No se pudo enviar el correo de eliminación de ST:",
+          emailErr?.message || emailErr
+        );
+      }
+
+      // 2) Eliminar la ST
       await service.deleteTicket(selectedTicket.id);
       await loadPostVentaData();
       closeModal();
@@ -519,7 +585,7 @@ export const useTicketActions = () => {
     } finally {
       setProcessing(false);
     }
-  }, [service, selectedTicket, closeModal, loadPostVentaData]);
+  }, [service, selectedTicket, closeModal, loadPostVentaData, supportEmail, accounts]);
 
 
   const handleFileDownload = useCallback(async (file) => {
@@ -603,3 +669,67 @@ export const useTicketActions = () => {
     handleReassignTechnicians,
   };
 };
+
+// Contenido HTML del correo de notificación cuando se elimina una ST
+const generateDeleteEmailContent = ({
+  st,
+  type,
+  system,
+  company,
+  building,
+  site,
+  reason,
+  deletedByName,
+  deletedByEmail,
+  deletedAt,
+}) => `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; }
+        .header { background-color: #b91c1c; color: white; padding: 20px; border-radius: 6px 6px 0 0; margin: -20px -20px 20px -20px; }
+        .header h1 { margin: 0; font-size: 22px; }
+        .section { margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 6px; }
+        .section-title { font-size: 18px; font-weight: bold; color: #b91c1c; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; }
+        .info-row { display: block; margin-bottom: 8px; }
+        .label { font-weight: bold; color: #555555; }
+        .value { color: #333333; }
+        .reason-section { background-color: #fef2f2; border-left: 4px solid #b91c1c; padding: 12px; margin: 15px 0; border-radius: 4px; }
+        .reason-title { font-weight: bold; margin-bottom: 8px; color: #333; }
+        .reason-content { white-space: pre-wrap; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ST ${st} - Eliminada</h1>
+        </div>
+
+        <p>Se ha <strong>eliminado</strong> una ST del sistema de Control Post Venta. A continuación el detalle:</p>
+
+        <div class="section">
+            <div class="section-title">Información de la ST</div>
+            <div class="info-row"><span class="label">ST:</span> <span class="value">${st}</span></div>
+            <div class="info-row"><span class="label">Tipo:</span> <span class="value">${type || "-"}</span></div>
+            <div class="info-row"><span class="label">Sistema:</span> <span class="value">${system || "-"}</span></div>
+            <div class="info-row"><span class="label">Empresa:</span> <span class="value">${company || "-"}</span></div>
+            <div class="info-row"><span class="label">Edificio:</span> <span class="value">${building || "-"}</span></div>
+            <div class="info-row"><span class="label">Sitio:</span> <span class="value">${site || "-"}</span></div>
+        </div>
+
+        <div class="reason-section">
+            <div class="reason-title">🗑️ Motivo de la eliminación:</div>
+            <div class="reason-content">${reason || "No se indicó motivo."}</div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Responsable</div>
+            <div class="info-row"><span class="label">Eliminada por:</span> <span class="value">${deletedByName}</span></div>
+            ${deletedByEmail ? `<div class="info-row"><span class="label">Correo:</span> <span class="value">${deletedByEmail}</span></div>` : ""}
+            <div class="info-row"><span class="label">Fecha:</span> <span class="value">${deletedAt}</span></div>
+        </div>
+    </div>
+</body>
+</html>`;

@@ -41,7 +41,7 @@ const TicketForm = () => {
 
     // Solo generar automáticamente si NO está en modo manual
     if (!isManualSTEnabled) {
-      if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable") {
+      if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable" || formData.type === "Garantías") {
         const preview = `${year}${month}-3xxx`;
         setStPreview(preview);
         setFormData(prev => ({ ...prev, st: preview }));
@@ -128,7 +128,7 @@ const TicketForm = () => {
         ...prev,
         [name]: value,
       }));
-    } else if (name === "st" && !isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable")) {
+    } else if (name === "st" && !isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable" || formData.type === "Garantías")) {
       return;
     } else {
       setFormData((prev) => {
@@ -161,7 +161,7 @@ const TicketForm = () => {
       throw new Error("La fecha no puede ser superior al día de hoy");
     }
 
-    if (formData.type !== "Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Instalación Menor" && !formData.st.trim()) {
+    if (formData.type !== "Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Instalación Menor" && formData.type !== "Garantías" && !formData.st.trim()) {
       return "El número de ST es requerido";
     }
     if (!formData.scope.trim()) {
@@ -198,7 +198,7 @@ const TicketForm = () => {
     setError(null);
     try {
       let finalFormData = { ...formData };
-      if (!isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable")) {
+      if (!isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable" || formData.type === "Garantías")) {
         const stNumber = await service.getNextSTNumberRepair(3, formData.type);
         finalFormData.st = stNumber;
       } else {
@@ -382,12 +382,12 @@ const TicketForm = () => {
                 name="st"
                 value={formData.st}
                 onChange={handleInputChange}
-                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${!isManualSTEnabled && ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable"].includes(formData.type)
+                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${!isManualSTEnabled && ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable", "Garantías"].includes(formData.type)
                   ? "bg-gray-100" : ""}`}
                 placeholder="Número de ST"
                 readOnly={
                   !isManualSTEnabled &&
-                  ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable"].includes(formData.type)
+                  ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable", "Garantías"].includes(formData.type)
                 }
                 required
               />
