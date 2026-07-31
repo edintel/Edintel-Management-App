@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Download, Filter, Search, AlertCircle, CheckCircle, Clock, ChevronUp, ChevronDown } from 'lucide-react';
+import { Calendar, Download, Filter, Search, AlertCircle, CheckCircle, Clock, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { usePostVentaManagement } from '../../context/postVentaManagementContext';
 import Card from '../../../../components/common/Card';
 import Button from '../../../../components/common/Button';
@@ -24,6 +24,9 @@ const Reports = () => {
   });
 
   const [expandedRows, setExpandedRows] = useState({});
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     // Establecer fechas por defecto (último mes)
@@ -127,9 +130,9 @@ const Reports = () => {
       // Calcular duración del trabajo (trabajo iniciado → trabajo finalizado)
       const workDuration = calculateWorkDuration(ticket.workStartDate, ticket.workEndDate);
 
-      // Determinar si cumple SLA (2 días hábiles para correctivos)
+      // Determinar si cumple SLA (3 días hábiles para correctivos)
       const isCorrectiveType = ticket.type?.includes('Correctiva');
-      const meetsSLA = !isCorrectiveType || (resolutionDays !== null && resolutionDays <= 2);
+      const meetsSLA = !isCorrectiveType || (resolutionDays !== null && resolutionDays <= 3);
 
       return {
         ...ticket,
@@ -216,6 +219,25 @@ const Reports = () => {
     return sorted;
   }, [filteredTickets, sortConfig]);
 
+  // Resetear a la primera página cuando cambian filtros, orden o tamaño de página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, sortConfig, pageSize]);
+
+  // Paginar tickets
+  const totalPages = Math.max(1, Math.ceil(sortedTickets.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedTickets = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedTickets.slice(start, start + pageSize);
+  }, [sortedTickets, currentPage, pageSize]);
+
   // Estadísticas
   const statistics = useMemo(() => {
 
@@ -282,7 +304,7 @@ const Reports = () => {
       'Fecha Cierre': formatDateTime(ticket.closeDate),
       'Días Resolución': ticket.resolutionDays || '-',
       'Duración Trabajo': formatWorkDuration(ticket.workDuration),
-      'Cumple (2 días)': ticket.isCorrectiveType ? (ticket.meetsSLA ? 'Sí' : 'No') : 'N/A',
+      'Cumple (3 días)': ticket.isCorrectiveType ? (ticket.meetsSLA ? 'Sí' : 'No') : 'N/A',
       'Técnicos Asignados': ticket.technicians?.map(t => t.LookupValue).join(', ') || '-',
       'Notas': ticket.notes || '-',
       'Link': ticket.link || '-'
@@ -356,7 +378,7 @@ const Reports = () => {
             <div className="text-3xl font-bold">{statistics.slaCompliance}%</div>
             <div className="text-green-100">Cumplimiento</div>
             <div className="text-xs text-green-200 mt-1">
-              (Correctivos ≤ 2 días hábiles)
+              (Correctivos ≤ 3 días hábiles)
             </div>
           </div>
         </Card>
@@ -622,7 +644,7 @@ const Reports = () => {
                     </td>
                   </tr>
                 ) : (
-                  sortedTickets.map(ticket => (
+                  paginatedTickets.map(ticket => (
                     <React.Fragment key={ticket.id}>
                       <tr className="border-b hover:bg-gray-50">
                         <td className="px-2 py-2">
@@ -726,16 +748,73 @@ const Reports = () => {
             </table>
           </div>
 
+          {/* Paginación */}
+          {sortedTickets.length > 0 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Mostrando {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, sortedTickets.length)} de {sortedTickets.length}</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="ml-2 px-2 py-1 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value={10}>10 / página</option>
+                  <option value={25}>25 / página</option>
+                  <option value={50}>50 / página</option>
+                  <option value={100}>100 / página</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg border hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Primera página"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg border hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="px-3 text-sm text-gray-700">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg border hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Página siguiente"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg border hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Última página"
+                >
+                  <ChevronsRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Leyenda */}
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center">
                 <CheckCircle className="text-green-600 mr-1" size={14} />
-                <span>Cumple (≤2 días hábiles)</span>
+                <span>Cumple (≤3 días hábiles)</span>
               </div>
               <div className="flex items-center">
                 <AlertCircle className="text-red-600 mr-1" size={14} />
-                <span>No cumple  (2 días hábiles)</span>
+                <span>No cumple  (3 días hábiles)</span>
               </div>
               <div className="flex items-center">
                 <Clock className="text-gray-400 mr-1" size={14} />
