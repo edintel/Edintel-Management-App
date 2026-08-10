@@ -4,11 +4,8 @@ const FERIADOS_FIJOS = [
   { mes: 4, dia: 11 },
   { mes: 5, dia: 1 },
   { mes: 7, dia: 25 },
-  { mes: 8, dia: 2 },
   { mes: 8, dia: 15 },
-  { mes: 8, dia: 31 },
   { mes: 9, dia: 15 },
-  { mes: 12, dia: 1 },
   { mes: 12, dia: 25 },
 ];
 
