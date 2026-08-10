@@ -17,11 +17,8 @@ const FERIADOS_FIJOS = [
   { mes: 4, dia: 11 },   // 11 abril - Juan Santamaría
   { mes: 5, dia: 1 },    // 1 mayo - Día del Trabajo
   { mes: 7, dia: 25 },   // 25 julio - Anexión Guanacaste
-  { mes: 8, dia: 2 },    // 2 agosto - Virgen de los Ángeles
   { mes: 8, dia: 15 },   // 15 agosto - Día de la Madre
-  { mes: 8, dia: 31 },   // 31 agosto - Día de la Persona Negra
   { mes: 9, dia: 15 },   // 15 septiembre - Independencia
-  { mes: 12, dia: 1 },   // 1 diciembre - Abolición del Ejército
   { mes: 12, dia: 25 },  // 25 diciembre - Navidad
 ];
 
