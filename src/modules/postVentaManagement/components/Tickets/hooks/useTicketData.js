@@ -1,6 +1,15 @@
 import { useMemo } from "react";
 import { usePostVentaManagement } from "../../../context/postVentaManagementContext";
 
+// Normaliza texto para búsqueda: minúsculas y sin tildes/diacríticos
+// para que "ingenieria" encuentre "Ingeniería".
+const normalizeText = (text) =>
+  (text ?? "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+
 export const useTicketData = ({
   searchTerm = "",
   startDate = "",
@@ -124,14 +133,14 @@ export const useTicketData = ({
 
         // Search term filter
         if (searchTerm) {
-          const search = searchTerm.toLowerCase();
+          const search = normalizeText(searchTerm);
           const siteDetails = getSiteDetails(ticket.siteId);
           return (
-            ticket.stNumber?.toLowerCase().includes(search) ||
-            siteDetails?.site?.name?.toLowerCase().includes(search) ||
-            siteDetails?.building?.name?.toLowerCase().includes(search) ||
-            siteDetails?.company?.name?.toLowerCase().includes(search) ||
-            ticket.type?.toLowerCase().includes(search)
+            normalizeText(ticket.stNumber).includes(search) ||
+            normalizeText(siteDetails?.site?.name).includes(search) ||
+            normalizeText(siteDetails?.building?.name).includes(search) ||
+            normalizeText(siteDetails?.company?.name).includes(search) ||
+            normalizeText(ticket.type).includes(search)
           );
         }
 
