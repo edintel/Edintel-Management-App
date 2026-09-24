@@ -20,6 +20,8 @@ const FERIADOS_FIJOS = [
   { mes: 8, dia: 15 },   // 15 agosto - Día de la Madre
   { mes: 9, dia: 15 },   // 15 septiembre - Independencia
   { mes: 12, dia: 25 },  // 25 diciembre - Navidad
+  { mes: 8 , dia: 31 },
+  { mes: 12, dia: 1 },
 ];
 
 /**
@@ -39,7 +41,7 @@ const HORARIOS = {
  */
 const PERIODOS_BLOQUEO = {
   PRIMER_PERIODO: { inicio: 9, fin: 14 },  // Antes del día 15
-  SEGUNDO_PERIODO: { inicio: 24, fin: 29 }, // Antes del día 30
+  SEGUNDO_PERIODO: { inicio: 25, fin: 29 }, // Antes del día 30
 };
 
 // ============================================
