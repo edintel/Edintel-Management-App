@@ -4,11 +4,12 @@ const FERIADOS_FIJOS = [
   { mes: 4, dia: 11 },
   { mes: 5, dia: 1 },
   { mes: 7, dia: 25 },
+  { mes: 8, dia: 2 },
   { mes: 8, dia: 15 },
+  { mes: 8, dia: 31 },
   { mes: 9, dia: 15 },
-  { mes: 12, dia: 25 },
-  { mes: 8 , dia: 31 },
   { mes: 12, dia: 1 },
+  { mes: 12, dia: 25 },
 ];
 
 export const calcularPascua = (year) => {
@@ -128,8 +129,7 @@ export const validarRangoVacaciones = (fechaInicio, fechaFin) => {
     return { valid: false, message: 'La fecha de fin no puede ser anterior a la fecha de inicio' };
   }
 
-  const validAntelacion = validarAntelacion(fechaInicio);
-  if (!validAntelacion.valid) return validAntelacion;
+  // Nota: se eliminó el requisito de antelación mínima para solicitar vacaciones.
 
   const dias = calcularDiasHabiles(fechaInicio, fechaFin);
   if (dias === 0) {
@@ -140,9 +140,12 @@ export const validarRangoVacaciones = (fechaInicio, fechaFin) => {
 };
 
 export const obtenerFechaMinima = () => {
-  const minFecha = new Date();
-  minFecha.setDate(minFecha.getDate() + 2);
-  return minFecha.toISOString().split('T')[0];
+  // Sin límite de antelación: la fecha mínima es hoy (no se permiten fechas pasadas).
+  const hoy = new Date();
+  const year = hoy.getFullYear();
+  const month = String(hoy.getMonth() + 1).padStart(2, '0');
+  const day = String(hoy.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export default {

@@ -23,6 +23,7 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
     numeroCedula: '',
     fechaInicio: '',
     fechaFin: '',
+    motivo: '',
   });
 
   const fechaMinima = obtenerFechaMinima();
@@ -84,6 +85,7 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
         departamento: formData.departamento,
         nombreSolicitante: formData.nombreSolicitante,
         numeroCedula: formData.numeroCedula,
+        motivo: formData.motivo,
         requesterRole: userDepartmentRole?.chainRole || 'Colaborador',
       };
 
@@ -178,7 +180,7 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
                 value={formData.numeroCedula}
                 onChange={e => setFormData(prev => ({ ...prev, numeroCedula: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm disabled:opacity-50"
-                placeholder="Ej: 123456789"
+                placeholder="Ej: 1-2345-6789"
                 required
                 disabled={isSubmitting}
               />
@@ -192,7 +194,7 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
               </div>
 
               <p className="text-xs text-gray-600 mb-4">
-                Las vacaciones deben solicitarse con al menos 2 días de antelación. No se permiten fines de semana ni feriados.
+                No se permiten fines de semana ni feriados.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -236,6 +238,20 @@ const RequestForm = ({ onClose, initialDepartamento = '', initialNombreSolicitan
               )}
             </div>
 
+            {/* Motivo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Motivo / Observaciones
+              </label>
+              <textarea
+                value={formData.motivo}
+                onChange={e => setFormData(prev => ({ ...prev, motivo: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm disabled:opacity-50"
+                placeholder="Opcional: descripción o comentarios adicionales"
+                rows={3}
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
 
           {/* Footer */}
