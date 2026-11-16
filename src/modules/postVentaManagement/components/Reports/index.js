@@ -130,9 +130,11 @@ const Reports = () => {
       // Calcular duración del trabajo (trabajo iniciado → trabajo finalizado)
       const workDuration = calculateWorkDuration(ticket.workStartDate, ticket.workEndDate);
 
-      // Determinar si cumple SLA (2 días hábiles para correctivos)
+      // Los KPIs (cumplimiento SLA y tiempo de respuesta) solo aplican a las emergencias
+      // (2 días hábiles). Los demás tipos no cuentan para el cumplimiento.
       const isCorrectiveType = ticket.type?.includes('Correctiva');
-      const meetsSLA = !isCorrectiveType || (resolutionDays !== null && resolutionDays <= 2);
+      const isEmergency = ticket.type === 'Emergencia';
+      const meetsSLA = !isEmergency || (resolutionDays !== null && resolutionDays <= 2);
 
       return {
         ...ticket,
@@ -143,7 +145,8 @@ const Reports = () => {
         resolutionDays,
         workDuration,
         meetsSLA,
-        isCorrectiveType
+        isCorrectiveType,
+        isEmergency
       };
     });
   }, [serviceTickets, sites, buildings, companies, systems]);
@@ -243,24 +246,25 @@ const Reports = () => {
 
    
 
-    // Las emergencias NO cuentan para el reporte de tiempo de respuesta/acción (SLA ni tiempo promedio).
-    const correctiveTickets = filteredTickets.filter(t => t.isCorrectiveType && t.type !== 'Emergencia');
+    // Solo las emergencias cuentan para los KPIs (cumplimiento SLA y tiempo promedio de resolución).
+    const kpiTickets = filteredTickets.filter(t => t.isEmergency);
     // Filtrar por tickets que tengan workEndDate (trabajo finalizado)
-    const completedCorrectiveTickets = correctiveTickets.filter(t => t.workEndDate);
-    const meetingSLA = completedCorrectiveTickets.filter(t => t.meetsSLA);
+    const completedKpiTickets = kpiTickets.filter(t => t.workEndDate);
+    const meetingSLA = completedKpiTickets.filter(t => t.meetsSLA);
 
     return {
       total: filteredTickets.length,
-      corrective: correctiveTickets.length,
+      corrective: filteredTickets.filter(t => t.isCorrectiveType).length,
+      emergency: kpiTickets.length,
       preventive: filteredTickets.filter(t => t.type === 'Instalación Menor').length,
       completed: filteredTickets.filter(t => t.state === 'Cerrada').length,
       inProgress: filteredTickets.filter(t => t.state !== 'Cerrada' && t.state !== 'Iniciada').length,
       pending: filteredTickets.filter(t => t.state === 'Iniciada').length,
-      slaCompliance: completedCorrectiveTickets.length > 0
-        ? Math.round((meetingSLA.length / completedCorrectiveTickets.length) * 100)
+      slaCompliance: completedKpiTickets.length > 0
+        ? Math.round((meetingSLA.length / completedKpiTickets.length) * 100)
         : 100,
-      avgResolutionTime: completedCorrectiveTickets.length > 0
-        ? Math.round(completedCorrectiveTickets.reduce((acc, t) => acc + (t.resolutionDays || 0), 0) / completedCorrectiveTickets.length * 10) / 10
+      avgResolutionTime: completedKpiTickets.length > 0
+        ? Math.round(completedKpiTickets.reduce((acc, t) => acc + (t.resolutionDays || 0), 0) / completedKpiTickets.length * 10) / 10
         : 0
     };
   }, [filteredTickets]);
@@ -305,7 +309,7 @@ const Reports = () => {
       'Fecha Cierre': formatDateTime(ticket.closeDate),
       'Días Resolución': ticket.resolutionDays || '-',
       'Duración Trabajo': formatWorkDuration(ticket.workDuration),
-      'Cumple (2 días)': ticket.isCorrectiveType ? (ticket.meetsSLA ? 'Sí' : 'No') : 'N/A',
+      'Cumple (2 días)': ticket.isEmergency ? (ticket.meetsSLA ? 'Sí' : 'No') : 'N/A',
       'Técnicos Asignados': ticket.technicians?.map(t => t.LookupValue).join(', ') || '-',
       'Notas': ticket.notes || '-',
       'Link': ticket.link || '-'
@@ -379,7 +383,7 @@ const Reports = () => {
             <div className="text-3xl font-bold">{statistics.slaCompliance}%</div>
             <div className="text-green-100">Cumplimiento</div>
             <div className="text-xs text-green-200 mt-1">
-              (Correctivos ≤ 2 días hábiles)
+              (Emergencias ≤ 2 días hábiles)
             </div>
           </div>
         </Card>
@@ -389,7 +393,7 @@ const Reports = () => {
             <div className="text-3xl font-bold">{statistics.avgResolutionTime}</div>
             <div className="text-yellow-100">Días Promedio Resolución</div>
             <div className="text-xs text-yellow-200 mt-1">
-              (Solo correctivos cerrados)
+              (Solo emergencias cerradas)
             </div>
           </div>
         </Card>
@@ -683,7 +687,7 @@ const Reports = () => {
                           {formatWorkDuration(ticket.workDuration)}
                         </td>
                         <td className="px-2 py-2 text-center">
-                          {ticket.isCorrectiveType ? (
+                          {ticket.isEmergency ? (
                             ticket.meetsSLA ? (
                               <CheckCircle className="inline text-green-600" size={16} />
                             ) : (
