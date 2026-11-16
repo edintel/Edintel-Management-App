@@ -41,7 +41,7 @@ const TicketForm = () => {
 
     // Solo generar automáticamente si NO está en modo manual
     if (!isManualSTEnabled) {
-      if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable" || formData.type === "Garantías") {
+      if (formData.type === "Correctiva-No Cobrable" || formData.type === "Correctiva-Cobrable" || formData.type === "Garantías" || formData.type === "Emergencia") {
         const preview = `${year}${month}-3xxx`;
         setStPreview(preview);
         setFormData(prev => ({ ...prev, st: preview }));
@@ -128,7 +128,7 @@ const TicketForm = () => {
         ...prev,
         [name]: value,
       }));
-    } else if (name === "st" && !isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable" || formData.type === "Garantías")) {
+    } else if (name === "st" && !isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable" || formData.type === "Garantías" || formData.type === "Emergencia")) {
       return;
     } else {
       setFormData((prev) => {
@@ -161,7 +161,7 @@ const TicketForm = () => {
       throw new Error("La fecha no puede ser superior al día de hoy");
     }
 
-    if (formData.type !== "Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Instalación Menor" && formData.type !== "Garantías" && !formData.st.trim()) {
+    if (formData.type !== "Correctiva-No Cobrable" && formData.type !== "Correctiva-Cobrable" && formData.type !== "Instalación Menor" && formData.type !== "Garantías" && formData.type !== "Emergencia" && !formData.st.trim()) {
       return "El número de ST es requerido";
     }
     if (!formData.scope.trim()) {
@@ -198,7 +198,7 @@ const TicketForm = () => {
     setError(null);
     try {
       let finalFormData = { ...formData };
-      if (!isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable" || formData.type === "Garantías")) {
+      if (!isManualSTEnabled && (formData.type === "Correctiva-Cobrable" || formData.type === "Instalación Menor" || formData.type === "Correctiva-No Cobrable" || formData.type === "Garantías" || formData.type === "Emergencia")) {
         const stNumber = await service.getNextSTNumberRepair(3, formData.type);
         finalFormData.st = stNumber;
       } else {
@@ -288,21 +288,18 @@ const TicketForm = () => {
         waitingEquiment: finalFormData.waitingEquiment,
       });
 
-      // El correo va en su propio bloque: si falla, la ST ya fue creada y no se pierde
       try {
         await service.sendEmailWithRetry({
           toRecipients: [supportEmail],
           subject: emailSubject,
           content: emailContent,
         });
-        // Limpiar cualquier correo pendiente anterior de esta sesión
         localStorage.removeItem('pendingSTEmail');
       } catch (emailErr) {
         console.error(
           `[ST ${finalFormData.st}] Correo no enviado después de 2 intentos — ` +
           `HTTP ${emailErr.statusCode || 'N/A'} | Graph: ${emailErr.graphCode || 'N/A'} | ${emailErr.message}`
         );
-        // Guardar datos para reenvío posterior (solo en este navegador/pestaña)
         localStorage.setItem('pendingSTEmail', JSON.stringify({
           stNumber: finalFormData.st,
           ticketId: response.id,
@@ -337,7 +334,7 @@ const TicketForm = () => {
             <span>{error}</span>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" data-gramm="false" data-gramm_editor="false" spellCheck={false}>
           {/* Ticket Type and Number */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -357,6 +354,7 @@ const TicketForm = () => {
                 <option value="Instalación Menor">Instalación Menor</option>
                 <option value="Servicios Adicionales">Servicios Adicionales</option>
                 <option value="Garantías">Garantías</option>
+                <option value="Emergencia">Emergencia</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -382,12 +380,12 @@ const TicketForm = () => {
                 name="st"
                 value={formData.st}
                 onChange={handleInputChange}
-                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${!isManualSTEnabled && ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable", "Garantías"].includes(formData.type)
+                className={`w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary ${!isManualSTEnabled && ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable", "Garantías", "Emergencia"].includes(formData.type)
                   ? "bg-gray-100" : ""}`}
                 placeholder="Número de ST"
                 readOnly={
                   !isManualSTEnabled &&
-                  ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable", "Garantías"].includes(formData.type)
+                  ["Correctiva-Cobrable", "Instalación Menor", "Correctiva-No Cobrable", "Garantías", "Emergencia"].includes(formData.type)
                 }
                 required
               />
@@ -554,7 +552,7 @@ const TicketForm = () => {
               onDisplayNameChange={updateAdminDocName}
               showDisplayName={true}
               maxSize={20 * 1024 * 1024}
-              maxFiles={10}
+              maxFiles={5}
               error={adminDocsError}
               disabled={processing}
             />

@@ -392,6 +392,7 @@ const TicketEditForm = ({
             <option value="Instalación Menor">Instalación Menor</option>
             <option value="Servicios Adicionales">Servicios Adicionales</option>
             <option value="Garantías">Garantías</option>
+            <option value="Emergencia">Emergencia</option>
           </select>
         </div>
       </div>
@@ -571,7 +572,7 @@ const TicketEditForm = ({
             files={serviceTicketsFiles.files}
             onFilesChange={serviceTicketsFiles.addFiles}
             onRemove={serviceTicketsFiles.removeFile}
-            maxFiles={10}
+            maxFiles={5}
             maxSize={10 * 1024 * 1024}
             error={errors.serviceTickets}
           />
@@ -696,7 +697,7 @@ const TicketEditForm = ({
                 adminDocsFiles.setFiles(newFiles);
               }}
               showDisplayName={true}
-              maxFiles={10}
+              maxFiles={5}
               maxSize={20 * 1024 * 1024}
               error={errors.adminDocs}
               disabled={processing}

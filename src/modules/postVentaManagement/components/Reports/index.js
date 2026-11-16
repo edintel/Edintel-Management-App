@@ -130,9 +130,9 @@ const Reports = () => {
       // Calcular duración del trabajo (trabajo iniciado → trabajo finalizado)
       const workDuration = calculateWorkDuration(ticket.workStartDate, ticket.workEndDate);
 
-      // Determinar si cumple SLA (3 días hábiles para correctivos)
+      // Determinar si cumple SLA (2 días hábiles para correctivos)
       const isCorrectiveType = ticket.type?.includes('Correctiva');
-      const meetsSLA = !isCorrectiveType || (resolutionDays !== null && resolutionDays <= 3);
+      const meetsSLA = !isCorrectiveType || (resolutionDays !== null && resolutionDays <= 2);
 
       return {
         ...ticket,
@@ -243,7 +243,8 @@ const Reports = () => {
 
    
 
-    const correctiveTickets = filteredTickets.filter(t => t.isCorrectiveType);
+    // Las emergencias NO cuentan para el reporte de tiempo de respuesta/acción (SLA ni tiempo promedio).
+    const correctiveTickets = filteredTickets.filter(t => t.isCorrectiveType && t.type !== 'Emergencia');
     // Filtrar por tickets que tengan workEndDate (trabajo finalizado)
     const completedCorrectiveTickets = correctiveTickets.filter(t => t.workEndDate);
     const meetingSLA = completedCorrectiveTickets.filter(t => t.meetsSLA);
@@ -304,7 +305,7 @@ const Reports = () => {
       'Fecha Cierre': formatDateTime(ticket.closeDate),
       'Días Resolución': ticket.resolutionDays || '-',
       'Duración Trabajo': formatWorkDuration(ticket.workDuration),
-      'Cumple (3 días)': ticket.isCorrectiveType ? (ticket.meetsSLA ? 'Sí' : 'No') : 'N/A',
+      'Cumple (2 días)': ticket.isCorrectiveType ? (ticket.meetsSLA ? 'Sí' : 'No') : 'N/A',
       'Técnicos Asignados': ticket.technicians?.map(t => t.LookupValue).join(', ') || '-',
       'Notas': ticket.notes || '-',
       'Link': ticket.link || '-'
@@ -378,7 +379,7 @@ const Reports = () => {
             <div className="text-3xl font-bold">{statistics.slaCompliance}%</div>
             <div className="text-green-100">Cumplimiento</div>
             <div className="text-xs text-green-200 mt-1">
-              (Correctivos ≤ 3 días hábiles)
+              (Correctivos ≤ 2 días hábiles)
             </div>
           </div>
         </Card>
@@ -454,6 +455,7 @@ const Reports = () => {
                 <option value="Proyectos">Proyectos</option>
                 <option value="Servicios Adicionales">Servicios Adicionales</option>
                 <option value="Garantías">Garantías</option>
+                <option value="Emergencia">Emergencia</option>
               </select>
             </div>
 
@@ -810,11 +812,11 @@ const Reports = () => {
             <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center">
                 <CheckCircle className="text-green-600 mr-1" size={14} />
-                <span>Cumple (≤3 días hábiles)</span>
+                <span>Cumple (≤2 días hábiles)</span>
               </div>
               <div className="flex items-center">
                 <AlertCircle className="text-red-600 mr-1" size={14} />
-                <span>No cumple  (3 días hábiles)</span>
+                <span>No cumple  (2 días hábiles)</span>
               </div>
               <div className="flex items-center">
                 <Clock className="text-gray-400 mr-1" size={14} />
